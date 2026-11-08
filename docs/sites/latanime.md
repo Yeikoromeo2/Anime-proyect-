@@ -197,3 +197,7 @@ Servidores encontrados (episodio 1 de Devils' Crest Castellano):
   "coverPlaceholders": ["/img/anime.png", "/img/capblank.png"]
 }
 ```
+
+## Proveedor (Fase 3)
+
+Implementado en `providers/latanime/` (`"engine": "latanime"`): novedades, directorio con filtros combinables (año, género, categoría, letra) más "En emisión" (`/emision`), ficha y servidores (Base64). La búsqueda por texto lanza `SiteProtectedException` hasta que exista la verificación de Cloudflare en la app (Fase 7). La estructura de `/buscar` sigue **sin verificar**: se asume la misma tarjeta del directorio.

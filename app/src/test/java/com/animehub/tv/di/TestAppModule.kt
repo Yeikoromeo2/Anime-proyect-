@@ -20,25 +20,53 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import javax.inject.Singleton
 
 /**
- * En las pruebas de UI: base de datos en memoria y red simulada. Las páginas de Anime Ninja
- * se sirven desde los HTML guardados; cualquier otra petición responde 503.
+ * En las pruebas de UI: base de datos en memoria y red simulada. Las páginas de Anime Ninja y
+ * Latanime se sirven desde los HTML guardados (la búsqueda de Latanime devuelve su desafío de
+ * Cloudflare, como en la realidad); cualquier otra petición responde 503.
  */
 @Module
 @TestInstallIn(components = [SingletonComponent::class], replaces = [AppModule::class])
 object TestAppModule {
 
-    fun fixtureFor(url: HttpUrl): String? {
-        if (url.host != "veranime.ninja") return null
+    /** Página guardada y código HTTP para cada URL de los sitios (null = sin red). */
+    fun fixtureFor(url: HttpUrl): Pair<String, Int>? = when (url.host) {
+        "veranime.ninja" -> ninja(url)?.let { it to 200 }
+        "latanime.org" -> latanime(url)
+        else -> null
+    }
+
+    private fun ninja(url: HttpUrl): String? {
         val query = url.queryParameter("s")
+        val path = url.encodedPath
         return when {
             query == "one piece" -> "animeninja/busqueda_one_piece.html"
-            query != null && url.encodedPath.startsWith("/page/2/") -> "animeninja/busqueda_dragon_p2.html"
+            query != null && path.startsWith("/page/2/") -> "animeninja/busqueda_dragon_p2.html"
             query != null -> "animeninja/busqueda_dragon.html"
-            url.encodedPath == "/" -> "animeninja/inicio.html"
-            url.encodedPath == "/anime/one-piece/" -> "animeninja/anime_one_piece.html"
-            url.encodedPath.startsWith("/anime/") -> "animeninja/anime_tank_chair.html"
+            path == "/" -> "animeninja/inicio.html"
+            path == "/anime/" -> "animeninja/directorio_anime.html"
+            path.startsWith("/genero/") -> "animeninja/genero_accion.html"
+            path.startsWith("/pelicula/") && path.count { it == '/' } <= 2 -> "animeninja/directorio_peliculas.html"
+            path == "/anime/one-piece/" -> "animeninja/anime_one_piece.html"
+            path.startsWith("/anime/") -> "animeninja/anime_tank_chair.html"
             else -> null
         }
+    }
+
+    private fun latanime(url: HttpUrl): Pair<String, Int>? {
+        val path = url.encodedPath
+        val file = when {
+            path == "/" -> "latanime/inicio.html"
+            path == "/buscar" -> return "cloudflare/latanime_buscar_interactive.html" to 403
+            path == "/animes" && url.queryParameter("fecha") == "2024" && url.queryParameter("genero") == "accion" ->
+                if (url.queryParameter("p") == "2") "latanime/directorio_2024_accion_p2.html" else "latanime/directorio_2024_accion.html"
+            path == "/animes" && url.queryParameter("categoria") == "ova" -> "latanime/directorio_ova.html"
+            path == "/animes" -> "latanime/directorio.html"
+            path == "/emision" -> "latanime/emision.html"
+            path.startsWith("/anime/") -> "latanime/anime_finalizado.html"
+            path.startsWith("/ver/") -> "latanime/episodio.html"
+            else -> null
+        }
+        return file?.let { it to 200 }
     }
 
     @Provides
@@ -49,9 +77,10 @@ object TestAppModule {
             Response.Builder()
                 .request(chain.request())
                 .protocol(Protocol.HTTP_1_1)
-                .code(if (fixture != null) 200 else 503)
+                .code(fixture?.second ?: 503)
                 .message(if (fixture != null) "OK" else "Sin red en las pruebas")
-                .body((fixture?.let(Fixtures::read) ?: "").toResponseBody())
+                .apply { if (fixture?.second == 403) header("cf-mitigated", "challenge") }
+                .body((fixture?.first?.let(Fixtures::read) ?: "").toResponseBody())
                 .build()
         }
         .build()

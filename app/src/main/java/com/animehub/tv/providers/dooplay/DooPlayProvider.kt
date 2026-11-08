@@ -5,6 +5,7 @@ import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.net.HtmlFetcher
 import com.animehub.tv.domain.model.AnimeCard
 import com.animehub.tv.domain.model.AnimeDetail
+import com.animehub.tv.domain.model.Canonical
 import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.FilterGroup
 import com.animehub.tv.domain.model.FilterOption
@@ -57,13 +58,16 @@ class DooPlayProvider(site: EffectiveSite, private val fetcher: HtmlFetcher) : S
             else -> config.filters.firstOrNull { it.id == "type" }?.options?.firstOrNull()?.value ?: "/anime/"
         }
         val path = if (page > 1) base.trimEnd('/') + "/page/$page/" else base
-        return parser.archive(document(s.url(path), cacheMs = SEARCH_CACHE), page)
+        val result = parser.archive(document(s.url(path), cacheMs = SEARCH_CACHE), page)
+        // DooPlay no combina filtros: si se eligieron género y tipo, se usa solo el género.
+        val ignored = genre != null && genreTemplate != null && type != null
+        return if (ignored) result.copy(note = "$name no combina filtros: se usó solo el género") else result
     }
 
     override suspend fun availableFilters(): List<FilterGroup> = config.filters.mapNotNull { f ->
         val options = when (f.source) {
             "html" -> f.links?.let { links -> parser.genres(document(s.url(f.page ?: "/"), cacheMs = FILTERS_CACHE), links) }.orEmpty()
-            else -> f.options.map { FilterOption(it.value, it.label) }
+            else -> f.options.map { FilterOption(it.value, it.label, it.canonical ?: Canonical.of(it.label)) }
         }
         options.takeIf { it.isNotEmpty() }?.let { FilterGroup(f.id, f.label, f.multi, it) }
     }

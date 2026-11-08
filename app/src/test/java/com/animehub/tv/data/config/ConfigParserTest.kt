@@ -25,7 +25,7 @@ class ConfigParserTest {
         val latanime = config.sites.first { it.id == "latanime" }
         assertFalse(latanime.isPending)
         assertTrue(latanime.selectors.containsKey("card"))
-        assertEquals(4, latanime.filters.size)
+        assertEquals(listOf("year", "genre", "type", "letter", "status"), latanime.filters.map { it.id })
         val flv = config.sites.first { it.id == "animeflv" }
         assertTrue(flv.isPending)
     }

@@ -12,6 +12,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Recuerda si la pantalla ya dio su foco inicial, para no "robar" el foco después. */
 @Stable
@@ -24,20 +25,23 @@ class InitialFocusState {
 fun rememberInitialFocusState(): InitialFocusState = remember { InitialFocusState() }
 
 /**
- * Da el foco a este elemento cuando aparece. Reintenta durante unos fotogramas porque los
- * diálogos (otra ventana) y las listas que esperan datos no están listos en el primer intento.
+ * Da el foco a este elemento cuando aparece. Reintenta durante unos segundos porque los
+ * diálogos (otra ventana), las listas que esperan datos y las transiciones entre pantallas
+ * no están listos en el primer intento.
  * Solo actúa una vez por [state].
  */
 fun Modifier.initialFocus(state: InitialFocusState): Modifier = composed {
     val requester = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(state) {
-        var attempts = 0
-        while (!state.done && attempts < MAX_ATTEMPTS) {
-            runCatching { requester.requestFocus() }
-            withFrameNanos { }
-            if (focused) state.done = true
-            attempts++
+        // Reintenta en cada fotograma durante unos segundos (la pantalla anterior puede seguir
+        // animando su salida y retener el foco un momento).
+        withTimeoutOrNull(MAX_WAIT_MS) {
+            while (!state.done) {
+                runCatching { requester.requestFocus() }
+                withFrameNanos { }
+                if (focused) state.done = true
+            }
         }
     }
     focusRequester(requester).onFocusChanged {
@@ -49,4 +53,4 @@ fun Modifier.initialFocus(state: InitialFocusState): Modifier = composed {
 /** Variante para diálogos y elementos que se muestran una sola vez. */
 fun Modifier.initialFocus(): Modifier = composed { initialFocus(remember { InitialFocusState() }) }
 
-private const val MAX_ATTEMPTS = 30
+private const val MAX_WAIT_MS = 3_000L

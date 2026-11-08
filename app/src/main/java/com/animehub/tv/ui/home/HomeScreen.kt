@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,10 +38,12 @@ import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.util.Format
+import com.animehub.tv.voice.VoiceSearch
 
 @Composable
 fun HomeScreen(
     onSearch: () -> Unit,
+    onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
@@ -58,7 +61,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        item { HomeHeader(onSearch, onHistory, onSettings) }
+        item { HomeHeader(onSearch, onVoiceSearch, onHistory, onSettings) }
 
         if (state.continueWatching.isNotEmpty()) {
             item {
@@ -140,7 +143,9 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(onSearch: () -> Unit, onHistory: () -> Unit, onSettings: () -> Unit) {
+private fun HomeHeader(onSearch: () -> Unit, onVoiceSearch: () -> Unit, onHistory: () -> Unit, onSettings: () -> Unit) {
+    val context = LocalContext.current
+    val voiceAvailable = remember { VoiceSearch.isAvailable(context) }
     // Foco inicial de la pantalla: botón "Buscar".
     val focus = rememberInitialFocusState()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -151,6 +156,8 @@ private fun HomeHeader(onSearch: () -> Unit, onHistory: () -> Unit, onSettings: 
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onSearch, modifier = Modifier.initialFocus(focus)) { Text("Buscar") }
+            // Atajo de voz: solo si el dispositivo tiene reconocimiento de voz.
+            if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤 Voz") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
         }

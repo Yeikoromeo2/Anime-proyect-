@@ -83,10 +83,12 @@ data class FilterConfig(
     val page: String? = null,
     val pathTemplate: String? = null,
     val options: List<FilterOptionConfig> = emptyList(),
+    /** Equivalencias valor del sitio → valor común (p. ej. "Película" → "pelicula") para la búsqueda multisitio. */
+    val canonicalMap: Map<String, String> = emptyMap(),
 )
 
 @Serializable
-data class FilterOptionConfig(val value: String, val label: String)
+data class FilterOptionConfig(val value: String, val label: String, val canonical: String? = null)
 
 @Serializable
 data class RewriteConfig(val pattern: String, val replacement: String)

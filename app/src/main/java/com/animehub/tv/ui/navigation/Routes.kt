@@ -3,7 +3,8 @@ package com.animehub.tv.ui.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable object HomeRoute
-@Serializable object SearchRoute
+/** @param voice abre el dictado al entrar (atajo de voz desde Inicio). */
+@Serializable data class SearchRoute(val voice: Boolean = false)
 @Serializable object HistoryRoute
 @Serializable object SettingsRoute
 

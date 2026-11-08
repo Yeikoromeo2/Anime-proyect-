@@ -118,7 +118,7 @@ class NavegacionTvTest : TvUiTest() {
         compose.onNodeWithText("Buscar").assertIsFocused()
         key(Key.DirectionRight)
         key(Key.DirectionCenter) // Historial
-        compose.onNodeWithText("Borrar todo").assertIsFocused()
+        waitForFocus("Borrar todo")
         capture("07_historial_vacio")
     }
 }

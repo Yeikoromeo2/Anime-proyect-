@@ -8,7 +8,11 @@ data class FilterGroup(
     val options: List<FilterOption>,
 )
 
-data class FilterOption(val value: String, val label: String)
+/**
+ * @param canonical valor común entre sitios (género normalizado, "tv", "pelicula", "emision"…)
+ * para traducir los filtros en la búsqueda multisitio.
+ */
+data class FilterOption(val value: String, val label: String, val canonical: String? = null)
 
 /** Selección actual del usuario: id del grupo → valores elegidos. */
 data class FilterSelection(val values: Map<String, Set<String>> = emptyMap()) {

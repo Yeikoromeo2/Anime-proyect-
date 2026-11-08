@@ -69,6 +69,8 @@ data class PagedResult<T>(
     val items: List<T>,
     val page: Int,
     val hasNextPage: Boolean,
+    /** Aviso si el sitio no pudo aplicar algún filtro (p. ej. no combina género y tipo). */
+    val note: String? = null,
 )
 
 /** Progreso de reproducción de un episodio. */

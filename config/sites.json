@@ -40,7 +40,11 @@
         "genres": "a[href*='/genero/'] div.btn",
         "status": "button.btn-estado.finalizado, button.btn-estado.estreno",
         "episodes": "div.col-lg-9 a[href*='/ver/']:has(div.cap-layout)",
-        "episodeImage": "img"
+        "episodeImage": "img",
+        "episodeNumberRegex": "-episodio-(\\d+(?:\\.\\d+)?)/?$",
+        "date": "div.col-lg-9 span.span-tiempo",
+        "statusAiring": "estreno",
+        "statusFinished": "finalizado"
       },
       "servers": {
         "mode": "attribute",
@@ -51,8 +55,12 @@
       "filters": [
         { "id": "year", "label": "Año", "param": "fecha", "multi": false, "source": "html", "select": "select[name=fecha]", "page": "/animes" },
         { "id": "genre", "label": "Género", "param": "genero", "multi": false, "source": "html", "select": "select[name=genero]", "page": "/animes" },
-        { "id": "type", "label": "Categoría", "param": "categoria", "multi": false, "source": "html", "select": "select[name=categoria]", "page": "/animes" },
-        { "id": "letter", "label": "Letra", "param": "letra", "multi": false, "source": "html", "select": "select[name=letra]", "page": "/animes" }
+        { "id": "type", "label": "Categoría", "param": "categoria", "multi": false, "source": "html", "select": "select[name=categoria]", "page": "/animes",
+          "canonicalMap": { "anime": "tv", "Película": "pelicula", "ova": "ova", "ona": "ona", "especial": "especial", "corto": "corto" } },
+        { "id": "letter", "label": "Letra", "param": "letra", "multi": false, "source": "html", "select": "select[name=letra]", "page": "/animes" },
+        { "id": "status", "label": "Estado", "multi": false, "source": "path", "options": [
+          { "value": "/emision", "label": "En emisión", "canonical": "emision" }
+        ] }
       ],
       "coverPlaceholders": ["/img/anime.png", "/img/capblank.png"],
       "coverRewrites": []
@@ -119,8 +127,8 @@
       },
       "filters": [
         { "id": "type", "label": "Tipo", "multi": false, "source": "path", "options": [
-          { "value": "/anime/", "label": "Anime (TV)" },
-          { "value": "/pelicula/", "label": "Película" }
+          { "value": "/anime/", "label": "Anime (TV)", "canonical": "tv" },
+          { "value": "/pelicula/", "label": "Película", "canonical": "pelicula" }
         ] },
         { "id": "genre", "label": "Género", "multi": false, "source": "html", "links": "a[href*='/genero/']", "page": "/anime/", "pathTemplate": "/genero/{value}/" }
       ],

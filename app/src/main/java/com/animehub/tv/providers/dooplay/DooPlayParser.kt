@@ -4,6 +4,7 @@ import com.animehub.tv.domain.model.AnimeCard
 import com.animehub.tv.domain.model.AnimeDetail
 import com.animehub.tv.domain.model.AnimeStatus
 import com.animehub.tv.domain.model.AnimeType
+import com.animehub.tv.domain.model.Canonical
 import com.animehub.tv.domain.model.Episode
 import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.FilterOption
@@ -120,7 +121,8 @@ class DooPlayParser(private val s: SiteSupport) {
     fun genres(doc: Document, linksSelector: String): List<FilterOption> =
         doc.select(linksSelector).mapNotNull { a ->
             val slug = GENRE_SLUG.find(a.attr("href"))?.groupValues?.get(1) ?: return@mapNotNull null
-            FilterOption(slug, clean(a.text()))
+            val label = clean(a.text())
+            FilterOption(slug, label, Canonical.of(label))
         }.distinctBy { it.value }.sortedBy { it.label.lowercase() }
 
     private fun episode(li: Element, season: Int?, numberRegex: Regex?): Episode? {

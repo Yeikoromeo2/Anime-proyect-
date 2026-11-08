@@ -6,6 +6,7 @@ import com.animehub.tv.data.net.UserAgentInterceptor
 import com.animehub.tv.domain.model.FilterSelection
 import com.animehub.tv.fixtures.TestSites
 import com.animehub.tv.providers.dooplay.DooPlayProvider
+import com.animehub.tv.providers.latanime.LatanimeProvider
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
@@ -42,5 +43,26 @@ class SaludSitiosTest {
         val servers = provider.servers(detail.episodes.first().url)
         println("Anime Ninja · servidores del primer episodio: ${servers.map { it.name + " → " + it.embedUrl }}")
         assertTrue("No se detectaron servidores", servers.isNotEmpty())
+    }
+
+    @Test
+    fun latanimeResponde() = runBlocking {
+        assumeTrue("Solo con -Psalud", System.getProperty("animehub.salud") == "true")
+        val provider = LatanimeProvider(TestSites.site("latanime"), HtmlFetcher(client))
+        val latest = provider.latestEpisodes()
+        println("Latanime · novedades: ${latest.size} → ${latest.take(3).map { "${it.animeTitle} ${it.episodeNumber}" }}")
+        assertTrue("No hay novedades", latest.isNotEmpty())
+        // La búsqueda por texto pide verificación de Cloudflare: se comprueba el directorio con filtros.
+        val year = (java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 1).toString()
+        val filtered = provider.search("", FilterSelection(mapOf("genre" to setOf("accion"), "year" to setOf(year))), 1).items
+        println("Latanime · acción + $year: ${filtered.size} → ${filtered.take(3).map { "${it.title} (${it.year})" }}")
+        assertTrue("El filtro no devolvió resultados", filtered.isNotEmpty())
+        assertTrue("Hay resultados de otro año", filtered.all { it.year.toString() == year })
+        val detail = provider.animeDetail(filtered.first().url)
+        println("Latanime · ficha: ${detail.title}, ${detail.episodes.size} episodios, ${detail.status}")
+        assertTrue(detail.episodes.isNotEmpty())
+        val servers = provider.servers(detail.episodes.first().url)
+        println("Latanime · servidores: ${servers.map { it.name }}")
+        assertTrue(servers.isNotEmpty())
     }
 }

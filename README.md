@@ -10,7 +10,8 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | 0 · Análisis de sitios | Latanime y Anime Ninja analizados; AnimeFLV y JKAnime pendientes ([resumen](docs/fase0-resumen.md)) |
 | 1 · Esqueleto (Inicio, navegación con el control, Ajustes, configuración remota, Room, APK en GitHub Actions) | ✅ |
 | 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
-| 3 · Filtros dinámicos + búsqueda por voz | Siguiente |
+| 3 · Filtros dinámicos + búsqueda por voz (+ proveedor de Latanime) | ✅ |
+| 4 · Servidores + reproductor WebView + historial con minuto | Siguiente |
 
 ## Requisitos
 
@@ -94,7 +95,19 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Novedades](docs/capturas/fase2/08_inicio_novedades.png) | ![Búsqueda](docs/capturas/fase2/09_busqueda_resultados.png) | ![Ficha](docs/capturas/fase2/11_ficha_one_piece.png) |
 
+| Búsqueda por voz | Panel de filtros | Filtrado por género y año |
+|---|---|---|
+| ![Voz](docs/capturas/fase3/12_busqueda_voz.png) | ![Filtros](docs/capturas/fase3/13_panel_filtros.png) | ![Resultados](docs/capturas/fase3/14_resultados_filtrados.png) |
+
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
+
+## Búsqueda, filtros y voz
+
+- **Voz**: en Búsqueda el botón 🎤 tiene el foco al entrar; lo dictado (español latino, `es-419`) se escribe en el campo y se busca al instante. En Inicio, el botón "🎤 Voz" abre el dictado directamente. Si la TV no tiene reconocimiento de voz, los botones no aparecen.
+- **Sitios**: "Todos los sitios" busca en paralelo (15 s máximo por sitio) o elige uno solo con su chip.
+- **Filtros** (botón "Filtros"): con un sitio elegido se ven **sus filtros reales**, leídos de su web. En "Todos los sitios" solo los comunes (género, año, tipo, estado), traducidos al parámetro de cada sitio; si un sitio no puede aplicar un filtro se omite con un aviso.
+- **Accesos rápidos**: "Emisión de esta temporada" y "Estrenos del año" aparecen solo si el sitio los permite (hoy, Latanime).
+- La búsqueda por texto de **Latanime** está protegida por Cloudflare: por ahora muestra un aviso; su directorio con filtros sí funciona.
 
 ## Configuración remota (cuando un sitio cambia)
 

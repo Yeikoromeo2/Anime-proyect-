@@ -2,7 +2,11 @@ package com.animehub.tv.ui
 
 import android.graphics.Color
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
@@ -62,6 +66,20 @@ abstract class TvUiTest {
         compose.waitUntil(timeoutMillis = 10_000) {
             compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    /** Espera a que el elemento con ese texto tenga el foco (los datos llegan en otro hilo). */
+    protected fun waitForFocus(text: String) {
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodes(hasText(text) and isFocused()).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    /** Activa un elemento por su texto como lo haría OK sobre él (sin depender de coordenadas). */
+    protected fun activate(text: String) {
+        waitForText(text)
+        compose.onAllNodesWithText(text).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
     }
 
     protected fun capture(name: String) {

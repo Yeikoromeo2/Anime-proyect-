@@ -12,16 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
@@ -33,7 +32,8 @@ import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
-import com.animehub.tv.ui.components.rememberInitialFocus
+import com.animehub.tv.ui.focus.initialFocus
+import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.util.Format
 
@@ -60,32 +60,30 @@ fun HomeScreen(
 
         if (state.continueWatching.isNotEmpty()) {
             item {
-                ContentRow("Continuar viendo") {
-                    items(state.continueWatching, key = { it.siteId + it.episodeUrl }) { p ->
-                        PosterCard(
-                            title = p.animeTitle,
-                            imageUrl = p.coverUrl,
-                            subtitle = "Ep. ${Format.episode(p.episodeNumber)} – ${Format.time(p.positionMs)}",
-                            badge = state.siteNames[p.siteId],
-                            progress = p.fraction,
-                            onClick = { onOpenAnime(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl) },
-                        )
-                    }
+                ContentRow("Continuar viendo", state.continueWatching, key = { it.siteId + it.episodeUrl }) { p, cardModifier ->
+                    PosterCard(
+                        title = p.animeTitle,
+                        imageUrl = p.coverUrl,
+                        cardModifier = cardModifier,
+                        subtitle = "Ep. ${Format.episode(p.episodeNumber)} – ${Format.time(p.positionMs)}",
+                        badge = state.siteNames[p.siteId],
+                        progress = p.fraction,
+                        onClick = { onOpenAnime(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl) },
+                    )
                 }
             }
         }
 
         if (state.favorites.isNotEmpty()) {
             item {
-                ContentRow("Favoritos") {
-                    items(state.favorites, key = { it.siteId + it.animeUrl }) { f ->
-                        PosterCard(
-                            title = f.title,
-                            imageUrl = f.coverUrl,
-                            badge = state.siteNames[f.siteId],
-                            onClick = { onOpenAnime(f.siteId, f.animeUrl, f.title, f.coverUrl) },
-                        )
-                    }
+                ContentRow("Favoritos", state.favorites, key = { it.siteId + it.animeUrl }) { f, cardModifier ->
+                    PosterCard(
+                        title = f.title,
+                        imageUrl = f.coverUrl,
+                        cardModifier = cardModifier,
+                        badge = state.siteNames[f.siteId],
+                        onClick = { onOpenAnime(f.siteId, f.animeUrl, f.title, f.coverUrl) },
+                    )
                 }
             }
         }
@@ -121,7 +119,7 @@ fun HomeScreen(
 @Composable
 private fun HomeHeader(onSearch: () -> Unit, onHistory: () -> Unit, onSettings: () -> Unit) {
     // Foco inicial de la pantalla: botón "Buscar".
-    val focus = rememberInitialFocus()
+    val focus = rememberInitialFocusState()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column {
             Text("AnimeHub TV", style = MaterialTheme.typography.headlineMedium)
@@ -129,25 +127,36 @@ private fun HomeHeader(onSearch: () -> Unit, onHistory: () -> Unit, onSettings: 
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onSearch, modifier = Modifier.focusRequester(focus)) { Text("Buscar") }
+            Button(onClick = onSearch, modifier = Modifier.initialFocus(focus)) { Text("Buscar") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
         }
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
+/**
+ * Fila horizontal de tarjetas. Al entrar con el D-pad el foco va a la última tarjeta usada
+ * o, la primera vez, a la primera de la fila.
+ */
 @Composable
-private fun ContentRow(title: String, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
+private fun <T> ContentRow(
+    title: String,
+    items: List<T>,
+    key: (T) -> Any,
+    itemContent: @Composable (item: T, cardModifier: Modifier) -> Unit,
+) {
+    val firstCard = remember { FocusRequester() }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge)
         LazyRow(
-            // focusRestorer: al volver a la fila, el foco regresa a la última tarjeta usada.
-            modifier = Modifier.focusRestorer(),
+            modifier = Modifier.focusRestorer(firstCard),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
-            content = content,
-        )
+        ) {
+            itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
+                itemContent(item, if (index == 0) Modifier.focusRequester(firstCard) else Modifier)
+            }
+        }
     }
 }
 

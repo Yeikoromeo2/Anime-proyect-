@@ -16,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,7 +24,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.ui.components.TvTextField
-import com.animehub.tv.ui.components.rememberInitialFocus
+import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.theme.AppColors
 
 /**
@@ -37,7 +36,6 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
     val recent by viewModel.recentSearches.collectAsStateWithLifecycle()
     val lastQuery by viewModel.lastQuery.collectAsStateWithLifecycle()
     var text by rememberSaveable { mutableStateOf("") }
-    val focus = rememberInitialFocus()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 96.dp, vertical = 32.dp),
@@ -50,7 +48,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                 onValueChange = { text = it },
                 placeholder = "Nombre del anime",
                 onDone = { viewModel.search(text) },
-                modifier = Modifier.width(520.dp).focusRequester(focus),
+                modifier = Modifier.width(520.dp).initialFocus(),
             )
             Button(onClick = { viewModel.search(text) }) { Text("Buscar") }
         }

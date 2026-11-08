@@ -20,7 +20,8 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 ## Compilar
 
 ```bash
-./gradlew testDebugUnitTest   # tests unitarios (usan los HTML guardados en app/src/test/resources/fixtures)
+./gradlew testDebugUnitTest   # tests: parsers con los HTML de fixtures + navegación con el D-pad (Robolectric)
+./gradlew testDebugUnitTest -Pcapturas   # además guarda capturas de pantalla en app/build/capturas
 ./gradlew assembleDebug       # APK de depuración → app/build/outputs/apk/debug/
 ./gradlew assembleRelease     # APK de release   → app/build/outputs/apk/release/
 ```
@@ -80,6 +81,14 @@ keyPassword=…
    ```
 
 La app aparece en la fila de apps de la TV con su banner.
+
+## Capturas (TV 1080p simulada)
+
+| Inicio | Ajustes (elemento enfocado) | Confirmación al salir |
+|---|---|---|
+| ![Inicio](docs/capturas/fase1/01_inicio.png) | ![Ajustes](docs/capturas/fase1/03_ajustes.png) | ![Salir](docs/capturas/fase1/05_confirmar_salida.png) |
+
+Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás.
 
 ## Configuración remota (cuando un sitio cambia)
 

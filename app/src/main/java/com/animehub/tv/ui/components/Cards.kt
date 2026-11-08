@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -44,6 +46,8 @@ fun PosterCard(
     imageUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Se aplica a la tarjeta enfocable (para focusRequester). */
+    cardModifier: Modifier = Modifier,
     subtitle: String? = null,
     badge: String? = null,
     progress: Float? = null,
@@ -52,7 +56,7 @@ fun PosterCard(
     Column(modifier = modifier.width(width)) {
         Card(
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth().height(width * 1.45f),
+            modifier = cardModifier.fillMaxWidth().height(width * 1.45f),
             shape = CardDefaults.shape(CardShape),
             scale = CardDefaults.scale(focusedScale = 1.08f),
             border = focusBorder(),
@@ -106,4 +110,29 @@ fun ProgressBar(fraction: Float, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(5.dp).background(Color.Black.copy(alpha = 0.6f))) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(5.dp).background(AppColors.Acento2))
     }
+}
+
+/** Colores de las filas de lista: al enfocarse, fondo violeta oscuro y texto blanco (alto contraste). */
+@Composable
+fun listItemColors() = ListItemDefaults.colors(
+    containerColor = Color.Transparent,
+    contentColor = Color.White,
+    focusedContainerColor = AppColors.SuperficieFoco,
+    focusedContentColor = Color.White,
+    pressedContainerColor = AppColors.SuperficieFoco,
+    pressedContentColor = Color.White,
+)
+
+@Composable
+fun listItemBorder() = ListItemDefaults.border(
+    focusedBorder = Border(BorderStroke(2.dp, AppColors.Foco), shape = RoundedCornerShape(10.dp)),
+)
+
+@Composable
+fun listItemScale() = ListItemDefaults.scale(focusedScale = 1.02f)
+
+/** Texto secundario que hereda el color de su contenedor (legible enfocado o no). */
+@Composable
+fun SecondaryText(text: String) {
+    Text(text, color = LocalContentColor.current.copy(alpha = 0.75f))
 }

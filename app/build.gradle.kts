@@ -68,6 +68,8 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Robolectric necesita los recursos y el manifest para las pruebas de navegación con el D-pad.
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -121,9 +123,23 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
 
 // Los tests leen /config/sites.json para validar la configuración publicada.
 tasks.withType<Test>().configureEach {
     systemProperty("animehub.configDir", rootProject.file("config").absolutePath)
+    // Robolectric (SDK 36) necesita acceder a FileDescriptor en JDK 17+.
+    jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+    // ./gradlew testDebugUnitTest -Pcapturas guarda capturas de pantalla en app/build/capturas
+    systemProperty("roborazzi.test.record", (project.findProperty("capturas") != null).toString())
+    systemProperty("animehub.capturasDir", layout.buildDirectory.dir("capturas").get().asFile.absolutePath)
 }

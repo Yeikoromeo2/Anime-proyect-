@@ -15,14 +15,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -36,6 +33,7 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
+import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.theme.AppColors
 
 /** Contenedor común de los diálogos (fondo, borde y ancho fijo). */
@@ -52,14 +50,6 @@ fun DialogFrame(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     }
 }
 
-/** Pide foco al mostrarse (foco inicial definido en cada diálogo). */
-@Composable
-fun rememberInitialFocus(): FocusRequester {
-    val requester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { requester.requestFocus() } }
-    return requester
-}
-
 /** Confirmación con el foco inicial en "Cancelar" para evitar acciones accidentales. */
 @Composable
 fun ConfirmDialog(
@@ -70,12 +60,11 @@ fun ConfirmDialog(
     onDismiss: () -> Unit,
     dismissText: String = "Cancelar",
 ) {
-    val focus = rememberInitialFocus()
     DialogFrame(onDismiss) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = AppColors.TextoSecundario)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.focusRequester(focus)) { Text(dismissText) }
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.initialFocus()) { Text(dismissText) }
             Button(onClick = onConfirm) { Text(confirmText) }
         }
     }
@@ -87,7 +76,6 @@ data class DialogAction(val label: String, val enabled: Boolean = true, val onCl
 /** Lista vertical de acciones grandes (cómodas con el control remoto). */
 @Composable
 fun ActionsDialog(title: String, message: String?, actions: List<DialogAction>, onDismiss: () -> Unit) {
-    val focus = rememberInitialFocus()
     DialogFrame(onDismiss) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         if (message != null) Text(message, style = MaterialTheme.typography.bodyMedium, color = AppColors.TextoSecundario)
@@ -97,7 +85,7 @@ fun ActionsDialog(title: String, message: String?, actions: List<DialogAction>, 
                 Button(
                     onClick = action.onClick,
                     enabled = action.enabled,
-                    modifier = Modifier.fillMaxWidth().let { if (index == firstEnabled) it.focusRequester(focus) else it },
+                    modifier = Modifier.fillMaxWidth().let { if (index == firstEnabled) it.initialFocus() else it },
                 ) { Text(action.label) }
             }
             OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Cerrar") }
@@ -149,7 +137,6 @@ fun TextInputDialog(
     error: String? = null,
 ) {
     var text by remember { mutableStateOf(initialValue) }
-    val focus = rememberInitialFocus()
     DialogFrame(onDismiss) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         if (message != null) Text(message, style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
@@ -159,7 +146,7 @@ fun TextInputDialog(
             placeholder = placeholder,
             keyboardType = KeyboardType.Uri,
             onDone = { onSave(text) },
-            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            modifier = Modifier.fillMaxWidth().initialFocus(),
         )
         if (error != null) Text(error, color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -173,7 +160,6 @@ fun TextInputDialog(
 /** Lista simple de solo lectura dentro de un diálogo (registro de errores). */
 @Composable
 fun ListDialog(title: String, lines: List<String>, emptyText: String, onDismiss: () -> Unit, extraAction: DialogAction? = null) {
-    val focus = rememberInitialFocus()
     DialogFrame(onDismiss) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         if (lines.isEmpty()) {
@@ -184,7 +170,7 @@ fun ListDialog(title: String, lines: List<String>, emptyText: String, onDismiss:
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.focusRequester(focus)) { Text("Cerrar") }
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.initialFocus()) { Text("Cerrar") }
             if (extraAction != null) Button(onClick = extraAction.onClick, enabled = extraAction.enabled) { Text(extraAction.label) }
         }
     }

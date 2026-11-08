@@ -11,12 +11,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ListItem
-import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
@@ -26,8 +24,13 @@ import com.animehub.tv.ui.components.ActionsDialog
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.DialogAction
 import com.animehub.tv.ui.components.ListDialog
+import com.animehub.tv.ui.components.SecondaryText
+import com.animehub.tv.ui.components.listItemBorder
+import com.animehub.tv.ui.components.listItemColors
+import com.animehub.tv.ui.components.listItemScale
 import com.animehub.tv.ui.components.TextInputDialog
-import com.animehub.tv.ui.components.rememberInitialFocus
+import com.animehub.tv.ui.focus.initialFocus
+import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.util.Format
 
@@ -45,7 +48,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val update by viewModel.update.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     var dialogError by remember { mutableStateOf<String?>(null) }
-    val firstFocus = rememberInitialFocus()
+    val firstFocus = rememberInitialFocusState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -65,7 +68,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 SettingItem(
                     title = site.name,
                     subtitle = detail,
-                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                    modifier = if (index == 0) Modifier.initialFocus(firstFocus) else Modifier,
                     onClick = { dialog = SettingsDialog.SiteOptions(site) },
                     trailing = { Switch(checked = site.enabled, onCheckedChange = null, enabled = !site.config.isPending) },
                 )
@@ -221,8 +224,10 @@ private fun SettingItem(
         onClick = onClick,
         modifier = modifier,
         headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle, color = AppColors.TextoSecundario) },
+        supportingContent = { SecondaryText(subtitle) },
         trailingContent = trailing,
-        scale = ListItemDefaults.scale(focusedScale = 1.02f),
+        scale = listItemScale(),
+        colors = listItemColors(),
+        border = listItemBorder(),
     )
 }

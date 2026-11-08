@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,14 +18,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ListItem
-import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
@@ -35,6 +31,12 @@ import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.ui.components.ActionsDialog
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.DialogAction
+import com.animehub.tv.ui.components.SecondaryText
+import com.animehub.tv.ui.components.listItemBorder
+import com.animehub.tv.ui.components.listItemColors
+import com.animehub.tv.ui.components.listItemScale
+import com.animehub.tv.ui.focus.initialFocus
+import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.util.Format
 
@@ -46,14 +48,8 @@ fun HistoryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<WatchProgress?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
-    val headerFocus = remember { FocusRequester() }
-    val firstItemFocus = remember { FocusRequester() }
-
     // Foco inicial: primer elemento del historial o, si está vacío, el botón del encabezado.
-    LaunchedEffect(state.loaded) {
-        if (!state.loaded) return@LaunchedEffect
-        runCatching { if (state.items.isNotEmpty()) firstItemFocus.requestFocus() else headerFocus.requestFocus() }
-    }
+    val initial = rememberInitialFocusState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -66,7 +62,7 @@ fun HistoryScreen(
                 Spacer(Modifier.weight(1f))
                 OutlinedButton(
                     onClick = { if (state.items.isNotEmpty()) confirmClear = true },
-                    modifier = Modifier.focusRequester(headerFocus),
+                    modifier = if (state.loaded && state.items.isEmpty()) Modifier.initialFocus(initial) else Modifier,
                 ) { Text("Borrar todo") }
             }
         }
@@ -77,8 +73,10 @@ fun HistoryScreen(
             ListItem(
                 selected = false,
                 onClick = { selected = item },
-                modifier = if (index == 0) Modifier.focusRequester(firstItemFocus) else Modifier,
-                scale = ListItemDefaults.scale(focusedScale = 1.02f),
+                modifier = if (index == 0) Modifier.initialFocus(initial) else Modifier,
+                scale = listItemScale(),
+                colors = listItemColors(),
+                border = listItemBorder(),
                 leadingContent = {
                     AsyncImage(
                         model = item.coverUrl,
@@ -90,9 +88,8 @@ fun HistoryScreen(
                 headlineContent = { Text(item.animeTitle) },
                 supportingContent = {
                     val status = if (item.completed) "visto" else "${Format.time(item.positionMs)} de ${Format.time(item.durationMs)}"
-                    Text(
+                    SecondaryText(
                         "Episodio ${Format.episode(item.episodeNumber)} · $status · ${state.siteNames[item.siteId] ?: item.siteId} · ${Format.date(item.updatedAt)}",
-                        color = AppColors.TextoSecundario,
                     )
                 },
             )

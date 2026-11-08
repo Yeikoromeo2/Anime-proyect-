@@ -1,13 +1,16 @@
 package com.animehub.tv.ui.theme
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
 object AppColors {
     val Fondo = Color(0xFF0F0D18)
     val Superficie = Color(0xFF1B1730)
+    val SuperficieFoco = Color(0xFF3A2D73)
     val Acento = Color(0xFF7C5CFF)
     val Acento2 = Color(0xFF00D4BE)
     val Foco = Color(0xFFFFFFFF)
@@ -29,6 +32,8 @@ fun AnimeHubTheme(content: @Composable () -> Unit) {
             onSurfaceVariant = AppColors.TextoSecundario,
             error = AppColors.Error,
         ),
-        content = content,
-    )
+    ) {
+        // Texto blanco por defecto en toda la app (los textos fuera de un Surface salían en negro).
+        CompositionLocalProvider(LocalContentColor provides Color.White, content = content)
+    }
 }

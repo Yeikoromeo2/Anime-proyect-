@@ -1,0 +1,16 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/app/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+# Firma: nunca subir el keystore
+*.jks
+*.keystore
+keystore.properties

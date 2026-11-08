@@ -1,0 +1,94 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # necesario para publicar Releases al crear un tag
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v5
+
+      - name: Instalar Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Preparar Gradle (con caché)
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Aceptar licencias del SDK de Android
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Versión del APK
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.1.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "ANIMEHUB_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "ANIMEHUB_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Preparar la firma (si hay keystore en Secrets)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/animehub.jks"
+            {
+              echo "ANIMEHUB_KEYSTORE_FILE=$RUNNER_TEMP/animehub.jks"
+              echo "ANIMEHUB_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "ANIMEHUB_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANIMEHUB_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "Se firmará con el keystore propio."
+          else
+            echo "::warning::No hay keystore en Secrets: el APK se firma con una clave de depuración temporal (no se podrá actualizar encima de otra versión)."
+          fi
+
+      - name: Tests y compilación
+        run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - name: Renombrar APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/AnimeHubTV-${ANIMEHUB_VERSION_NAME}.apk"
+
+      - name: Subir APK como artefacto
+        uses: actions/upload-artifact@v5
+        with:
+          name: AnimeHubTV-${{ env.ANIMEHUB_VERSION_NAME }}
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Subir informe de tests (si fallan)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: informe-tests
+          path: app/build/reports/tests/
+
+      - name: Publicar Release (solo con tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true

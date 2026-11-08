@@ -1,0 +1,54 @@
+package com.animehub.tv.di
+
+import android.content.Context
+import androidx.room.Room
+import com.animehub.tv.data.db.AppDatabase
+import com.animehub.tv.data.db.FavoriteDao
+import com.animehub.tv.data.db.SearchHistoryDao
+import com.animehub.tv.data.db.WatchProgressDao
+import com.animehub.tv.data.net.Http
+import com.animehub.tv.data.net.RetryInterceptor
+import com.animehub.tv.data.net.UserAgentInterceptor
+import com.animehub.tv.data.net.WebViewCookieJar
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import okhttp3.Cache
+import okhttp3.OkHttpClient
+import java.io.File
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .cookieJar(WebViewCookieJar())
+            .cache(Cache(File(context.cacheDir, "http"), 20L * 1024 * 1024))
+            .addInterceptor(UserAgentInterceptor { Http.DEFAULT_USER_AGENT })
+            .addInterceptor(RetryInterceptor())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
+        Room.databaseBuilder(context, AppDatabase::class.java, "animehub.db").build()
+
+    @Provides
+    fun provideFavoriteDao(db: AppDatabase): FavoriteDao = db.favoriteDao()
+
+    @Provides
+    fun provideWatchProgressDao(db: AppDatabase): WatchProgressDao = db.watchProgressDao()
+
+    @Provides
+    fun provideSearchHistoryDao(db: AppDatabase): SearchHistoryDao = db.searchHistoryDao()
+}

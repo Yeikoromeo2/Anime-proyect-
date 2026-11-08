@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "updated": "2026-11-08",
+  "sites": [
+    {
+      "id": "latanime",
+      "name": "Latanime",
+      "baseUrl": "https://latanime.org",
+      "enabled": true,
+      "status": "ok",
+      "notes": "Búsqueda por texto protegida por desafío interactivo de Cloudflare. Ver docs/sites/latanime.md",
+      "search": { "path": "/buscar", "queryParam": "q", "requiresChallenge": true },
+      "browse": { "path": "/animes", "pageParam": "p", "emptyValue": "false" },
+      "latest": {
+        "path": "/",
+        "card": "a[href*='/ver/']:has(div.imgrec)",
+        "title": "div.info h2",
+        "image": "div.imgrec img",
+        "language": "div.info_cap span",
+        "date": "span.span-tiempo",
+        "titleRegex": "^Episodio (\\d+(?:\\.\\d+)?) - (.+)$"
+      },
+      "selectors": {
+        "card": "a:has(> div.series)",
+        "title": "div.seriedetails h3",
+        "cover": "div.serieimg img",
+        "link": "",
+        "language": "div.seriedetails span.opacity-75",
+        "year": "div.seriedetails span:last-child",
+        "nextPage": "a[href*='p=']"
+      },
+      "detail": {
+        "cover": "div.serieimgficha img.img-fluid2",
+        "title": "div.col-lg-9 > h2",
+        "altTitle": "div.col-lg-9 > h3.fs-6",
+        "synopsis": "div.col-lg-9 > p.opacity-75",
+        "genres": "a[href*='/genero/'] div.btn",
+        "status": "button.btn-estado.finalizado, button.btn-estado.estreno",
+        "episodes": "div.col-lg-9 a[href*='/ver/']:has(div.cap-layout)",
+        "episodeImage": "img"
+      },
+      "servers": {
+        "mode": "attribute",
+        "item": "ul.cap_repro a.play-video[data-player]",
+        "urlAttr": "data-player",
+        "decode": "base64"
+      },
+      "filters": [
+        { "id": "year", "label": "Año", "param": "fecha", "multi": false, "source": "html", "select": "select[name=fecha]", "page": "/animes" },
+        { "id": "genre", "label": "Género", "param": "genero", "multi": false, "source": "html", "select": "select[name=genero]", "page": "/animes" },
+        { "id": "type", "label": "Categoría", "param": "categoria", "multi": false, "source": "html", "select": "select[name=categoria]", "page": "/animes" },
+        { "id": "letter", "label": "Letra", "param": "letra", "multi": false, "source": "html", "select": "select[name=letra]", "page": "/animes" }
+      ],
+      "coverPlaceholders": ["/img/anime.png", "/img/capblank.png"],
+      "coverRewrites": []
+    },
+    {
+      "id": "animeninja",
+      "name": "Anime Ninja",
+      "baseUrl": "https://veranime.ninja",
+      "aliases": ["https://animelhd.com"],
+      "enabled": true,
+      "status": "ok",
+      "notes": "WordPress con tema DooPlay. AnimeLHD (animelhd.com) redirige aquí. Ver docs/sites/animeninja.md",
+      "search": { "path": "/", "queryParam": "s", "pagePath": "/page/{page}/" },
+      "latest": {
+        "path": "/",
+        "card": "article.item.se.episodes",
+        "title": "div.data h3",
+        "episode": "span.ep-badge",
+        "image": "div.poster img",
+        "link": "div.poster > a",
+        "language": "span.quality",
+        "date": "span.time"
+      },
+      "selectors": {
+        "searchCard": "div.result-item article",
+        "searchTitle": "div.details div.title a",
+        "searchCover": "div.thumbnail img",
+        "searchType": "div.thumbnail span",
+        "searchYear": "div.meta span.year",
+        "card": "div.items.full > article.item.tvshows, div.items.full > article.item.movies",
+        "title": "div.data h3 a",
+        "cover": "div.poster img",
+        "link": "div.data h3 a",
+        "year": "div.data > span",
+        "nextPage": ".pagination a"
+      },
+      "detail": {
+        "cover": "div.sheader div.poster img",
+        "title": "div.sheader div.data h1",
+        "synopsis": "#info div.wp-content",
+        "genres": "div.sgeneros a",
+        "date": "div.sheader div.extra span.date",
+        "seasons": "#seasons div.se-c",
+        "seasonNumber": "div.se-q span.se-t",
+        "episodes": "ul.episodios li",
+        "episodeNumber": "div.numerando",
+        "episodeLink": "div.episodiotitle a",
+        "episodeImage": "div.imagen img"
+      },
+      "servers": {
+        "mode": "dooplay-ajax",
+        "item": "#playeroptionsul li.dooplay_player_option",
+        "ajaxPath": "/wp-admin/admin-ajax.php",
+        "action": "doo_player_ajax"
+      },
+      "filters": [
+        { "id": "type", "label": "Tipo", "multi": false, "source": "path", "options": [
+          { "value": "/anime/", "label": "Anime (TV)" },
+          { "value": "/pelicula/", "label": "Película" }
+        ] },
+        { "id": "genre", "label": "Género", "multi": false, "source": "html", "links": "a[href*='/genero/']", "page": "/anime/", "pathTemplate": "/genero/{value}/" }
+      ],
+      "coverPlaceholders": [],
+      "coverRewrites": [{ "pattern": "/t/p/w\\d+/", "replacement": "/t/p/w342/" }]
+    },
+    {
+      "id": "animeflv",
+      "name": "AnimeFLV",
+      "baseUrl": "https://www4.animeflv.net",
+      "aliases": ["https://www3.animeflv.net", "https://animeflv.net"],
+      "enabled": false,
+      "status": "pendiente",
+      "notes": "Sin analizar: el servidor respondía 522 el 2026-11-08. Ver docs/sites/animeflv.md"
+    },
+    {
+      "id": "jkanime",
+      "name": "JKAnime",
+      "baseUrl": "https://jkanime.net",
+      "enabled": false,
+      "status": "pendiente",
+      "notes": "Sin analizar: desafío interactivo de Cloudflare en todo el sitio. Ver docs/sites/jkanime.md"
+    }
+  ]
+}

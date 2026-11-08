@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,12 +52,13 @@ fun PosterCard(
     subtitle: String? = null,
     badge: String? = null,
     progress: Float? = null,
-    width: Dp = 140.dp,
+    /** Ancho fijo para filas; null = ocupa la celda (cuadrícula). */
+    width: Dp? = 140.dp,
 ) {
-    Column(modifier = modifier.width(width)) {
+    Column(modifier = modifier.then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())) {
         Card(
             onClick = onClick,
-            modifier = cardModifier.fillMaxWidth().height(width * 1.45f),
+            modifier = cardModifier.fillMaxWidth().aspectRatio(POSTER_RATIO),
             shape = CardDefaults.shape(CardShape),
             scale = CardDefaults.scale(focusedScale = 1.08f),
             border = focusBorder(),
@@ -69,18 +71,7 @@ fun PosterCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (badge != null) {
-                    Text(
-                        text = badge,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(6.dp)
-                            .background(AppColors.Acento.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
+                if (badge != null) Badge(badge, Modifier.align(Alignment.TopStart))
                 if (progress != null) {
                     ProgressBar(progress, Modifier.align(Alignment.BottomCenter))
                 }
@@ -91,7 +82,8 @@ fun PosterCard(
             style = MaterialTheme.typography.bodySmall,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp),
+            // Separado para que el borde de foco (la tarjeta crece un 8 %) no lo tape.
+            modifier = Modifier.padding(top = 12.dp),
         )
         if (subtitle != null) {
             Text(
@@ -104,6 +96,66 @@ fun PosterCard(
         }
     }
 }
+
+/** Tarjeta horizontal 16:9 para episodios (novedades). */
+@Composable
+fun WideCard(
+    title: String,
+    imageUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    cardModifier: Modifier = Modifier,
+    subtitle: String? = null,
+    badge: String? = null,
+    width: Dp = 240.dp,
+) {
+    Column(modifier = modifier.width(width)) {
+        Card(
+            onClick = onClick,
+            modifier = cardModifier.fillMaxWidth().aspectRatio(16f / 9f),
+            shape = CardDefaults.shape(CardShape),
+            scale = CardDefaults.scale(focusedScale = 1.06f),
+            border = focusBorder(),
+            colors = CardDefaults.colors(containerColor = AppColors.Superficie),
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (badge != null) Badge(badge, Modifier.align(Alignment.TopStart))
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        if (subtitle != null) {
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = AppColors.TextoSecundario, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+fun Badge(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = Color.White,
+        modifier = modifier
+            .padding(6.dp)
+            .background(AppColors.Acento.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+/** Proporción de las portadas verticales (2:2,9). */
+const val POSTER_RATIO = 2f / 2.9f
 
 @Composable
 fun ProgressBar(fraction: Float, modifier: Modifier = Modifier) {

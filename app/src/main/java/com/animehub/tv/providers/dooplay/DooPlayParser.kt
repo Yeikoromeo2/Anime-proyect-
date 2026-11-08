@@ -146,12 +146,14 @@ class DooPlayParser(private val s: SiteSupport) {
             PAGE_NUMBER.find(a.attr("href"))?.groupValues?.get(1)?.toIntOrNull()?.let { it > page } == true
         }
 
-    /** "Última transmisión" reciente (≤ 21 días) = en emisión; si no, finalizado o desconocido. */
+    /**
+     * DooPlay no publica el estado. Solo se afirma "En emisión" si la "Última transmisión" es
+     * reciente (≤ 21 días); si no, se deja desconocido (una serie en pausa no está finalizada).
+     */
     private fun status(lastAired: String?): AnimeStatus {
-        if (lastAired.isNullOrBlank()) return AnimeStatus.DESCONOCIDO
-        val date = parseEnglishDate(lastAired) ?: return AnimeStatus.DESCONOCIDO
+        val date = lastAired?.let(::parseEnglishDate) ?: return AnimeStatus.DESCONOCIDO
         val days = (System.currentTimeMillis() - date) / 86_400_000L
-        return if (days <= 21) AnimeStatus.EMISION else AnimeStatus.FINALIZADO
+        return if (days in 0..21) AnimeStatus.EMISION else AnimeStatus.DESCONOCIDO
     }
 
     companion object {

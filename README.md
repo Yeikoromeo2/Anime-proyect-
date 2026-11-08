@@ -9,7 +9,8 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 |---|---|
 | 0 · Análisis de sitios | Latanime y Anime Ninja analizados; AnimeFLV y JKAnime pendientes ([resumen](docs/fase0-resumen.md)) |
 | 1 · Esqueleto (Inicio, navegación con el control, Ajustes, configuración remota, Room, APK en GitHub Actions) | ✅ |
-| 2 · Primer proveedor | Siguiente |
+| 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
+| 3 · Filtros dinámicos + búsqueda por voz | Siguiente |
 
 ## Requisitos
 
@@ -22,6 +23,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 ```bash
 ./gradlew testDebugUnitTest   # tests: parsers con los HTML de fixtures + navegación con el D-pad (Robolectric)
 ./gradlew testDebugUnitTest -Pcapturas   # además guarda capturas de pantalla en app/build/capturas
+./gradlew testDebugUnitTest -Psalud --tests '*SaludSitiosTest*'   # "salud de sitios": prueba EN VIVO cada sitio (búsqueda de "one piece")
 ./gradlew assembleDebug       # APK de depuración → app/build/outputs/apk/debug/
 ./gradlew assembleRelease     # APK de release   → app/build/outputs/apk/release/
 ```
@@ -88,7 +90,11 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Inicio](docs/capturas/fase1/01_inicio.png) | ![Ajustes](docs/capturas/fase1/03_ajustes.png) | ![Salir](docs/capturas/fase1/05_confirmar_salida.png) |
 
-Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás.
+| Novedades | Búsqueda (cuadrícula de portadas) | Ficha del anime |
+|---|---|---|
+| ![Novedades](docs/capturas/fase2/08_inicio_novedades.png) | ![Búsqueda](docs/capturas/fase2/09_busqueda_resultados.png) | ![Ficha](docs/capturas/fase2/11_ficha_one_piece.png) |
+
+Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
 
 ## Configuración remota (cuando un sitio cambia)
 
@@ -107,7 +113,7 @@ Cada dominio se puede corregir también a mano en **Ajustes → Sitios → (siti
 
 1. **Analizarlo** (como en la Fase 0): crea `docs/sites/<sitio>.md` con dominio, protección, búsqueda, filtros, selectores, detalle y servidores, y guarda páginas de ejemplo en `app/src/test/resources/fixtures/<sitio>/`.
 2. **Configurarlo**: añade una entrada en `config/sites.json` (`id`, `name`, `baseUrl`, selectores, filtros) con `"status": "pendiente"` mientras no tenga proveedor.
-3. **Proveedor**: crea `app/src/main/java/com/animehub/tv/providers/<sitio>/` implementando `SiteProvider`, solo con la lógica que no quepa en selectores.
+3. **Proveedor**: si el sitio usa un motor ya soportado (por ejemplo WordPress con el tema DooPlay, como Anime Ninja), basta con poner `"engine": "dooplay"` y sus selectores en la configuración. Si no, crea `app/src/main/java/com/animehub/tv/providers/<motor>/` implementando `SiteProvider` (solo la lógica que no quepa en selectores) y regístralo en `ProviderRegistry`.
 4. **Tests**: añade tests del proveedor contra los fixtures y cambia el estado a `"ok"`.
 
 ## Estructura

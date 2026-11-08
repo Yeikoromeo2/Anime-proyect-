@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.animehub.tv.ui.anime.AnimeScreen
 import com.animehub.tv.ui.history.HistoryScreen
 import com.animehub.tv.ui.home.HomeScreen
@@ -31,9 +30,9 @@ fun AppNavHost(onExit: () -> Unit) {
                 onExit = onExit,
             )
         }
-        composable<SearchRoute> { SearchScreen() }
+        composable<SearchRoute> { SearchScreen(onOpenAnime = openAnime) }
         composable<HistoryRoute> { HistoryScreen(onOpenAnime = openAnime) }
         composable<SettingsRoute> { SettingsScreen() }
-        composable<AnimeRoute> { entry -> AnimeScreen(entry.toRoute(), onBack = { nav.popBackStack() }) }
+        composable<AnimeRoute> { AnimeScreen(onBack = { nav.popBackStack() }) }
     }
 }

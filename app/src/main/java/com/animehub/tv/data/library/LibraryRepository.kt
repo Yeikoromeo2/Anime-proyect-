@@ -34,6 +34,9 @@ class LibraryRepository @Inject constructor(
         else favoriteDao.delete(siteId, animeUrl)
     }
 
+    fun progressForAnime(siteId: String, animeUrl: String): Flow<List<WatchProgress>> =
+        progressDao.observeForAnime(siteId, animeUrl).map { it.map(::toModel) }
+
     suspend fun saveProgress(progress: WatchProgress) = progressDao.upsert(toEntity(progress))
 
     suspend fun progressFor(siteId: String, episodeUrl: String): WatchProgress? = progressDao.get(siteId, episodeUrl)?.let(::toModel)

@@ -32,6 +32,7 @@ import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
+import com.animehub.tv.ui.components.WideCard
 import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
@@ -47,6 +48,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val onRetryLatest: (String) -> Unit = { viewModel.reloadLatest(it) }
     var confirmExit by remember { mutableStateOf(false) }
     // En Inicio, "Atrás" pide confirmación antes de salir.
     BackHandler { confirmExit = true }
@@ -93,9 +95,30 @@ fun HomeScreen(
         }
         state.activeSites.forEach { site ->
             item(key = "novedades-${site.id}") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Novedades · ${site.name}", style = MaterialTheme.typography.titleLarge)
-                    InfoText("Las novedades de este sitio aparecerán aquí cuando esté listo su proveedor (Fase 2).")
+                val row = state.latest[site.id] ?: LatestRow()
+                when {
+                    row.items.isNotEmpty() -> ContentRow("Novedades · ${site.name}", row.items, key = { it.episodeUrl }) { ep, cardModifier ->
+                        WideCard(
+                            title = ep.animeTitle,
+                            imageUrl = ep.imageUrl,
+                            cardModifier = cardModifier,
+                            subtitle = listOfNotNull(ep.episodeNumber?.let { "Episodio ${Format.episode(it)}" }, ep.dateLabel).joinToString(" · "),
+                            badge = ep.language,
+                            onClick = { onOpenAnime(site.id, ep.animeUrl ?: ep.episodeUrl, ep.animeTitle, ep.imageUrl) },
+                        )
+                    }
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Novedades · ${site.name}", style = MaterialTheme.typography.titleLarge)
+                        when {
+                            row.noProvider -> InfoText("Este sitio todavía no tiene proveedor; llegará en una próxima fase.")
+                            row.loading -> InfoText("Cargando novedades…")
+                            row.error != null -> Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(row.error, color = AppColors.Error)
+                                OutlinedButton(onClick = { onRetryLatest(site.id) }) { Text("Reintentar") }
+                            }
+                            else -> InfoText("No hay novedades.")
+                        }
+                    }
                 }
             }
         }

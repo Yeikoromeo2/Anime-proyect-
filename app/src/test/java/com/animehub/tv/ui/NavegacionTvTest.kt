@@ -2,27 +2,16 @@ package com.animehub.tv.ui
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.pressKey
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.animehub.tv.MainActivity
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.domain.model.WatchProgress
-import com.github.takahirom.roborazzi.captureScreenRoboImage
-import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -37,43 +26,14 @@ import javax.inject.Inject
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(application = HiltTestApplication::class, sdk = [36], qualifiers = "w960dp-h540dp-land-television-xhdpi")
-class NavegacionTvTest {
-
-    @get:Rule(order = 0)
-    val hilt = HiltAndroidRule(this)
-
-    @get:Rule(order = 1)
-    val compose = createAndroidComposeRule<MainActivity>()
+class NavegacionTvTest : TvUiTest() {
 
     @Inject lateinit var library: LibraryRepository
 
     @Before
     fun setUp() {
         hilt.inject()
-    }
-
-    /**
-     * Pulsa una tecla del control sobre el elemento enfocado de la ventana superior
-     * (si hay un diálogo abierto, las teclas van al diálogo, como en la TV).
-     */
-    private fun key(k: Key) {
-        compose.onAllNodes(isFocused()).onLast().performKeyInput { pressKey(k) }
-        compose.waitForIdle()
-    }
-
-    /** Tecla Atrás enviada a la ventana con foco (cierra primero los diálogos). */
-    private fun back() {
-        Espresso.pressBack()
-        compose.waitForIdle()
-    }
-
-    private fun waitForText(text: String) {
-        compose.waitUntil(timeoutMillis = 5_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
-    }
-
-    private fun capture(name: String) {
-        val dir = System.getProperty("animehub.capturasDir") ?: "build/capturas"
-        captureScreenRoboImage("$dir/$name.png")
+        setUpImages()
     }
 
     @Test

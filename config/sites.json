@@ -5,6 +5,7 @@
     {
       "id": "latanime",
       "name": "Latanime",
+      "engine": "latanime",
       "baseUrl": "https://latanime.org",
       "enabled": true,
       "status": "ok",
@@ -18,7 +19,9 @@
         "image": "div.imgrec img",
         "language": "div.info_cap span",
         "date": "span.span-tiempo",
-        "titleRegex": "^Episodio (\\d+(?:\\.\\d+)?) - (.+)$"
+        "titleRegex": "^Episodio (\\d+(?:\\.\\d+)?) - (.+)$",
+        "animeUrlPattern": "/ver/(.+)-episodio-[\\d.]+/?$",
+        "animeUrlReplacement": "/anime/$1"
       },
       "selectors": {
         "card": "a:has(> div.series)",
@@ -57,6 +60,7 @@
     {
       "id": "animeninja",
       "name": "Anime Ninja",
+      "engine": "dooplay",
       "baseUrl": "https://veranime.ninja",
       "aliases": ["https://animelhd.com"],
       "enabled": true,
@@ -71,7 +75,9 @@
         "image": "div.poster img",
         "link": "div.poster > a",
         "language": "span.quality",
-        "date": "span.time"
+        "date": "span.time",
+        "animeUrlPattern": "/ver/(.+)-episodio-[\\d.]+/?$",
+        "animeUrlReplacement": "/anime/$1/"
       },
       "selectors": {
         "searchCard": "div.result-item article",
@@ -97,13 +103,19 @@
         "episodes": "ul.episodios li",
         "episodeNumber": "div.numerando",
         "episodeLink": "div.episodiotitle a",
-        "episodeImage": "div.imagen img"
+        "episodeImage": "div.imagen img",
+        "episodeNumberRegex": "(\\d+)\\s*-\\s*(\\d+(?:\\.\\d+)?)",
+        "fields": "div.custom_fields",
+        "fieldName": "b.variante",
+        "fieldValue": "span.valor",
+        "lastAiredField": "Última transmisión"
       },
       "servers": {
         "mode": "dooplay-ajax",
         "item": "#playeroptionsul li.dooplay_player_option",
         "ajaxPath": "/wp-admin/admin-ajax.php",
-        "action": "doo_player_ajax"
+        "action": "doo_player_ajax",
+        "skipNume": "trailer"
       },
       "filters": [
         { "id": "type", "label": "Tipo", "multi": false, "source": "path", "options": [

@@ -20,6 +20,8 @@ data class RemoteConfig(
 data class SiteConfig(
     val id: String,
     val name: String,
+    /** Motor/proveedor que interpreta este sitio ("dooplay", "latanime"…); varios sitios pueden compartirlo. */
+    val engine: String? = null,
     val baseUrl: String,
     /** Dominios anteriores o alternativos que redirigen al principal. */
     val aliases: List<String> = emptyList(),

@@ -141,5 +141,7 @@ tasks.withType<Test>().configureEach {
     jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
     // ./gradlew testDebugUnitTest -Pcapturas guarda capturas de pantalla en app/build/capturas
     systemProperty("roborazzi.test.record", (project.findProperty("capturas") != null).toString())
+    // ./gradlew testDebugUnitTest -Psalud --tests '*SaludSitiosTest*' prueba los sitios en vivo
+    systemProperty("animehub.salud", (project.findProperty("salud") != null).toString())
     systemProperty("animehub.capturasDir", layout.buildDirectory.dir("capturas").get().asFile.absolutePath)
 }

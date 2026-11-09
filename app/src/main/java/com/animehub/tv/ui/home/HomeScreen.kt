@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Button
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.FilterChip
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
@@ -82,6 +84,11 @@ fun HomeScreen(
     ) {
         item { HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) }
 
+        // Qué sitio se está viendo: todos mezclados o uno solo (se recuerda).
+        if (state.siteChoices.size > 1) {
+            item(key = "elegir-sitio") { SiteChooser(state, viewModel::selectSite) }
+        }
+
         // 1) Lo que se acaba de publicar en todos los sitios, arriba y de frente (una sola fila:
         //    antes había además una fila por sitio que repetía los mismos capítulos).
         val combined = state.combinedLatest
@@ -89,7 +96,7 @@ fun HomeScreen(
             item(key = "ultimos-capitulos") {
                 ContentRow(
                     title = "Últimos capítulos",
-                    subtitle = "Lo que se acaba de publicar en tus sitios",
+                    subtitle = "Lo que se acaba de publicar en " + (state.currentSite?.name ?: "tus sitios"),
                     items = combined,
                     key = { it.siteId + it.episodeUrl },
                     firstItemModifier = if (!movedToLatest && searchHasFocus) Modifier.initialFocus(latestFocus) else Modifier,
@@ -156,7 +163,7 @@ fun HomeScreen(
             item(key = "recomendados") {
                 ContentRow(
                     title = "Recomendados",
-                    subtitle = "Lo que destacan tus sitios, con una pequeña reseña",
+                    subtitle = "Lo que destaca " + (state.currentSite?.name ?: "cada sitio") + ", con una pequeña reseña",
                     items = state.recommended,
                     key = { it.card.siteId + it.card.url },
                 ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
@@ -166,7 +173,7 @@ fun HomeScreen(
             item(key = "series-nuevas") {
                 ContentRow(
                     title = "Series nuevas",
-                    subtitle = "Estrenos recién agregados a tus sitios",
+                    subtitle = "Estrenos recién agregados a " + (state.currentSite?.name ?: "tus sitios"),
                     items = state.newSeries,
                     key = { it.card.siteId + it.card.url },
                 ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
@@ -179,7 +186,7 @@ fun HomeScreen(
                 val entries = listOf(GenreEntry("Todo el catálogo", null)) + state.genres.map { GenreEntry(it.label, it.value) }
                 ContentRow(
                     title = "Explorar por género",
-                    subtitle = "Todo el catálogo de tus sitios, por categoría",
+                    subtitle = "Todo el catálogo de " + (state.currentSite?.name ?: "tus sitios") + ", por categoría",
                     items = entries,
                     key = { it.canonical ?: "todo" },
                 ) { entry, cardModifier ->
@@ -262,6 +269,20 @@ private fun <T> ContentRow(
                 } else Modifier
                 itemContent(item, modifier)
             }
+        }
+    }
+}
+
+/** Chips para ver todos los sitios mezclados o solo uno. */
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun SiteChooser(state: HomeUiState, onSelect: (String?) -> Unit) {
+    val selected = state.currentSite?.id
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Viendo:", color = AppColors.TextoSecundario, modifier = Modifier.padding(end = 4.dp))
+        FilterChip(selected = selected == null, onClick = { onSelect(null) }) { Text("Todos los sitios") }
+        state.siteChoices.forEach { site ->
+            FilterChip(selected = selected == site.id, onClick = { onSelect(site.id) }) { Text(site.name) }
         }
     }
 }

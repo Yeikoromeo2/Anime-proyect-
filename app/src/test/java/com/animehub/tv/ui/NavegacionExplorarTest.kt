@@ -1,6 +1,13 @@
 package com.animehub.tv.ui
 
 import androidx.compose.ui.input.key.Key
+import javax.inject.Inject
+import org.junit.After
+import kotlinx.coroutines.runBlocking
+import com.animehub.tv.data.settings.SettingsRepository
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isFocused
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -22,6 +29,14 @@ class NavegacionExplorarTest : TvUiTest() {
     fun setUp() {
         hilt.inject()
         setUpImages()
+    }
+
+    @Inject lateinit var settings: SettingsRepository
+
+    /** El sitio elegido en Inicio se guarda en disco: cada prueba lo deja como estaba. */
+    @After
+    fun tearDown() {
+        runBlocking { settings.setHomeSite(null) }
     }
 
     private fun waitForAnyFocus() = compose.waitUntil(10_000) { compose.onAllNodes(isFocused()).fetchSemanticsNodes().isNotEmpty() }
@@ -92,5 +107,40 @@ class NavegacionExplorarTest : TvUiTest() {
         waitForText("Letra")
         waitForText("títulos cargados", substring = true)
         capture("28_explorar_latanime")
+    }
+
+    @Test
+    fun elegir_un_solo_sitio_en_inicio_y_explorar_lo_usa() {
+        waitForFocusedDescription(LATEST_FIRST)
+        key(Key.DirectionUp) // "Viendo: Todos los sitios · Latanime · Anime Ninja · JKAnime"
+        waitForFocus("Todos los sitios")
+        key(Key.DirectionRight)
+        key(Key.DirectionRight)
+        key(Key.DirectionRight)
+        waitForFocus("JKAnime")
+        key(Key.DirectionCenter)
+        // Solo JKAnime: sus capítulos, sus destacados y sus géneros, sin mezclar.
+        waitForText("Lo que se acaba de publicar en JKAnime")
+        waitForText("Lo que destaca JKAnime, con una pequeña reseña")
+        compose.onAllNodes(hasContentDescription(LATEST_FIRST)).assertCountEquals(0)
+        waitForText("Kanojo no Tomodachi")
+        capture("29_inicio_solo_jkanime")
+
+        // Explorar empieza en ese sitio, con sus categorías reales.
+        toHeaderFromChips()
+        key(Key.DirectionRight)
+        waitForFocus("Explorar")
+        key(Key.DirectionCenter)
+        waitForText("Todo el catálogo · JKAnime")
+        waitForText("Año")
+        waitForText("títulos cargados", substring = true)
+        capture("30_explorar_jkanime")
+    }
+
+    private fun toHeaderFromChips() {
+        repeat(4) {
+            if (compose.onAllNodes(hasText("Buscar") and isFocused()).fetchSemanticsNodes().isNotEmpty()) return
+            key(Key.DirectionUp)
+        }
     }
 }

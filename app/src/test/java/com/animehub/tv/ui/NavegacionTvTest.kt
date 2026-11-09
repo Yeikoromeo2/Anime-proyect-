@@ -45,6 +45,8 @@ class NavegacionTvTest : TvUiTest() {
         waitForText("Últimos capítulos")
         waitForFocusedDescription(LATEST_FIRST)
         capture("01_inicio")
+        key(Key.DirectionUp) // fila para elegir el sitio
+        waitForFocus("Todos los sitios")
         key(Key.DirectionUp)
         compose.onNodeWithText("Buscar").assertIsFocused()
         key(Key.DirectionRight)

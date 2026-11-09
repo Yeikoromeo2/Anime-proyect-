@@ -34,6 +34,8 @@ data class AppSettings(
     /** Segundos de avance/retroceso (10 o 30). */
     val seekSeconds: Int = 10,
     val lastConfigUpdate: Long = 0L,
+    /** Sitio que se está viendo en Inicio (null = todos mezclados); también es el de Buscar y Explorar al entrar. */
+    val homeSite: String? = null,
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "ajustes")
@@ -54,6 +56,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
                 ?: PreferredQuality.AUTO,
             seekSeconds = p[SEEK] ?: 10,
             lastConfigUpdate = p[LAST_UPDATE] ?: 0L,
+            homeSite = p[HOME_SITE]?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -77,6 +80,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun setLastConfigUpdate(timestamp: Long) = store.edit { it[LAST_UPDATE] = timestamp }
 
+    suspend fun setHomeSite(siteId: String?) = store.edit { if (siteId == null) it.remove(HOME_SITE) else it[HOME_SITE] = siteId }
+
     private suspend fun updateMap(key: Preferences.Key<Set<String>>, id: String, value: String?) {
         store.edit { prefs ->
             val map = decodeMap(prefs[key]).toMutableMap()
@@ -97,6 +102,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         private val QUALITY = stringPreferencesKey("preferred_quality")
         private val SEEK = intPreferencesKey("seek_seconds")
         private val LAST_UPDATE = longPreferencesKey("last_config_update")
+        private val HOME_SITE = stringPreferencesKey("home_site")
 
         // Los mapas se guardan como conjuntos "clave=valor" (los ids de sitio no llevan '=').
         internal fun decodeMap(set: Set<String>?): Map<String, String> =

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.data.log.ErrorLogRepository
+import com.animehub.tv.data.settings.SettingsRepository
 import com.animehub.tv.domain.model.AnimeCard
 import com.animehub.tv.domain.model.FilterGroup
 import com.animehub.tv.domain.model.FilterSelection
@@ -65,6 +66,7 @@ class SearchViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val registry: ProviderRegistry,
     private val errorLog: ErrorLogRepository,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
 
     val recentSearches: StateFlow<List<String>> =
@@ -87,11 +89,14 @@ class SearchViewModel @Inject constructor(
     init {
         ready = viewModelScope.launch {
             providers = registry.activeProviders.first()
+            // Empieza en el sitio que se está viendo en Inicio (si se eligió uno).
+            val homeSite = settings.current().homeSite?.takeIf { id -> providers.any { it.id == id } }
             _state.update {
                 it.copy(
                     sites = listOf(SiteChip(null, "Todos los sitios")) + providers.map { p -> SiteChip(p.id, p.name) },
                     siteNames = providers.associate { p -> p.id to p.name },
                     noProviders = providers.isEmpty(),
+                    selectedSite = homeSite,
                 )
             }
             loadFilters()

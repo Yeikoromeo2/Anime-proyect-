@@ -25,6 +25,9 @@ class ProviderRegistry @Inject constructor(
         else -> null
     }
 
+    /** El sitio tiene un proveedor en esta versión de la app. */
+    fun hasProvider(site: EffectiveSite): Boolean = site.config.engine in ENGINES
+
     /** Proveedores de los sitios activos (los sitios sin proveedor todavía se omiten). */
     val activeProviders: Flow<List<SiteProvider>> =
         configRepository.sites.map { sites -> sites.filter { it.enabled }.mapNotNull(::create) }
@@ -39,5 +42,6 @@ class ProviderRegistry @Inject constructor(
         const val ENGINE_DOOPLAY = "dooplay"
         const val ENGINE_LATANIME = "latanime"
         const val ENGINE_JKANIME = "jkanime"
+        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME)
     }
 }

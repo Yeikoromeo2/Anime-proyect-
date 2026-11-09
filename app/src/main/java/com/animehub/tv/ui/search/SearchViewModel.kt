@@ -217,9 +217,6 @@ class SearchViewModel @Inject constructor(
         const val SITE_TIMEOUT_MS = 15_000L
 
         /** Mezcla los resultados de varios sitios alternándolos (1º de cada sitio, 2º de cada sitio…). */
-        fun interleave(lists: List<List<AnimeCard>>): List<AnimeCard> {
-            val max = lists.maxOfOrNull { it.size } ?: 0
-            return (0 until max).flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
-        }
+        fun interleave(lists: List<List<AnimeCard>>): List<AnimeCard> = com.animehub.tv.util.interleave(lists)
     }
 }

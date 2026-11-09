@@ -3,6 +3,11 @@ package com.animehub.tv.ui
 import android.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.filterToOne
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onFirst
@@ -29,6 +34,11 @@ import org.junit.Rule
  * teclas del control. Las portadas se sustituyen por colores (no hay red en las pruebas).
  */
 abstract class TvUiTest {
+
+    companion object {
+        /** Primer capítulo de "Últimos capítulos" con los HTML de prueba (el primero de Latanime). */
+        const val LATEST_FIRST = "Tensei Kizoku, Kantei Skill de Nariagaru S1 Latino"
+    }
 
     @get:Rule(order = 0)
     val hilt = HiltAndroidRule(this)
@@ -79,6 +89,40 @@ abstract class TvUiTest {
     protected fun activate(text: String) {
         waitForText(text)
         compose.onAllNodesWithText(text).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+    }
+
+    /** Espera a que el elemento con esa descripción (portada) tenga el foco. */
+    protected fun waitForFocusedDescription(description: String) {
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodes(hasContentDescription(description) and isFocused()).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    /**
+     * Al abrir la app el foco pasa al capítulo más reciente; desde ahí se sube con la flecha
+     * arriba hasta "Buscar" en la cabecera.
+     */
+    protected fun toHeader() {
+        waitForFocusedDescription(LATEST_FIRST)
+        repeat(4) {
+            if (compose.onAllNodes(hasText("Buscar") and isFocused()).fetchSemanticsNodes().isNotEmpty()) return
+            key(Key.DirectionUp)
+        }
+        compose.onNode(hasText("Buscar") and isFocused()).assertExists()
+    }
+
+    /** Activa una tarjeta por su descripción (portada) como lo haría OK sobre ella. */
+    protected fun activateDescription(description: String) {
+        compose.waitUntil(10_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(hasContentDescription(description)).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+    }
+
+    /** Desplaza la lista principal de Inicio hasta el texto indicado (filas fuera de la pantalla). */
+    protected fun scrollHomeTo(text: String) {
+        compose.onAllNodes(hasScrollAction()).filterToOne(hasAnyDescendant(hasText("AnimeHub TV")))
+            .performScrollToNode(hasText(text))
         compose.waitForIdle()
     }
 

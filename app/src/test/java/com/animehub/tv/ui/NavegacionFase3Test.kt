@@ -43,6 +43,7 @@ class NavegacionFase3Test : TvUiTest() {
     }
 
     private fun openSearch() {
+        toHeader()
         key(Key.DirectionCenter) // "Buscar"
         waitForText("Nombre del anime")
     }

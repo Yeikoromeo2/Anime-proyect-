@@ -91,15 +91,19 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Inicio](docs/capturas/fase1/01_inicio.png) | ![Ajustes](docs/capturas/fase1/03_ajustes.png) | ![Salir](docs/capturas/fase1/05_confirmar_salida.png) |
 
-| Novedades | Búsqueda (cuadrícula de portadas) | Ficha del anime |
+| Capítulo nuevo elegido | Búsqueda (cuadrícula de portadas) | Ficha del anime |
 |---|---|---|
-| ![Novedades](docs/capturas/fase2/08_inicio_novedades.png) | ![Búsqueda](docs/capturas/fase2/09_busqueda_resultados.png) | ![Ficha](docs/capturas/fase2/11_ficha_one_piece.png) |
+| ![Capítulo nuevo](docs/capturas/fase2/15_ficha_capitulo_nuevo.png) | ![Búsqueda](docs/capturas/fase2/09_busqueda_resultados.png) | ![Ficha](docs/capturas/fase2/11_ficha_one_piece.png) |
 
 | Búsqueda por voz | Panel de filtros | Filtrado por género y año |
 |---|---|---|
 | ![Voz](docs/capturas/fase3/12_busqueda_voz.png) | ![Filtros](docs/capturas/fase3/13_panel_filtros.png) | ![Resultados](docs/capturas/fase3/14_resultados_filtrados.png) |
 
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
+
+## Inicio: capítulos nuevos de frente
+
+Al abrir la app, arriba del todo está **"Últimos capítulos"**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Debajo, una fila de **novedades por sitio** (como la portada de cada web) y después **Continuar viendo** y **Favoritos**. Al elegir un capítulo nuevo se abre su ficha con ese capítulo marcado como **NUEVO** y enfocado.
 
 ## Búsqueda, filtros y voz
 

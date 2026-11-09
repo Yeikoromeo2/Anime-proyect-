@@ -60,6 +60,8 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
     val episodes = detail?.episodes.orEmpty()
     val seasons = episodes.groupBy { it.season }
     val multiSeason = seasons.size > 1
+    // Capítulo nuevo elegido en Inicio: se destaca y recibe el foco.
+    val highlighted = state.route.episodeUrl?.let { target -> episodes.firstOrNull { sameUrl(it.url, target) } }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 120.dp),
@@ -95,6 +97,9 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
                         val firstEpisode = episodes.firstOrNull()
                         when {
                             state.error != null -> Button(onClick = viewModel::reload, modifier = Modifier.initialFocus(focus)) { Text("Reintentar") }
+                            highlighted != null -> Button(onClick = { selected = highlighted }, modifier = Modifier.initialFocus(focus)) {
+                                Text("Ver episodio ${Format.episode(highlighted.number)} · nuevo")
+                            }
                             last != null -> Button(
                                 onClick = { selected = episodes.firstOrNull { it.url == last.episodeUrl } ?: firstEpisode },
                                 modifier = Modifier.initialFocus(focus),
@@ -117,7 +122,7 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
                     Text(season?.let { "Temporada $it" } ?: "Episodios", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
                 }
             }
-            items(list, key = { it.url }) { ep -> EpisodeButton(ep, state.progress[ep.url]) { selected = ep } }
+            items(list, key = { it.url }) { ep -> EpisodeButton(ep, state.progress[ep.url], isNew = ep == highlighted) { selected = ep } }
         }
     }
 
@@ -137,14 +142,18 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
 
 /** Botón de episodio: número, marca de visto y barra si está a medias. */
 @Composable
-private fun EpisodeButton(episode: Episode, progress: WatchProgress?, onClick: () -> Unit) {
+private fun EpisodeButton(episode: Episode, progress: WatchProgress?, isNew: Boolean = false, onClick: () -> Unit) {
     val watched = progress?.completed == true
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(64.dp),
         shape = ButtonDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ButtonDefaults.colors(
-            containerColor = if (watched) AppColors.Superficie.copy(alpha = 0.5f) else AppColors.Superficie,
+            containerColor = when {
+                isNew -> AppColors.SuperficieFoco
+                watched -> AppColors.Superficie.copy(alpha = 0.5f)
+                else -> AppColors.Superficie
+            },
             contentColor = if (watched) AppColors.TextoSecundario else androidx.compose.ui.graphics.Color.White,
         ),
         contentPadding = PaddingValues(0.dp),
@@ -155,7 +164,18 @@ private fun EpisodeButton(episode: Episode, progress: WatchProgress?, onClick: (
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.titleSmall,
             )
+            if (isNew) {
+                Text(
+                    "NUEVO",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppColors.Acento2,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
             if (progress != null && !watched) ProgressBar(progress.fraction, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
         }
     }
 }
+
+/** Compara URLs de episodio sin tener en cuenta la barra final. */
+private fun sameUrl(a: String, b: String) = a.trimEnd('/') == b.trimEnd('/')

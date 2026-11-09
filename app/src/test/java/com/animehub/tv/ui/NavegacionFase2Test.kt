@@ -7,6 +7,13 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.filterToOne
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -38,7 +45,8 @@ class NavegacionFase2Test : TvUiTest() {
     }
 
     private fun searchFor(text: String) {
-        key(Key.DirectionCenter) // "Buscar" tiene el foco inicial en Inicio
+        toHeader()
+        key(Key.DirectionCenter) // "Buscar"
         waitForText("Nombre del anime")
         compose.onNode(hasSetTextAction()).performTextInput(text)
         compose.onNode(hasSetTextAction()).performImeAction()
@@ -46,17 +54,35 @@ class NavegacionFase2Test : TvUiTest() {
     }
 
     @Test
-    fun novedades_de_cada_sitio_en_inicio() {
+    fun capitulos_nuevos_arriba_combinados_y_por_sitio() {
+        waitForText("Últimos capítulos")
         waitForText("Novedades · Latanime")
+        // "Últimos capítulos" alterna sitios: 1º de Latanime, 1º de Anime Ninja…
+        waitForFocusedDescription(LATEST_FIRST)
+        key(Key.DirectionRight)
+        compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
+            .assertCountEquals(1)
+        key(Key.DirectionDown) // fila de Latanime
+        key(Key.DirectionDown) // fila de Anime Ninja
         waitForText("Novedades · Anime Ninja")
-        compose.onNodeWithText("Buscar").assertIsFocused()
-        // Primera fila: Latanime; la siguiente: Anime Ninja.
-        key(Key.DirectionDown)
-        // Ese anime tiene dos episodios en novedades (12 y 1): el foco va al primero.
-        compose.onAllNodesWithContentDescription("Tensei Kizoku, Kantei Skill de Nariagaru S1 Latino")[0].assertIsFocused()
-        key(Key.DirectionDown)
-        compose.onNodeWithContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu").assertIsFocused()
+        compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
+            .assertCountEquals(1)
         capture("08_inicio_novedades")
+    }
+
+    @Test
+    fun elegir_un_capitulo_nuevo_abre_su_ficha_con_ese_capitulo_destacado() {
+        waitForFocusedDescription(LATEST_FIRST)
+        // Tank Chair, episodio 6 (publicado en Anime Ninja), más a la derecha en "Últimos capítulos".
+        // La primera fila horizontal es "Últimos capítulos" (la de Latanime repite ese capítulo).
+        compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasContentDescription(LATEST_FIRST)) and hasAnyDescendant(hasText("Últimos capítulos")).not())
+            .onFirst()
+            .performScrollToNode(hasContentDescription("Tank Chair"))
+        activateDescription("Tank Chair")
+        waitForText("Ver episodio 6 · nuevo")
+        waitForFocus("Ver episodio 6 · nuevo")
+        waitForText("NUEVO")
+        capture("15_ficha_capitulo_nuevo")
     }
 
     @Test
@@ -93,7 +119,8 @@ class NavegacionFase2Test : TvUiTest() {
         compose.onAllNodes(isFocused()).onLast().assert(hasText("Ep. ", substring = true))
         back() // a la búsqueda
         back() // a Inicio
-        waitForText("Favoritos")
+        waitForText("AnimeHub TV")
+        scrollHomeTo("Favoritos")
         compose.onNodeWithContentDescription("One Piece").assertExists()
     }
 }

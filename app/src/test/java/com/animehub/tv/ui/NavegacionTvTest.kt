@@ -1,7 +1,10 @@
 package com.animehub.tv.ui
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -37,14 +40,17 @@ class NavegacionTvTest : TvUiTest() {
     }
 
     @Test
-    fun inicio_tiene_foco_inicial_y_se_recorre_con_las_flechas() {
-        compose.waitForIdle()
+    fun inicio_muestra_de_frente_los_capitulos_nuevos_y_arriba_la_cabecera() {
+        // Al abrir, el foco pasa solo al capítulo más reciente de "Últimos capítulos".
+        waitForText("Últimos capítulos")
+        waitForFocusedDescription(LATEST_FIRST)
+        capture("01_inicio")
+        key(Key.DirectionUp)
         compose.onNodeWithText("Buscar").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithText("Historial").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithText("Ajustes").assertIsFocused()
-        capture("01_inicio")
     }
 
     @Test
@@ -62,11 +68,14 @@ class NavegacionTvTest : TvUiTest() {
             }
             library.setFavorite("animeninja", "https://veranime.ninja/anime/one-piece/", "One Piece", null, true)
         }
-        waitForText("Continuar viendo")
-        waitForText("Favoritos")
-        compose.onNodeWithText("Buscar").assertIsFocused()
-        key(Key.DirectionDown)
-        // El más reciente va primero.
+        // Orden: Últimos capítulos → Novedades por sitio → Continuar viendo → Favoritos.
+        waitForFocusedDescription(LATEST_FIRST)
+        key(Key.DirectionDown) // Novedades · Latanime
+        compose.onAllNodes(hasContentDescription(LATEST_FIRST) and isFocused()).assertCountEquals(1)
+        key(Key.DirectionDown) // Novedades · Anime Ninja
+        compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
+            .assertCountEquals(1)
+        key(Key.DirectionDown) // Continuar viendo: el más reciente primero
         compose.onNodeWithContentDescription("Kaiju No. 8").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithContentDescription("Dandadan").assertIsFocused()
@@ -77,7 +86,7 @@ class NavegacionTvTest : TvUiTest() {
 
     @Test
     fun ajustes_se_abren_y_se_vuelve_con_atras() {
-        compose.waitForIdle()
+        toHeader()
         key(Key.DirectionRight)
         key(Key.DirectionRight)
         key(Key.DirectionCenter)
@@ -110,12 +119,13 @@ class NavegacionTvTest : TvUiTest() {
 
     @Test
     fun busqueda_e_historial_tienen_foco_inicial() {
-        compose.waitForIdle()
+        toHeader()
         key(Key.DirectionCenter) // Buscar
         compose.onNodeWithText("Nombre del anime").assertExists()
         capture("06_busqueda")
         back()
-        compose.onNodeWithText("Buscar").assertIsFocused()
+        // Al volver, el foco se queda en "Buscar" (no salta otra vez a los capítulos).
+        waitForFocus("Buscar")
         key(Key.DirectionRight)
         key(Key.DirectionCenter) // Historial
         waitForFocus("Borrar todo")

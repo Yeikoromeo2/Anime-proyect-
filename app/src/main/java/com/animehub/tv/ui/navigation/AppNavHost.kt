@@ -29,6 +29,9 @@ fun AppNavHost(onExit: () -> Unit) {
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
                 onOpenAnime = openAnime,
+                onOpenEpisode = { siteId, animeUrl, episodeUrl, title, image ->
+                    nav.navigate(AnimeRoute(siteId, animeUrl, title, image, episodeUrl))
+                },
                 onExit = onExit,
             )
         }

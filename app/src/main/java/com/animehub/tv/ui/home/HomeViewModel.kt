@@ -11,6 +11,7 @@ import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.providers.ProviderRegistry
 import com.animehub.tv.util.UserMessages
+import com.animehub.tv.util.interleave
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,7 +41,11 @@ data class HomeUiState(
     val activeSites: List<EffectiveSite> = emptyList(),
     val siteNames: Map<String, String> = emptyMap(),
     val latest: Map<String, LatestRow> = emptyMap(),
-)
+) {
+    /** "Últimos capítulos": lo publicado por todos los sitios, alternando para que ninguno tape a los demás. */
+    val combinedLatest: List<EpisodeCard>
+        get() = interleave(activeSites.mapNotNull { latest[it.id]?.items?.takeIf { items -> items.isNotEmpty() } })
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(

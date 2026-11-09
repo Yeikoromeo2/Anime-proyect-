@@ -52,6 +52,8 @@ data class SiteConfig(
     val filters: List<FilterConfig> = emptyList(),
     val coverPlaceholders: List<String> = emptyList(),
     val coverRewrites: List<RewriteConfig> = emptyList(),
+    /** Secciones de la portada del sitio que se muestran en Inicio (recomendados, series nuevas). */
+    val showcase: List<ShowcaseConfig> = emptyList(),
 ) {
     val isPending: Boolean get() = status != STATUS_OK
 
@@ -102,6 +104,29 @@ data class FilterConfig(
 
 @Serializable
 data class FilterOptionConfig(val value: String, val label: String, val canonical: String? = null)
+
+/**
+ * Una sección de la portada del sitio (p. ej. "🔥 Recomendados" o "Series recientes").
+ * Los selectores son relativos a cada tarjeta; los vacíos se ignoran.
+ * @param kind "recommended" (lo que el sitio recomienda o destaca) o "new" (series recién agregadas).
+ * @param link enlace a la ficha; vacío = la propia tarjeta si es un `<a>`, o su primer `a[href]`.
+ * @param titleAttr atributo del que sale el título (p. ej. "alt" de la imagen); vacío = el texto.
+ */
+@Serializable
+data class ShowcaseConfig(
+    val kind: String,
+    val path: String = "/",
+    val card: String,
+    val link: String = "",
+    val title: String,
+    val titleAttr: String = "",
+    val image: String,
+    val synopsis: String = "",
+    val year: String = "",
+    val rating: String = "",
+    val date: String = "",
+    val limit: Int = 20,
+)
 
 @Serializable
 data class RewriteConfig(val pattern: String, val replacement: String)

@@ -19,6 +19,20 @@ object Format {
     fun episode(number: Float): String =
         if (number % 1f == 0f) number.toInt().toString() else number.toString()
 
+    /** Fechas en inglés de algunos sitios ("Nov. 06, 2026") → "06 nov 2026"; el resto se deja igual. */
+    fun siteDate(text: String): String {
+        val match = ENGLISH_DATE.find(text.trim()) ?: return text
+        val (month, day, year) = match.destructured
+        val es = MONTHS[month.lowercase()] ?: return text
+        return "${day.padStart(2, '0')} $es $year"
+    }
+
+    private val ENGLISH_DATE = Regex("""^([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),\s*(\d{4})$""")
+    private val MONTHS = mapOf(
+        "jan" to "ene", "feb" to "feb", "mar" to "mar", "apr" to "abr", "may" to "may", "jun" to "jun",
+        "jul" to "jul", "aug" to "ago", "sep" to "sep", "oct" to "oct", "nov" to "nov", "dec" to "dic",
+    )
+
     fun date(timestamp: Long): String =
         SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es")).format(Date(timestamp))
 }

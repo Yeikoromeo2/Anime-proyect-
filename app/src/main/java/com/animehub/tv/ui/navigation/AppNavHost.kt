@@ -9,6 +9,7 @@ import com.animehub.tv.ui.anime.AnimeScreen
 import com.animehub.tv.ui.history.HistoryScreen
 import com.animehub.tv.ui.home.HomeScreen
 import com.animehub.tv.ui.player.PlayerScreen
+import com.animehub.tv.ui.search.ExploreScreen
 import com.animehub.tv.ui.search.SearchScreen
 import com.animehub.tv.ui.settings.SettingsScreen
 
@@ -26,6 +27,7 @@ fun AppNavHost(onExit: () -> Unit) {
         composable<HomeRoute> {
             HomeScreen(
                 onSearch = { nav.navigate(SearchRoute()) },
+                onExplore = { genre -> nav.navigate(ExploreRoute(genre)) },
                 onVoiceSearch = { nav.navigate(SearchRoute(voice = true)) },
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
@@ -38,6 +40,7 @@ fun AppNavHost(onExit: () -> Unit) {
             )
         }
         composable<SearchRoute> { entry -> SearchScreen(onOpenAnime = openAnime, startVoice = entry.toRoute<SearchRoute>().voice) }
+        composable<ExploreRoute> { entry -> ExploreScreen(onOpenAnime = openAnime, initialGenre = entry.toRoute<ExploreRoute>().genre) }
         composable<HistoryRoute> {
             HistoryScreen(
                 onOpenAnime = openAnime,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,9 +35,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.domain.model.EpisodeCard
+import com.animehub.tv.domain.model.ShowcaseItem
 import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
+import com.animehub.tv.ui.components.ReviewCard
 import com.animehub.tv.ui.components.WideCard
 import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
@@ -47,6 +50,7 @@ import com.animehub.tv.voice.VoiceSearch
 @Composable
 fun HomeScreen(
     onSearch: () -> Unit,
+    onExplore: (genre: String?) -> Unit,
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -76,9 +80,10 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        item { HomeHeader(onSearch, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) }
+        item { HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) }
 
-        // 1) Lo que se acaba de publicar en todos los sitios, arriba y de frente.
+        // 1) Lo que se acaba de publicar en todos los sitios, arriba y de frente (una sola fila:
+        //    antes había además una fila por sitio que repetía los mismos capítulos).
         val combined = state.combinedLatest
         if (combined.isNotEmpty()) {
             item(key = "ultimos-capitulos") {
@@ -106,42 +111,11 @@ fun HomeScreen(
                 }
             }
         }
-
-        // 2) Una fila por sitio, como la portada de cada web.
-        if (state.activeSites.isEmpty()) {
-            item { InfoText("No hay sitios activos. Actívalos en Ajustes.") }
-        }
-        state.activeSites.forEach { site ->
-            item(key = "novedades-${site.id}") {
-                val row = state.latest[site.id] ?: LatestRow()
-                when {
-                    row.items.isNotEmpty() -> ContentRow("Novedades · ${site.name}", row.items, key = { it.episodeUrl }) { ep, cardModifier ->
-                        WideCard(
-                            title = ep.animeTitle,
-                            imageUrl = ep.imageUrl,
-                            cardModifier = cardModifier,
-                            subtitle = listOfNotNull(ep.episodeNumber?.let { "Episodio ${Format.episode(it)}" }, ep.dateLabel).joinToString(" · "),
-                            badge = ep.language,
-                            onClick = { openEpisode(ep) },
-                        )
-                    }
-                    else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Novedades · ${site.name}", style = MaterialTheme.typography.titleLarge)
-                        when {
-                            row.noProvider -> InfoText("Este sitio todavía no tiene proveedor; llegará en una próxima fase.")
-                            row.loading -> InfoText("Cargando capítulos nuevos…")
-                            row.error != null -> Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(row.error, color = AppColors.Error)
-                                OutlinedButton(onClick = { onRetryLatest(site.id) }) { Text("Reintentar") }
-                            }
-                            else -> InfoText("No hay capítulos nuevos.")
-                        }
-                    }
-                }
-            }
+        if (state.hasLatestStatus) {
+            item(key = "estado-novedades") { LatestStatus(state, onRetryLatest) }
         }
 
-        // 3) Lo tuyo: lo que estás viendo y tus favoritos.
+        // 2) Lo tuyo: lo que estás viendo (sigue con un clic) y tus favoritos.
         if (state.continueWatching.isNotEmpty()) {
             item(key = "continuar") {
                 ContentRow("Continuar viendo", state.continueWatching, key = { it.siteId + it.episodeUrl }) { p, cardModifier ->
@@ -176,6 +150,43 @@ fun HomeScreen(
         if (state.continueWatching.isEmpty() && state.favorites.isEmpty()) {
             item { InfoText("Aquí verás lo que estés viendo y tus favoritos.") }
         }
+
+        // 3) Lo que recomiendan los sitios y las series recién agregadas, con una reseña corta.
+        if (state.recommended.isNotEmpty()) {
+            item(key = "recomendados") {
+                ContentRow(
+                    title = "Recomendados",
+                    subtitle = "Lo que destacan tus sitios, con una pequeña reseña",
+                    items = state.recommended,
+                    key = { it.card.siteId + it.card.url },
+                ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
+            }
+        }
+        if (state.newSeries.isNotEmpty()) {
+            item(key = "series-nuevas") {
+                ContentRow(
+                    title = "Series nuevas",
+                    subtitle = "Estrenos recién agregados a tus sitios",
+                    items = state.newSeries,
+                    key = { it.card.siteId + it.card.url },
+                ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
+            }
+        }
+
+        // 4) Todo el catálogo por categoría.
+        if (state.genres.isNotEmpty()) {
+            item(key = "explorar-generos") {
+                val entries = listOf(GenreEntry("Todo el catálogo", null)) + state.genres.map { GenreEntry(it.label, it.value) }
+                ContentRow(
+                    title = "Explorar por género",
+                    subtitle = "Todo el catálogo de tus sitios, por categoría",
+                    items = entries,
+                    key = { it.canonical ?: "todo" },
+                ) { entry, cardModifier ->
+                    OutlinedButton(onClick = { onExplore(entry.canonical) }, modifier = cardModifier) { Text(entry.label) }
+                }
+            }
+        }
     }
 
     if (confirmExit) {
@@ -192,6 +203,7 @@ fun HomeScreen(
 @Composable
 private fun HomeHeader(
     onSearch: () -> Unit,
+    onExplore: () -> Unit,
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -209,6 +221,7 @@ private fun HomeHeader(
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onSearch, modifier = Modifier.initialFocus(focus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Buscar") }
+            OutlinedButton(onClick = onExplore) { Text("Explorar") }
             // Atajo de voz: solo si el dispositivo tiene reconocimiento de voz.
             if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤 Voz") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
@@ -252,6 +265,54 @@ private fun <T> ContentRow(
         }
     }
 }
+
+/** Novedades que aún cargan o que fallaron (con "Reintentar"), debajo de "Últimos capítulos". */
+@Composable
+private fun LatestStatus(state: HomeUiState, onRetry: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (state.combinedLatest.isEmpty()) Text("Últimos capítulos", style = MaterialTheme.typography.titleLarge)
+        when {
+            state.activeSites.isEmpty() -> InfoText("No hay sitios activos. Actívalos en Ajustes.")
+            state.combinedLatest.isEmpty() && state.loadingLatest -> InfoText("Cargando capítulos nuevos…")
+            state.combinedLatest.isEmpty() && state.failedSites.isEmpty() -> InfoText("No hay capítulos nuevos.")
+        }
+        state.failedSites.forEach { (site, error) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${site.name}: $error", color = AppColors.Error)
+                OutlinedButton(onClick = { onRetry(site.id) }) { Text("Reintentar") }
+            }
+        }
+    }
+}
+
+/** Destacado con su reseña; si la portada del sitio no la trae, se pide a la ficha al mostrarse. */
+@Composable
+private fun ShowcaseCard(
+    item: ShowcaseItem,
+    state: HomeUiState,
+    cardModifier: Modifier,
+    onNeedReview: (ShowcaseItem) -> Unit,
+    onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
+) {
+    val review = state.reviewOf(item)
+    LaunchedEffect(item.card.siteId + item.card.url) { if (review == null) onNeedReview(item) }
+    ReviewCard(
+        title = item.card.title,
+        imageUrl = item.card.coverUrl,
+        synopsis = review?.let { it.synopsis.orEmpty() },
+        cardModifier = cardModifier,
+        meta = listOfNotNull(
+            state.siteNames[item.card.siteId],
+            item.dateLabel?.let { "Agregado el ${Format.siteDate(it)}" } ?: item.card.year?.toString(),
+            item.rating?.let { "★ $it" },
+        ).joinToString(" · "),
+        genres = review?.genres?.takeIf { it.isNotEmpty() }?.joinToString(" · "),
+        onClick = { onOpenAnime(item.card.siteId, item.card.url, item.card.title, item.card.coverUrl) },
+    )
+}
+
+/** Acceso directo a Explorar: un género (valor común entre sitios) o todo el catálogo (null). */
+private data class GenreEntry(val label: String, val canonical: String?)
 
 @Composable
 private fun InfoText(text: String) {

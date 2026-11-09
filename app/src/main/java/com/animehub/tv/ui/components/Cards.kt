@@ -2,6 +2,7 @@ package com.animehub.tv.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -137,6 +140,67 @@ fun WideCard(
         )
         if (subtitle != null) {
             Text(subtitle, style = MaterialTheme.typography.labelSmall, color = AppColors.TextoSecundario, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * Tarjeta con reseña corta: portada a la izquierda y, a la derecha, título, datos, géneros y
+ * sinopsis. Pensada para "Recomendados" y "Series nuevas" de Inicio.
+ * @param synopsis null mientras se carga; vacío si el sitio no tiene reseña.
+ */
+@Composable
+fun ReviewCard(
+    title: String,
+    imageUrl: String?,
+    synopsis: String?,
+    onClick: () -> Unit,
+    cardModifier: Modifier = Modifier,
+    meta: String? = null,
+    genres: String? = null,
+    badge: String? = null,
+    width: Dp = 430.dp,
+    height: Dp = 176.dp,
+) {
+    Card(
+        onClick = onClick,
+        modifier = cardModifier.width(width).height(height),
+        shape = CardDefaults.shape(CardShape),
+        scale = CardDefaults.scale(focusedScale = 1.04f),
+        border = focusBorder(),
+        colors = CardDefaults.colors(
+            containerColor = AppColors.Superficie,
+            contentColor = Color.White,
+            focusedContainerColor = AppColors.SuperficieFoco,
+            focusedContentColor = Color.White,
+        ),
+    ) {
+        Row(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxHeight().aspectRatio(POSTER_RATIO)) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (badge != null) Badge(badge, Modifier.align(Alignment.TopStart))
+            }
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (meta != null) Text(meta, style = MaterialTheme.typography.labelSmall, color = AppColors.Acento2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (genres != null) Text(genres, style = MaterialTheme.typography.labelSmall, color = AppColors.TextoSecundario, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = when {
+                        synopsis == null -> "Cargando reseña…"
+                        synopsis.isEmpty() -> "Sin reseña en el sitio."
+                        else -> synopsis
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalContentColor.current.copy(alpha = 0.85f),
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

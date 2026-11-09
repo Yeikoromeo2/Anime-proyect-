@@ -5,6 +5,11 @@ import kotlinx.serialization.Serializable
 @Serializable object HomeRoute
 /** @param voice abre el dictado al entrar (atajo de voz desde Inicio). */
 @Serializable data class SearchRoute(val voice: Boolean = false)
+/**
+ * Catálogo completo por categorías.
+ * @param genre género elegido en Inicio (valor común entre sitios, p. ej. "accion"); null = todo.
+ */
+@Serializable data class ExploreRoute(val genre: String? = null)
 @Serializable object HistoryRoute
 @Serializable object SettingsRoute
 

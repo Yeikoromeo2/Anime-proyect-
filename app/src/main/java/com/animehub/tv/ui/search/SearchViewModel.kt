@@ -80,9 +80,12 @@ class SearchViewModel @Inject constructor(
     private val filtersCache = mutableMapOf<String, List<FilterGroup>>()
     private var searchJob: Job? = null
     private var filtersJob: Job? = null
+    private var exploreStarted = false
+    /** Termina cuando se conocen los sitios y empezó la carga de sus filtros. */
+    private val ready: Job
 
     init {
-        viewModelScope.launch {
+        ready = viewModelScope.launch {
             providers = registry.activeProviders.first()
             _state.update {
                 it.copy(
@@ -108,11 +111,44 @@ class SearchViewModel @Inject constructor(
 
     fun clearFilters() = _state.update { it.copy(filters = FilterSelection.NONE) }
 
+    /** Elige un valor de un grupo (o ninguno, con null) reemplazando el anterior. */
+    fun setGroupValue(groupId: String, value: String?) = _state.update {
+        val values = it.filters.values.toMutableMap()
+        if (value == null) values.remove(groupId) else values[groupId] = setOf(value)
+        it.copy(filters = FilterSelection(values))
+    }
+
     /** Ejecuta la búsqueda con el texto actual y los filtros elegidos (texto vacío = solo filtros). */
     fun search(query: String) {
         val clean = query.trim()
+        if (clean.isEmpty() && _state.value.filters.isEmpty) return
+        run(clean)
+    }
+
+    /** Explorar: el catálogo con los filtros elegidos (sin filtros = todo el catálogo). */
+    fun browse() = run("")
+
+    /**
+     * Abre Explorar una sola vez: espera los filtros del sitio, marca el género pedido desde Inicio
+     * (valor común, p. ej. "accion") y muestra el catálogo.
+     */
+    fun startExplore(genre: String?) {
+        if (exploreStarted) return
+        exploreStarted = true
+        viewModelScope.launch {
+            ready.join()
+            filtersJob?.join()
+            if (genre != null) {
+                val group = _state.value.filterGroups.firstOrNull { it.id == GENRE }
+                val option = group?.options?.firstOrNull { FilterTranslator.canonicalOf(it) == genre }
+                if (option != null) setGroupValue(GENRE, option.value)
+            }
+            browse()
+        }
+    }
+
+    private fun run(clean: String) {
         val filters = _state.value.filters
-        if (clean.isEmpty() && filters.isEmpty) return
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             if (clean.isNotEmpty()) library.addSearch(clean)
@@ -215,6 +251,7 @@ class SearchViewModel @Inject constructor(
 
     companion object {
         const val SITE_TIMEOUT_MS = 15_000L
+        const val GENRE = "genre"
 
         /** Mezcla los resultados de varios sitios alternándolos (1º de cada sitio, 2º de cada sitio…). */
         fun interleave(lists: List<List<AnimeCard>>): List<AnimeCard> = com.animehub.tv.util.interleave(lists)

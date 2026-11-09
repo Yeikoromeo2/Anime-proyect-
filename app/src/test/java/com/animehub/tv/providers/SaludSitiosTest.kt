@@ -37,6 +37,7 @@ class SaludSitiosTest {
         val latest = provider.latestEpisodes()
         println("Anime Ninja · novedades: ${latest.size} → ${latest.take(3).map { "${it.animeTitle} ${it.episodeNumber}" }}")
         assertTrue("No hay novedades", latest.isNotEmpty())
+        checkShowcase("Anime Ninja", provider.showcase())
         val detail = provider.animeDetail(results.first().url)
         println("Anime Ninja · ficha: ${detail.title}, ${detail.episodes.size} episodios")
         assertTrue("La ficha no tiene episodios", detail.episodes.isNotEmpty())
@@ -68,6 +69,7 @@ class SaludSitiosTest {
         val latest = provider.latestEpisodes()
         println("Latanime · novedades: ${latest.size} → ${latest.take(3).map { "${it.animeTitle} ${it.episodeNumber}" }}")
         assertTrue("No hay novedades", latest.isNotEmpty())
+        checkShowcase("Latanime", provider.showcase())
         // La búsqueda por texto pide verificación de Cloudflare: se comprueba el directorio con filtros.
         val year = (java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 1).toString()
         val filtered = provider.search("", FilterSelection(mapOf("genre" to setOf("accion"), "year" to setOf(year))), 1).items
@@ -80,5 +82,14 @@ class SaludSitiosTest {
         val servers = provider.servers(detail.episodes.first().url)
         println("Latanime · servidores: ${servers.map { it.name }}")
         assertTrue(servers.isNotEmpty())
+    }
+
+    /** Recomendados y series nuevas de la portada (lo que muestra Inicio). */
+    private fun checkShowcase(site: String, items: List<com.animehub.tv.domain.model.ShowcaseItem>) {
+        val byKind = items.groupBy { it.kind }
+        byKind.forEach { (kind, list) -> println("$site · $kind: ${list.size} → ${list.take(3).map { it.card.title }}") }
+        assertTrue("$site: faltan recomendados", byKind[com.animehub.tv.domain.model.ShowcaseKind.RECOMENDADO].orEmpty().isNotEmpty())
+        assertTrue("$site: faltan series nuevas", byKind[com.animehub.tv.domain.model.ShowcaseKind.NUEVO].orEmpty().isNotEmpty())
+        assertTrue("$site: faltan portadas", items.all { it.card.coverUrl != null })
     }
 }

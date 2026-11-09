@@ -59,6 +59,9 @@ object TestAppModule {
             path.startsWith("/genero/") -> "animeninja/genero_accion.html"
             path.startsWith("/pelicula/") && path.count { it == '/' } <= 2 -> "animeninja/directorio_peliculas.html"
             path == "/anime/one-piece/" -> "animeninja/anime_one_piece.html"
+            // Fichas de dos "Recomendados" (para que su reseña sea la real).
+            path == "/anime/jigokuraku/" -> "animeninja/anime_jigokuraku.html"
+            path == "/anime/oshi-no-ko/" -> "animeninja/anime_oshi-no-ko.html"
             path.startsWith("/anime/") -> "animeninja/anime_tank_chair.html"
             else -> null
         }

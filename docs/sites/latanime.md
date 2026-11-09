@@ -201,3 +201,14 @@ Servidores encontrados (episodio 1 de Devils' Crest Castellano):
 ## Proveedor (Fase 3)
 
 Implementado en `providers/latanime/` (`"engine": "latanime"`): novedades, directorio con filtros combinables (año, género, categoría, letra) más "En emisión" (`/emision`), ficha y servidores (Base64). La búsqueda por texto lanza `SiteProtectedException` hasta que exista la verificación de Cloudflare en la app (Fase 7). La estructura de `/buscar` sigue **sin verificar**: se asume la misma tarjeta del directorio.
+
+## Portada: recomendados y series nuevas (2026-11-09)
+
+Analizado sobre `fixtures/latanime/inicio.html` y verificado en vivo (salud de sitios).
+
+| Sección | Tarjeta | Datos |
+|---|---|---|
+| Carrusel de destacados (16) | `div.carousel-item` | enlace `a`, título completo en el `alt` de `img.preview-image` (el texto `span.span-slider` viene recortado), póster `img.preview-image` (`data-src`), **reseña** `p.p-slider` (≈150 caracteres) |
+| Series recientes (12) | `section:has(> h2:containsOwn(Series recientes)) li article` | enlace `a`, título en el `alt` de `img`, portada `img` (`data-src`) |
+
+El mismo anime aparece a veces dos veces ("… Castellano" y "… Latino"); en Inicio se muestra una sola versión (la latina).

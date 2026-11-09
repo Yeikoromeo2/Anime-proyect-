@@ -12,6 +12,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
 | 3 · Filtros dinámicos + búsqueda por voz (+ proveedor de Latanime) | ✅ |
 | 4 · Servidores que funcionan + reproductor WebView a pantalla completa + continuidad + historial con minuto | ✅ |
+| Inicio sin filas repetidas + Recomendados con reseña + Explorar el catálogo por categorías | ✅ |
 | 5 · Reproductor nativo (ExoPlayer) para los servidores que lo permitan | Siguiente |
 
 ## Requisitos
@@ -113,11 +114,31 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Servidores](docs/capturas/fase4/20_servidores.png) | ![Reproduciendo](docs/capturas/fase4/21_reproduciendo.png) | ![Siguiente](docs/capturas/fase4/22_siguiente_episodio.png) |
 
+| Recomendados con reseña | Explorar: menú de categorías | Lista de géneros reales |
+|---|---|---|
+| ![Recomendados](docs/capturas/explorar/23_inicio_recomendados.png) | ![Explorar](docs/capturas/explorar/26_explorar_menu.png) | ![Géneros](docs/capturas/explorar/27_explorar_lista_generos.png) |
+
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
 
 ## Inicio: capítulos nuevos de frente
 
-Al abrir la app, arriba del todo está **"Últimos capítulos"**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Debajo, una fila de **novedades por sitio** (como la portada de cada web) y después **Continuar viendo** y **Favoritos**. Al elegir un capítulo nuevo se abre su ficha con ese capítulo marcado como **NUEVO** y enfocado.
+Al abrir la app, de arriba abajo:
+1. **Últimos capítulos**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Es una sola fila: ya no se repite una fila por sitio. Si un sitio falla, debajo aparece su aviso con **Reintentar**.
+2. **Continuar viendo** y **Favoritos**.
+3. **Recomendados**: lo que destaca cada sitio en su portada (el carrusel de Latanime, "🔥 Recomendados" de Anime Ninja), con una **reseña corta**, géneros y valoración. Si la portada no trae la reseña, se toma de la ficha solo de las tarjetas que se ven.
+4. **Series nuevas**: estrenos recién agregados a cada sitio ("Series recientes", "Animes recientes"), con la fecha en que se agregaron. Si un sitio publica el mismo anime en varios idiomas, se muestra una sola vez (la versión en latino).
+5. **Explorar por género**: un botón por género que abre Explorar con ese género ya elegido.
+
+Al elegir un capítulo nuevo se abre su ficha con ese capítulo marcado como **NUEVO** y enfocado.
+
+## Explorar: todo el catálogo por categorías
+
+Botón **Explorar** en Inicio (o un género de la fila "Explorar por género"). A la izquierda, un menú con las categorías **reales** de cada sitio:
+- **Sitio**: todos a la vez o uno solo.
+- **Todo el catálogo**: sin filtros.
+- **Género**, **Tipo**, **Estado**, **Año** y **Letra** (según lo que ofrezca el sitio). OK abre la lista de opciones; al elegir una, la cuadrícula de la derecha cambia al instante y carga más al bajar.
+
+En "Todos los sitios" se usan los géneros comunes, traducidos a cada sitio. Anime Ninja no combina filtros: si eliges género y tipo, usa solo el género y lo avisa.
 
 ## Ficha: series con muchos episodios
 

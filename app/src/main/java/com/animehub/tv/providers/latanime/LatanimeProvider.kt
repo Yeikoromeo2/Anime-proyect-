@@ -11,8 +11,10 @@ import com.animehub.tv.domain.model.FilterGroup
 import com.animehub.tv.domain.model.FilterOption
 import com.animehub.tv.domain.model.FilterSelection
 import com.animehub.tv.domain.model.PagedResult
+import com.animehub.tv.domain.model.ShowcaseItem
 import com.animehub.tv.domain.model.VideoServer
 import com.animehub.tv.providers.SiteProvider
+import com.animehub.tv.providers.common.ShowcaseParser
 import com.animehub.tv.providers.common.SiteSupport
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -30,6 +32,7 @@ class LatanimeProvider(site: EffectiveSite, private val fetcher: HtmlFetcher) : 
     private val s = SiteSupport(site)
     private val parser = LatanimeParser(s)
     private val config = site.config
+    private val showcaseParser = ShowcaseParser(s)
 
     override val id: String = site.id
     override val name: String = site.name
@@ -37,6 +40,9 @@ class LatanimeProvider(site: EffectiveSite, private val fetcher: HtmlFetcher) : 
 
     override suspend fun latestEpisodes(): List<EpisodeCard> =
         parser.latest(document(s.url(config.latest["path"] ?: "/"), LATEST_CACHE))
+
+    override suspend fun showcase(): List<ShowcaseItem> =
+        showcaseParser.load(config.showcase, id) { path -> document(s.url(path), LATEST_CACHE) }
 
     override suspend fun search(query: String, filters: FilterSelection, page: Int): PagedResult<AnimeCard> {
         val q = query.trim()

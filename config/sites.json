@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -79,7 +79,13 @@
         ] }
       ],
       "coverPlaceholders": ["/img/anime.png", "/img/capblank.png"],
-      "coverRewrites": []
+      "coverRewrites": [],
+      "showcase": [
+        { "kind": "recommended", "path": "/", "card": "div.carousel-item", "link": "a",
+          "title": "img.preview-image", "titleAttr": "alt", "image": "img.preview-image", "synopsis": "p.p-slider" },
+        { "kind": "new", "path": "/", "card": "section:has(> h2:containsOwn(Series recientes)) li article", "link": "a",
+          "title": "img", "titleAttr": "alt", "image": "img" }
+      ]
     },
     {
       "id": "animeninja",
@@ -149,7 +155,13 @@
         { "id": "genre", "label": "Género", "multi": false, "source": "html", "links": "a[href*='/genero/']", "page": "/anime/", "pathTemplate": "/genero/{value}/" }
       ],
       "coverPlaceholders": [],
-      "coverRewrites": [{ "pattern": "/t/p/w\\d+/", "replacement": "/t/p/w342/" }]
+      "coverRewrites": [{ "pattern": "/t/p/w\\d+/", "replacement": "/t/p/w342/" }],
+      "showcase": [
+        { "kind": "recommended", "path": "/", "card": "#featured-titles article.item", "link": "div.data h3 a",
+          "title": "div.data h3 a", "image": "div.poster img", "year": "div.data > span", "rating": "div.rating" },
+        { "kind": "new", "path": "/", "card": "#tvload + div.items > article.item", "link": "div.data h3 a",
+          "title": "div.data h3 a", "image": "div.poster img", "date": "div.data > span", "rating": "div.rating" }
+      ]
     },
     {
       "id": "animeflv",

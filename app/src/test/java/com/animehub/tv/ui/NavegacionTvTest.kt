@@ -48,6 +48,8 @@ class NavegacionTvTest : TvUiTest() {
         key(Key.DirectionUp)
         compose.onNodeWithText("Buscar").assertIsFocused()
         key(Key.DirectionRight)
+        compose.onNodeWithText("Explorar").assertIsFocused()
+        key(Key.DirectionRight)
         compose.onNodeWithText("Historial").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithText("Ajustes").assertIsFocused()
@@ -68,13 +70,8 @@ class NavegacionTvTest : TvUiTest() {
             }
             library.setFavorite("animeninja", "https://veranime.ninja/anime/one-piece/", "One Piece", null, true)
         }
-        // Orden: Últimos capítulos → Novedades por sitio → Continuar viendo → Favoritos.
+        // Orden: Últimos capítulos → Continuar viendo → Favoritos → Recomendados → Series nuevas → Géneros.
         waitForFocusedDescription(LATEST_FIRST)
-        key(Key.DirectionDown) // Novedades · Latanime
-        compose.onAllNodes(hasContentDescription(LATEST_FIRST) and isFocused()).assertCountEquals(1)
-        key(Key.DirectionDown) // Novedades · Anime Ninja
-        compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
-            .assertCountEquals(1)
         key(Key.DirectionDown) // Continuar viendo: el más reciente primero
         compose.onNodeWithContentDescription("Kaiju No. 8").assertIsFocused()
         key(Key.DirectionRight)
@@ -82,13 +79,20 @@ class NavegacionTvTest : TvUiTest() {
         key(Key.DirectionDown)
         compose.onNodeWithContentDescription("One Piece").assertIsFocused()
         capture("02_inicio_con_filas")
+        key(Key.DirectionDown) // Recomendados
+        waitForFocusedDescription("Black Clover Latino")
+        key(Key.DirectionDown) // Series nuevas
+        waitForFocusedDescription(LATEST_FIRST)
+        key(Key.DirectionDown) // Explorar por género
+        waitForFocus("Todo el catálogo")
     }
 
     @Test
     fun ajustes_se_abren_y_se_vuelve_con_atras() {
         toHeader()
-        key(Key.DirectionRight)
-        key(Key.DirectionRight)
+        key(Key.DirectionRight) // Explorar
+        key(Key.DirectionRight) // Historial
+        key(Key.DirectionRight) // Ajustes
         key(Key.DirectionCenter)
         waitForText("Latanime")
         // Foco inicial en el primer sitio.
@@ -126,8 +130,10 @@ class NavegacionTvTest : TvUiTest() {
         back()
         // Al volver, el foco se queda en "Buscar" (no salta otra vez a los capítulos).
         waitForFocus("Buscar")
-        key(Key.DirectionRight)
-        key(Key.DirectionCenter) // Historial
+        key(Key.DirectionRight) // Explorar
+        key(Key.DirectionRight) // Historial
+        waitForFocus("Historial")
+        key(Key.DirectionCenter)
         waitForFocus("Borrar todo")
         capture("07_historial_vacio")
     }

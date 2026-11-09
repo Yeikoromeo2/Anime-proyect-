@@ -98,3 +98,27 @@ data class WatchProgress(
             durationMs > 0 && positionMs.toFloat() / durationMs >= COMPLETED_THRESHOLD
     }
 }
+
+/** Sección de la portada de un sitio de la que sale un anime destacado. */
+enum class ShowcaseKind(val configValue: String) {
+    RECOMENDADO("recommended"),
+    NUEVO("new");
+
+    companion object {
+        fun from(value: String): ShowcaseKind? = entries.firstOrNull { it.configValue == value }
+    }
+}
+
+/**
+ * Anime que un sitio destaca en su portada, con su reseña si la trae (si no, la app la toma
+ * de la ficha cuando hace falta).
+ * @param rating valoración del sitio tal como la muestra (p. ej. "9.3").
+ * @param dateLabel fecha en que se agregó, si el sitio la muestra.
+ */
+data class ShowcaseItem(
+    val card: AnimeCard,
+    val kind: ShowcaseKind,
+    val synopsis: String? = null,
+    val rating: String? = null,
+    val dateLabel: String? = null,
+)

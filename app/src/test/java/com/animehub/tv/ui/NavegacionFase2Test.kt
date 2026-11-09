@@ -54,19 +54,15 @@ class NavegacionFase2Test : TvUiTest() {
     }
 
     @Test
-    fun capitulos_nuevos_arriba_combinados_y_por_sitio() {
+    fun capitulos_nuevos_arriba_en_una_sola_fila_sin_repetir() {
         waitForText("Últimos capítulos")
-        waitForText("Novedades · Latanime")
         // "Últimos capítulos" alterna sitios: 1º de Latanime, 1º de Anime Ninja…
         waitForFocusedDescription(LATEST_FIRST)
         key(Key.DirectionRight)
         compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
             .assertCountEquals(1)
-        key(Key.DirectionDown) // fila de Latanime
-        key(Key.DirectionDown) // fila de Anime Ninja
-        waitForText("Novedades · Anime Ninja")
-        compose.onAllNodes(hasContentDescription("Mouse Cursor de Genjitsu wo Sousa Dekiru You ni Natta node, Onna no Ko wo Ippai Click Shimaasu") and isFocused())
-            .assertCountEquals(1)
+        // Ya no hay una fila de novedades por sitio que repita los mismos capítulos.
+        compose.onAllNodes(hasText("Novedades", substring = true)).assertCountEquals(0)
         capture("08_inicio_novedades")
     }
 
@@ -74,7 +70,7 @@ class NavegacionFase2Test : TvUiTest() {
     fun elegir_un_capitulo_nuevo_abre_su_ficha_con_ese_capitulo_destacado() {
         waitForFocusedDescription(LATEST_FIRST)
         // Tank Chair, episodio 6 (publicado en Anime Ninja), más a la derecha en "Últimos capítulos".
-        // La primera fila horizontal es "Últimos capítulos" (la de Latanime repite ese capítulo).
+        // La primera fila horizontal es "Últimos capítulos".
         compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasContentDescription(LATEST_FIRST)) and hasAnyDescendant(hasText("Últimos capítulos")).not())
             .onFirst()
             .performScrollToNode(hasContentDescription("Tank Chair"))

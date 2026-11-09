@@ -84,4 +84,49 @@ class DirectStreamExtractorTest {
         assertNull(ex.extract("https://www.mp4upload.com/embed-x.html", null))
         assertNull(ex.extract("no es una url", null))
     }
+
+    @Test
+    fun `zilla - si Cloudflare bloquea los trozos el servidor va al reproductor web`() = runTest {
+        val probed = mutableListOf<Pair<String, Map<String, String>>>()
+        val ex = DirectStreamExtractor(configs, probe = { url, headers -> probed += url to headers; false }) { url, _ ->
+            if (url.startsWith("https://player.zilla-networks.com/m3u8/")) Fixtures.read("servidores/zilla.m3u8") else error("404")
+        }
+        assertNull(ex.extract("https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac", null))
+        // Se prueba el trozo de inicio (EXT-X-MAP) con las mismas cabeceras que usaría el reproductor.
+        assertEquals("https://player.zilla-networks.com/segs/fa543590d3399084aa0f1dc73ee1ccac/init.html", probed.single().first)
+        assertEquals("https://player.zilla-networks.com/", probed.single().second["Referer"])
+    }
+
+    @Test
+    fun `lista maestra - se baja la primera calidad y se prueba su primer trozo`() = runTest {
+        val master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720\n720/index.m3u8\n"
+        val media = "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\nseg-0.ts\n#EXT-X-ENDLIST\n"
+        val probed = mutableListOf<String>()
+        val ex = DirectStreamExtractor(configs, probe = { url, _ -> probed += url; true }) { url, _ ->
+            when {
+                url.startsWith("https://jkanime.org/") -> "<script>var src = 'https://cdn.example.com/v/master.m3u8?t=1';</script>"
+                url.startsWith("https://cdn.example.com/v/master.m3u8") -> master
+                url == "https://cdn.example.com/v/720/index.m3u8" -> media
+                else -> error("404 $url")
+            }
+        }
+        val stream = ex.extract("https://jkanime.org/jkplayer/um?e=1", "https://jkanime.org/")!!
+        assertEquals("https://cdn.example.com/v/master.m3u8?t=1", stream.url)
+        assertEquals(listOf("https://cdn.example.com/v/720/seg-0.ts"), probed)
+    }
+
+    @Test
+    fun `mp4upload - si el mp4 no responde no hay video directo`() = runTest {
+        val ex = DirectStreamExtractor(configs, probe = { _, _ -> false }) { _, _ -> Fixtures.read("servidores/mp4upload_embed.html") }
+        assertNull(ex.extract("https://www.mp4upload.com/embed-vbpqmysc8ft1.html", "https://animeflv.or.at/"))
+    }
+
+    @Test
+    fun `prueba del trozo - video si responde bien y no es una pagina`() {
+        assertTrue(StreamProbe.looksLikeVideo(206, byteArrayOf(0, 0, 0, 0x18, 'f'.code.toByte(), 't'.code.toByte())))
+        assertTrue(StreamProbe.looksLikeVideo(200, byteArrayOf(0x47, 0x40, 0x11)))
+        assertTrue(!StreamProbe.looksLikeVideo(403, byteArrayOf(0, 0, 0)))
+        assertTrue(!StreamProbe.looksLikeVideo(200, "\n<!DOCTYPE html><title>Attention Required! | Cloudflare</title>".toByteArray()))
+        assertTrue(!StreamProbe.looksLikeVideo(200, ByteArray(0)))
+    }
 }

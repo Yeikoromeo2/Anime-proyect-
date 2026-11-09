@@ -35,6 +35,7 @@ class PlaybackControllerTest {
         startIndex: Int = 0,
         saves: MutableList<Saved> = mutableListOf(),
         preferred: MutableList<String> = mutableListOf(),
+        nativeFailures: NativeFailures = NativeFailures(clock = { testScheduler.currentTime }),
     ) = PlaybackController(
         scope = this,
         episodes = episodes,
@@ -46,6 +47,7 @@ class PlaybackControllerTest {
         watchdogMs = 25_000,
         countdownSeconds = 10,
         clock = { testScheduler.currentTime },
+        nativeFailures = nativeFailures,
     )
 
     private fun progress(pos: Double, dur: Double, paused: Boolean = false) = """{"type":"progress","pos":$pos,"dur":$dur,"paused":$paused}"""
@@ -212,5 +214,42 @@ class PlaybackControllerTest {
         assertEquals(PlayerCommand.Script("""{"type":"seekTo","seconds":600.0}"""), commands.last())
         job.cancel()
         c.onExit()
+    }
+
+    @Test
+    fun `si el nativo fallo con un servidor los episodios siguientes van directo a la web`() = runTest(UnconfinedTestDispatcher()) {
+        val failures = NativeFailures(ttlMs = 30 * 60_000L, clock = { testScheduler.currentTime })
+        val c = controller(listOf(native("zilla", preferred = true)), nativeFailures = failures)
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+
+        // Siguiente episodio: sin volver a probar el nativo ni mostrar otra vez el aviso del cambio.
+        commands.clear()
+        c.nextEpisode()
+        runCurrent()
+        assertEquals(listOf<PlayerCommand>(PlayerCommand.Load("https://zilla.example/e/1")), commands.filterNot { it is PlayerCommand.Stop })
+        assertFalse(c.state.value.nativePlayback)
+        assertFalse(c.state.value.notice.orEmpty().contains("reproductor nativo"))
+        job.cancel()
+        c.onExit()
+
+        // Otra sesión (otro anime) con la misma memoria: también va a la web; pasada media hora se vuelve a intentar.
+        val other = controller(listOf(native("zilla", preferred = true)), nativeFailures = failures)
+        val more = mutableListOf<PlayerCommand>()
+        val job2 = launch { other.commands.toList(more) }
+        other.start()
+        runCurrent()
+        assertTrue(more.last() is PlayerCommand.Load)
+        other.onExit()
+        advanceTimeBy(30 * 60_000L + 1)
+        other.start()
+        runCurrent()
+        assertTrue(more.last() is PlayerCommand.PlayNative)
+        job2.cancel()
+        other.onExit()
     }
 }

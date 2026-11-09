@@ -136,7 +136,6 @@
   }
 
   function scan() {
-    dismissPrompts();
     if (!video || !document.contains(video)) {
       video = null;
       var v = findVideo();
@@ -164,7 +163,7 @@
   }
 
   function textOf(el) {
-    return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    return (el.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
   function isOverlay(el) {
@@ -174,20 +173,28 @@
       el.getAttribute('role') === 'dialog' || /modal|popup|dialog|overlay|resume|continue|prompt/i.test(cls);
   }
 
-  function dismissPrompts() {
+  /**
+   * Busca recuadros de "continuar viendo" entre los elementos dados (o en toda la página).
+   * Primero lo barato (textContent, que no obliga a recalcular la página); solo los candidatos
+   * pasan por las comprobaciones de visibilidad y posición.
+   */
+  function dismissPrompts(roots) {
     var handled = 0;
-    var nodes = document.querySelectorAll('div,section,aside,dialog,form,[role="dialog"]');
+    var nodes = roots || document.querySelectorAll('div,section,aside,dialog,form,[role="dialog"]');
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      if (el.__ahDone || el === video || (video && el.contains(video)) || !visible(el)) continue;
-      var text = textOf(el);
-      if (text.length < 8 || text.length > 300 || !PROMPT_TEXT.test(text) || !isOverlay(el)) continue;
+      if (!el || el.nodeType !== 1 || el.__ahDone || el === video) continue;
+      var raw = el.textContent || '';
+      if (raw.length < 8 || raw.length > 600) continue;
+      var text = raw.replace(/\s+/g, ' ').trim();
+      if (text.length < 8 || text.length > 300 || !PROMPT_TEXT.test(text)) continue;
+      if ((video && el.contains(video)) || !visible(el) || !isOverlay(el)) continue;
       el.__ahDone = true;
       var buttons = el.querySelectorAll('button,a,[role="button"],input[type="button"],input[type="submit"],[class*="btn"],[class*="button"]');
       var accept = null;
       for (var j = 0; j < buttons.length && !accept; j++) {
-        var label = textOf(buttons[j]) || buttons[j].value || buttons[j].getAttribute('aria-label') || '';
-        if (label.length <= 30 && ACCEPT_TEXT.test(label.trim())) accept = buttons[j];
+        var label = (buttons[j].textContent || buttons[j].value || buttons[j].getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim();
+        if (label.length <= 30 && ACCEPT_TEXT.test(label)) accept = buttons[j];
       }
       if (accept) { try { accept.click(); } catch (e) { /* sin efecto */ } }
       // Si sigue a la vista (o no tenía botón), se oculta para que no tape el video.
@@ -197,6 +204,40 @@
     }
     return handled;
   }
+
+  /* Solo se revisa lo que la página agrega o cambia (no toda la página cada segundo). */
+  var pending = [];
+  var pendingTimer = null;
+  function queue(el) {
+    if (!el || el.nodeType !== 1) return;
+    pending.push(el);
+    if (el.querySelectorAll && pending.length < 400) {
+      var inner = el.querySelectorAll('div,section,aside,dialog,[role="dialog"]');
+      for (var k = 0; k < inner.length && pending.length < 400; k++) pending.push(inner[k]);
+    }
+    if (!pendingTimer) {
+      pendingTimer = setTimeout(function () {
+        var batch = pending;
+        pending = [];
+        pendingTimer = null;
+        dismissPrompts(batch);
+      }, 300);
+    }
+  }
+  try {
+    new MutationObserver(function (mutations) {
+      for (var m = 0; m < mutations.length; m++) {
+        var mu = mutations[m];
+        if (mu.type === 'childList') {
+          for (var n = 0; n < mu.addedNodes.length; n++) queue(mu.addedNodes[n]);
+        } else {
+          queue(mu.target);
+        }
+      }
+    }).observe(document.documentElement || document, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'],
+    });
+  } catch (e) { /* sin MutationObserver: queda la revisión lenta */ }
 
   /* Orden "cleanup" (menú ↑ → "Quitar recuadros"): oculta las capas fijas que tapan el centro del
    * video y que no son el video, sus contenedores ni los subtítulos. */
@@ -264,6 +305,8 @@
 
   setInterval(function () { if (video) status('progress'); }, 5000);
   setInterval(scan, 1000);
+  // Revisión completa de respaldo, poco frecuente (la normal es la del MutationObserver).
+  setInterval(function () { dismissPrompts(); }, 8000);
   document.addEventListener('DOMContentLoaded', scan);
   if (document.readyState !== 'loading') scan();
   send({ type: 'frame', url: location.href });

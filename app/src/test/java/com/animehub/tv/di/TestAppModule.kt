@@ -32,6 +32,9 @@ object TestAppModule {
     /** Versión que anuncia la Release simulada (siempre más nueva que la app que se prueba). */
     const val UPDATE_TEST_VERSION = "99.0.0"
 
+    /** Primeros bytes de un video MP4 (para la comprobación de que el video directo llega). */
+    private const val FAKE_VIDEO = "TEXTO:\u0000\u0000\u0000\u0018ftypiso6"
+
     /** Página guardada y código HTTP para cada URL de los sitios (null = sin red). */
     fun fixtureFor(url: HttpUrl): Pair<String, Int>? = when (url.host) {
         "veranime.ninja" -> ninja(url)?.let { it to 200 }
@@ -54,8 +57,12 @@ object TestAppModule {
      * reproductor nativo), Voe "borrado", Byse caído.
      */
     private fun videoHost(url: HttpUrl): Pair<String, Int>? = when (url.host) {
-        "player.zilla-networks.com" ->
-            if (url.encodedPath.startsWith("/m3u8/")) "servidores/zilla.m3u8" to 200 else "TEXTO:<html><video src='v.mp4'></video></html>" to 200
+        "player.zilla-networks.com" -> when {
+            url.encodedPath.startsWith("/m3u8/") -> "servidores/zilla.m3u8" to 200
+            url.encodedPath.startsWith("/segs/") -> FAKE_VIDEO to 200 // trozos del video (se comprueba que lleguen)
+            else -> "TEXTO:<html><video src='v.mp4'></video></html>" to 200
+        }
+        "a4.mp4upload.com" -> FAKE_VIDEO to 200
         "www.mp4upload.com" ->
             if (url.encodedPath.startsWith("/embed-")) "servidores/mp4upload_embed.html" to 200 else "TEXTO:<html><video src='v.mp4'></video></html>" to 200
         "voe.sx" -> "TEXTO:<h1>File Not Found</h1>" to 200

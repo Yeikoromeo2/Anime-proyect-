@@ -18,6 +18,12 @@ const site = `<!doctype html><html><body style="margin:0;background:#fff">
 const embed = `<!doctype html><html><body style="margin:0">
   <div class="capa" style="position:absolute;inset:0;z-index:99999;background:rgba(0,0,255,.5)">CLIC AQUÍ</div>
   <video src="/video.webm" width="200" height="112"></video>
+  <div id="relleno"></div>
+  <script>
+    // Como las páginas reales: miles de bloques (menús, comentarios…).
+    var r = document.getElementById('relleno');
+    for (var i = 0; i < 3000; i++) { var d = document.createElement('div'); d.textContent = 'Comentario ' + i + ' sobre el episodio'; r.appendChild(d); }
+  </script>
   <div class="jw-captions" style="position:absolute;left:0;right:0;bottom:10px;z-index:2147483647;color:#fff">Subtítulo</div>
   <script>window.__popup = window.open('http://anuncio.example/');</script>
   <script>
@@ -86,6 +92,12 @@ function check(name, ok, extra = '') {
   await page.exposeBinding('__ahReport', (source, m) => messages.push(JSON.parse(m)));
   // Igual que addWebMessageListener: el objeto AnimeHub existe en todos los marcos.
   await page.addInitScript(`window.AnimeHub = { postMessage: (m) => window.__ahReport(m) };`);
+  // Cuenta las veces que se mide el diseño de la página (lo que provoca tirones en la TV).
+  await page.addInitScript(`(function () {
+    var orig = window.getComputedStyle;
+    window.__ahLayoutCalls = 0;
+    window.getComputedStyle = function () { window.__ahLayoutCalls++; return orig.apply(window, arguments); };
+  })();`);
   await page.addInitScript(script);
   await page.goto('http://127.0.0.1:8711/');
   await page.waitForTimeout(6500);
@@ -108,6 +120,12 @@ function check(name, ok, extra = '') {
   check('envía "video", "playing" y "progress" desde el iframe', ['video', 'playing', 'progress'].every((t) => types.includes(t)), types.join(','));
   const prog = messages.filter((m) => m.type === 'progress').pop();
   check('el progreso trae posición y duración', prog && prog.dur > 19 && prog.pos > 0, JSON.stringify(prog));
+
+  // Rendimiento: con el video andando, el script casi no mide la página (antes revisaba todo cada segundo).
+  const before0 = await frame.evaluate(() => window.__ahLayoutCalls);
+  await page.waitForTimeout(3000);
+  const layoutCalls = (await frame.evaluate(() => window.__ahLayoutCalls)) - before0;
+  check('reproduciendo, el script casi no mide la página (3000 bloques)', layoutCalls < 60, `${layoutCalls} mediciones en 3 s`);
 
   // Órdenes del control remoto: se mandan al marco principal y llegan al iframe.
   await page.evaluate(() => window.__animehubCmd({ type: 'pause' }));

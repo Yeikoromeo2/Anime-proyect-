@@ -78,6 +78,8 @@ class PlaybackController(
     private val watchdogMs: Long = 25_000,
     private val countdownSeconds: Int = 10,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Hosts donde el nativo falló hace poco (compartido entre episodios y sesiones). */
+    private val nativeFailures: NativeFailures = NativeFailures(clock = clock),
 ) {
     private var index = startIndex.coerceIn(0, (episodes.size - 1).coerceAtLeast(0))
     private val _state = MutableStateFlow(PlayerState())
@@ -148,7 +150,7 @@ class PlaybackController(
         current = option
         tried += option.server.embedUrl
         started = false
-        val stream = option.stream?.takeIf { option.server.embedUrl !in nativeBroken }
+        val stream = option.stream?.takeIf { option.server.embedUrl !in nativeBroken && !nativeFailures.isBroken(it.url) }
         native = stream != null
         _state.update {
             it.copy(phase = PlayerPhase.Playing(option), notice = notice, positionMs = 0, durationMs = 0, paused = false, nativePlayback = native)
@@ -170,6 +172,7 @@ class PlaybackController(
     private fun nativeFailed(reason: String) {
         val option = current ?: return
         nativeBroken += option.server.embedUrl
+        option.stream?.let { nativeFailures.record(it.url) }
         if (started && _state.value.positionMs > RESUME_MIN_MS) resumeAtMs = _state.value.positionMs
         play(option, notice = "El reproductor nativo $reason con ${option.server.name}; usando el reproductor web")
     }

@@ -173,12 +173,25 @@ Cuando el servidor entrega el video directo, la app lo reproduce con el **reprod
 
 - **Servidores con reproductor nativo:** el **HLS** de Anime Ninja y AnimeFLV, **Desu** y **Magi** de JKAnime, y **MP4Upload**.
 - **En la lista:** cada servidor dice "Reproductor nativo" o "Reproductor web"; los nativos van primero, después del preferido.
-- **Si el nativo falla:** el mismo servidor se abre en el reproductor web, desde el mismo minuto, con un aviso.
+- **Antes de usarlo se comprueba que el video llegue:** la lista y su primer trozo. Si un servidor entrega la lista pero bloquea el video (por ejemplo Cloudflare en el HLS), va directo al reproductor web, sin error ni aviso.
+- **Si el nativo falla igual:** el mismo servidor se abre en el reproductor web, desde el mismo minuto, con un aviso. Durante 30 minutos ese servidor va directo a la web en los episodios siguientes.
 - **Detalle:** en [docs/reproductor-nativo.md](docs/reproductor-nativo.md).
 
 | Servidores (nativo / web) | Reproductor nativo | Respaldo web si el nativo falla |
 |---|---|---|
 | ![Servidores](docs/capturas/fase5/20_servidores.png) | ![Nativo](docs/capturas/fase5/21_reproduciendo.png) | ![Respaldo](docs/capturas/fase5/23_respaldo_web.png) |
+
+### Controles en pantalla
+
+Como en cualquier reproductor, cada tecla tiene su respuesta visual (en el nativo y en el web):
+- **OK:** icono grande de pausa o reproducir en el centro, que aparece y se desvanece. En pausa queda un icono tenue y la barra de información no se oculta.
+- **← / →:** doble flecha al lado y el salto. Varias pulsaciones seguidas se suman ("+10 s", "+20 s", "+30 s"…).
+- **Barra de avance:** tiempo transcurrido (corre de forma continua) y tiempo restante.
+- **Avisos** ("Continuando en 32:00", "usando el reproductor web"…): se van solos a los 4 segundos.
+
+| En pausa | Avanzar dos veces |
+|---|---|
+| ![Pausa](docs/capturas/fase5/33_en_pausa.png) | ![Avanzar](docs/capturas/fase5/34_avanzar.png) |
 
 ## Configuración remota (cuando un sitio cambia)
 

@@ -12,6 +12,7 @@ import com.animehub.tv.domain.model.VideoServer
 import com.animehub.tv.extractors.AggregatorParsers
 import com.animehub.tv.extractors.DirectStreamExtractor
 import com.animehub.tv.extractors.ServerChecker
+import com.animehub.tv.extractors.StreamProbe
 import com.animehub.tv.providers.SiteProvider
 import com.animehub.tv.util.UserMessages
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +51,8 @@ class ServerRepository @Inject constructor(
         val preferred = settings.current().preferredServers[provider.id]
         val checker = ServerChecker(client, config.deadVideoMarkers)
         val referer = provider.baseUrl + "/"
-        val extractor = DirectStreamExtractor(config.directStreams) { url, ref -> fetcher.get("servidor", url, referer = ref) }
+        val probe = StreamProbe(client)
+        val extractor = DirectStreamExtractor(config.directStreams, probe::reachable) { url, ref -> fetcher.get("servidor", url, referer = ref) }
         val options = coroutineScope {
             expanded.map { server ->
                 async {

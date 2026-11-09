@@ -93,6 +93,9 @@ class NavegacionReproductorTest : TvUiTest() {
         compose.waitForIdle()
     }
 
+    private fun waitForDescription(description: String) =
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
+
     private val zillaPlaylist = "https://player.zilla-networks.com/m3u8/fa543590d3399084aa0f1dc73ee1ccac"
 
     @Test
@@ -113,15 +116,32 @@ class NavegacionReproductorTest : TvUiTest() {
         // Progreso del video: se guarda el minuto exacto.
         nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
         nativeMessage("""{"type":"progress","pos":312.5,"dur":1440,"paused":false,"frame":"native"}""")
-        waitForText("5:12 / 24:00")
+        waitForText("5:1", substring = true) // la barra de avance: transcurrido (sigue corriendo) y restante
+        waitForText("−18:4", substring = true)
         waitForText("HLS · Anime Ninja · Reproductor nativo")
         capture("21_reproduciendo")
         compose.waitUntil(5_000) {
             runBlocking { library.history.first() }.any { it.episodeNumber == 6f && it.positionMs == 312_500L && it.serverName == "HLS" }
         }
-        // OK pausa el reproductor nativo (no la página web).
+        // OK pausa el reproductor nativo (no la página web), con el icono de pausa animado en el centro.
         key(Key.DirectionCenter)
         compose.waitUntil(5_000) { FakeNative.commands.contains("""{"type":"toggle"}""") }
+        waitForDescription("Pausa")
+        nativeMessage("""{"type":"pause","pos":312.5,"dur":1440,"paused":true,"frame":"native"}""")
+        compose.mainClock.advanceTimeBy(1_000)
+        waitForDescription("En pausa")
+        // En pausa la barra de información no se oculta.
+        compose.mainClock.advanceTimeBy(6_000)
+        waitForText("HLS · Anime Ninja · Reproductor nativo · En pausa")
+        capture("33_en_pausa")
+        // → dos veces seguidas: el salto se suma a un lado ("+20 s"); ← cambia de lado.
+        key(Key.DirectionRight)
+        key(Key.DirectionRight)
+        waitForDescription("+20 s")
+        capture("34_avanzar")
+        assertEquals(2, FakeNative.commands.count { it == """{"type":"seekBy","seconds":10}""" })
+        key(Key.DirectionLeft)
+        waitForDescription("−10 s")
 
         // Al terminar: Tank Chair tiene 6 episodios, así que este es el último.
         nativeMessage("""{"type":"ended","frame":"native"}""")
@@ -141,9 +161,12 @@ class NavegacionReproductorTest : TvUiTest() {
         waitForText("usando el reproductor web", substring = true)
         jsMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
         jsMessage("""{"type":"progress","pos":60,"dur":1440,"paused":false}""")
-        waitForText("1:00 / 24:00")
+        waitForText("1:0", substring = true)
         waitForText("HLS · Anime Ninja · Reproductor web")
         capture("23_respaldo_web")
+        // Los avisos se van solos a los pocos segundos (no quedan pegados sobre el video).
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("usando el reproductor web", substring = true)).fetchSemanticsNodes().isEmpty() }
     }
 
     @Test

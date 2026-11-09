@@ -138,7 +138,10 @@ class SaludSitiosTest {
     fun videoDirectoResponde() = runBlocking {
         assumeTrue("Solo con -Psalud", System.getProperty("animehub.salud") == "true")
         val fetcher = HtmlFetcher(client)
+        // Sin comprobar los trozos: que el enlace siga saliendo de la página. Aparte se informa si los
+        // trozos llegan desde aquí (Cloudflare puede bloquearlos según la red; la app lo comprueba en la TV).
         val extractor = com.animehub.tv.extractors.DirectStreamExtractor(TestSites.config.directStreams) { url, ref -> fetcher.get("salud", url, referer = ref) }
+        val probe = com.animehub.tv.extractors.StreamProbe(client)
 
         val flv = com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider(TestSites.site("animeflv"), fetcher)
         val flvEpisode = flv.latestEpisodes().first()
@@ -147,6 +150,8 @@ class SaludSitiosTest {
         println("Video directo · AnimeFLV ${flvEpisode.animeTitle} ${flvEpisode.episodeNumber} · HLS → ${zilla?.url}")
         assertTrue("Sin video directo en el HLS de zilla", zilla != null)
         assertTrue(fetcher.get("salud", zilla!!.url, referer = zilla.headers["Referer"]).startsWith("#EXTM3U"))
+        val withSegments = com.animehub.tv.extractors.DirectStreamExtractor(TestSites.config.directStreams, probe::reachable) { url, ref -> fetcher.get("salud", url, referer = ref) }
+        println("Video directo · HLS de zilla · trozos accesibles desde esta red: ${withSegments.extract(hls.embedUrl, flv.baseUrl + "/") != null}")
 
         // A veces el enlace de Desu de un episodio está roto en el propio sitio: basta con que funcione en alguno reciente.
         val jk = com.animehub.tv.providers.jkanime.JkanimeProvider(TestSites.site("jkanime"), fetcher)

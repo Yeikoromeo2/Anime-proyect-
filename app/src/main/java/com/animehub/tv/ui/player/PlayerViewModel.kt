@@ -13,6 +13,7 @@ import com.animehub.tv.domain.model.Episode
 import com.animehub.tv.domain.model.EpisodePager
 import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.nativeplayer.NativePlaybackFactory
+import com.animehub.tv.playback.NativeFailures
 import com.animehub.tv.playback.PlaybackController
 import com.animehub.tv.playback.ServerRepository
 import com.animehub.tv.providers.ProviderRegistry
@@ -48,6 +49,7 @@ class PlayerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val errorLog: ErrorLogRepository,
     private val nativeFactory: NativePlaybackFactory,
+    private val nativeFailures: NativeFailures,
 ) : ViewModel() {
 
     val route: PlayerRoute = savedStateHandle.toRoute()
@@ -95,6 +97,7 @@ class PlayerViewModel @Inject constructor(
                     )
                 },
                 rememberPreferred = { name -> servers.rememberPreferred(route.siteId, name) },
+                nativeFailures = nativeFailures,
             )
             _session.value = PlayerSession(
                 controller = controller,

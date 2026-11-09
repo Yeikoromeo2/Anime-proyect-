@@ -5,6 +5,8 @@
  *  - En los marcos sin video agranda el iframe principal para que el video ocupe la pantalla.
  *  - Envía a la app la posición y la duración cada 5 s y los eventos (reproduciendo, pausa, fin, error).
  *  - Recibe órdenes del control remoto (play/pausa, saltos) y las reenvía a los iframes.
+ *  - Responde solo a los recuadros de "¿continuar donde lo dejaste?" de algunos servidores
+ *    (pulsa "Continuar" o los oculta) y, con la orden "cleanup", quita las capas que tapan el video.
  */
 (function () {
   if (window.__animehub) return;
@@ -115,6 +117,7 @@
   }
 
   function scan() {
+    dismissPrompts();
     if (!video || !document.contains(video)) {
       video = null;
       var v = findVideo();
@@ -122,6 +125,82 @@
     }
     if (!video) enlargeIframe();
     else if (video.paused && !video.__ahUserPaused && video.readyState >= 2) tryPlay();
+  }
+
+  /* ---- Recuadros de "continuar viendo" ----
+   * Algunos servidores recuerdan el minuto y preguntan si seguir desde ahí. Con el control remoto no se
+   * puede tocar ese recuadro (el reproductor web no recibe el foco), así que se responde solo:
+   * se pulsa "Continuar"/"Sí"/"Resume"; si no tiene botones, se oculta. La app retoma el minuto guardado.
+   */
+  var PROMPT_TEXT = /((continu(ar|e)|reanudar|resume|retomar|seguir|volver)[^.?!]{0,40}(viendo|watching|reproducci|playback|video|v[ií]deo|donde|where|desde|from|minuto|time))|(where you left( off)?)|(donde (lo )?(dejaste|te quedaste))|(desde (el )?(minuto|punto))/i;
+  var ACCEPT_TEXT = /^(s[ií]|yes|ok|aceptar|continuar|continue|reanudar|resume|retomar|seguir( viendo)?|continuar viendo|continue watching)(?![a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1])/i;
+  var CAPTIONS = /caption|subtit|text-track|cue/i;
+
+  function visible(el) {
+    if (!el || !el.getBoundingClientRect) return false;
+    var r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return false;
+    var st = getComputedStyle(el);
+    return st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05;
+  }
+
+  function textOf(el) {
+    return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function isOverlay(el) {
+    var st = getComputedStyle(el);
+    var cls = (typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '');
+    return st.position === 'fixed' || st.position === 'absolute' || el.tagName === 'DIALOG' ||
+      el.getAttribute('role') === 'dialog' || /modal|popup|dialog|overlay|resume|continue|prompt/i.test(cls);
+  }
+
+  function dismissPrompts() {
+    var handled = 0;
+    var nodes = document.querySelectorAll('div,section,aside,dialog,form,[role="dialog"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (el.__ahDone || el === video || (video && el.contains(video)) || !visible(el)) continue;
+      var text = textOf(el);
+      if (text.length < 8 || text.length > 300 || !PROMPT_TEXT.test(text) || !isOverlay(el)) continue;
+      el.__ahDone = true;
+      var buttons = el.querySelectorAll('button,a,[role="button"],input[type="button"],input[type="submit"],[class*="btn"],[class*="button"]');
+      var accept = null;
+      for (var j = 0; j < buttons.length && !accept; j++) {
+        var label = textOf(buttons[j]) || buttons[j].value || buttons[j].getAttribute('aria-label') || '';
+        if (label.length <= 30 && ACCEPT_TEXT.test(label.trim())) accept = buttons[j];
+      }
+      if (accept) { try { accept.click(); } catch (e) { /* sin efecto */ } }
+      // Si sigue a la vista (o no tenía botón), se oculta para que no tape el video.
+      setTimeout(function (box) { return function () { if (visible(box)) box.style.setProperty('display', 'none', 'important'); }; }(el), accept ? 600 : 0);
+      handled++;
+      send({ type: 'prompt', accepted: !!accept, text: text.slice(0, 80) });
+    }
+    return handled;
+  }
+
+  /* Orden "cleanup" (menú ↑ → "Quitar recuadros"): oculta las capas fijas que tapan el centro del
+   * video y que no son el video, sus contenedores ni los subtítulos. */
+  function cleanup() {
+    dismissPrompts();
+    var cx = window.innerWidth / 2, cy = window.innerHeight / 2, hidden = 0;
+    var all = document.querySelectorAll('body *');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el === video || el.tagName === 'VIDEO' || el.tagName === 'IFRAME' && el.getAttribute('data-animehub') === '1') continue;
+      if ((video && el.contains(video)) || (video && video.contains && video.contains(el))) continue;
+      if (el.querySelector && el.querySelector('iframe[data-animehub="1"],video[data-animehub="1"]')) continue;
+      var cls = (typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '');
+      if (CAPTIONS.test(cls) || !visible(el)) continue;
+      var st = getComputedStyle(el);
+      if (st.position !== 'fixed' && st.position !== 'absolute') continue;
+      var r = el.getBoundingClientRect();
+      var coversCenter = r.left <= cx && r.right >= cx && r.top <= cy && r.bottom >= cy;
+      if (!coversCenter && r.width * r.height < window.innerWidth * window.innerHeight * 0.15) continue;
+      el.style.setProperty('display', 'none', 'important');
+      hidden++;
+    }
+    send({ type: 'cleanup', hidden: hidden });
   }
 
   // Si no hay video en este marco y se pulsa OK: clic en el centro (botones de "play" propios).
@@ -137,6 +216,7 @@
   }
 
   function handle(cmd) {
+    if (cmd.type === 'cleanup') { cleanup(); relay(cmd); return; }
     if (video) {
       switch (cmd.type) {
         case 'toggle':

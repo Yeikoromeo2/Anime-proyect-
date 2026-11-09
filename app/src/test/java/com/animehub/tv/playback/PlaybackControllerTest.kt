@@ -150,4 +150,21 @@ class PlaybackControllerTest {
         assertEquals(1f, c.state.value.episode!!.number)
         assertTrue(c.state.value.phase is PlayerPhase.Finished)
     }
+
+    @Test
+    fun `quitar recuadros manda la orden y avisa cuando el servidor pregunta si continuar`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe", preferred = true)))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage("""{"type":"prompt","accepted":true,"text":"¿Continuar viendo desde 05:12?"}""")
+        assertEquals("Se cerró el aviso del servidor", c.state.value.notice)
+        c.cleanupOverlays()
+        assertEquals(PlayerCommand.Script("""{"type":"cleanup"}"""), commands.last())
+        c.onMessage("""{"type":"cleanup","hidden":1}""")
+        assertEquals("Se quitaron los recuadros que tapaban el video", c.state.value.notice)
+        job.cancel()
+        c.onExit()
+    }
 }

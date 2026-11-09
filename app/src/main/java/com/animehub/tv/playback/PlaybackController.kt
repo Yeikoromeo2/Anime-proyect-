@@ -19,6 +19,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /** Qué está haciendo el reproductor. */
@@ -183,6 +184,11 @@ class PlaybackController(
             }
             "ended" -> onEnded()
             "error" -> if (!started) serverFailed("dio un error")
+            // El servidor preguntó si continuar donde se dejó: el script ya respondió por el usuario.
+            "prompt" -> _state.update { it.copy(notice = "Se cerró el aviso del servidor") }
+            "cleanup" -> if ((obj["hidden"]?.jsonPrimitive?.intOrNull ?: 0) > 0) {
+                _state.update { it.copy(notice = "Se quitaron los recuadros que tapaban el video") }
+            }
         }
     }
 
@@ -238,6 +244,12 @@ class PlaybackController(
     }
 
     fun togglePlay() = script("""{"type":"toggle"}""")
+
+    /** Quita los recuadros o capas que tapan el video (menú ↑ → "Quitar recuadros"). */
+    fun cleanupOverlays() {
+        script("""{"type":"cleanup"}""")
+        _state.update { it.copy(notice = "Quitando recuadros…") }
+    }
     fun seekBy(seconds: Int) = script("""{"type":"seekBy","seconds":$seconds}""")
     private fun seekTo(ms: Long) = script("""{"type":"seekTo","seconds":${ms / 1000.0}}""")
 

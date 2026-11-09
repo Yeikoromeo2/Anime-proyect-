@@ -7,12 +7,13 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 
 | Fase | Estado |
 |---|---|
-| 0 · Análisis de sitios | Latanime y Anime Ninja analizados; AnimeFLV y JKAnime pendientes ([resumen](docs/fase0-resumen.md)) |
+| 0 · Análisis de sitios | Latanime, Anime Ninja y JKAnime analizados; AnimeFLV cerró en 2026 ([resumen](docs/fase0-resumen.md), [JKAnime](docs/sites/jkanime.md), [AnimeFLV](docs/sites/animeflv.md)) |
 | 1 · Esqueleto (Inicio, navegación con el control, Ajustes, configuración remota, Room, APK en GitHub Actions) | ✅ |
 | 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
 | 3 · Filtros dinámicos + búsqueda por voz (+ proveedor de Latanime) | ✅ |
 | 4 · Servidores que funcionan + reproductor WebView a pantalla completa + continuidad + historial con minuto | ✅ |
 | Inicio sin filas repetidas + Recomendados con reseña + Explorar el catálogo por categorías | ✅ |
+| JKAnime como tercer sitio + elegir qué sitio ver en Inicio + respuesta automática a los recuadros de "continuar viendo" | ✅ |
 | 5 · Reproductor nativo (ExoPlayer) para los servidores que lo permitan | Siguiente |
 
 ## Requisitos
@@ -114,6 +115,10 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Servidores](docs/capturas/fase4/20_servidores.png) | ![Reproduciendo](docs/capturas/fase4/21_reproduciendo.png) | ![Siguiente](docs/capturas/fase4/22_siguiente_episodio.png) |
 
+| Inicio viendo solo JKAnime | Explorar empieza en ese sitio | |
+|---|---|---|
+| ![Solo JKAnime](docs/capturas/explorar/29_inicio_solo_jkanime.png) | ![Explorar JKAnime](docs/capturas/explorar/30_explorar_jkanime.png) | |
+
 | Recomendados con reseña | Explorar: menú de categorías | Lista de géneros reales |
 |---|---|---|
 | ![Recomendados](docs/capturas/explorar/23_inicio_recomendados.png) | ![Explorar](docs/capturas/explorar/26_explorar_menu.png) | ![Géneros](docs/capturas/explorar/27_explorar_lista_generos.png) |
@@ -121,6 +126,8 @@ La app aparece en la fila de apps de la TV con su banner.
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
 
 ## Inicio: capítulos nuevos de frente
+
+Debajo de la cabecera, **"Viendo: Todos los sitios · Latanime · Anime Ninja · JKAnime"**: con un sitio elegido, todas las filas (y los géneros) son solo de ese sitio, sin mezclar. La elección se recuerda y Buscar y Explorar empiezan en ese sitio.
 
 Al abrir la app, de arriba abajo:
 1. **Últimos capítulos**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Es una sola fila: ya no se repite una fila por sitio. Si un sitio falla, debajo aparece su aviso con **Reintentar**.
@@ -154,7 +161,9 @@ En "Todos los sitios" se usan los géneros comunes, traducidos a cada sitio. Ani
 4. Si ya habías visto parte del episodio, **continúa en el minuto guardado** (5 s antes).
 5. Al terminar, cuenta atrás de 10 s y **pasa al siguiente episodio** (OK = "Ver ahora", o "Cancelar"). En el último disponible avisa que no hay más.
 
-Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
+Algunos servidores recuerdan el minuto y muestran un recuadro de **"¿continuar viendo desde…?"** que no se puede tocar con el control. El reproductor lo responde solo (pulsa "Continuar") o, si no tiene botones, lo oculta. Si aparece otra capa que tapa el video, en el menú **↑** está **"Quitar recuadros"**.
+
+Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, quitar recuadros, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
 
 ## Búsqueda, filtros y voz
 
@@ -163,6 +172,17 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 - **Filtros** (botón "Filtros"): con un sitio elegido se ven **sus filtros reales**, leídos de su web. En "Todos los sitios" solo los comunes (género, año, tipo, estado), traducidos al parámetro de cada sitio; si un sitio no puede aplicar un filtro se omite con un aviso.
 - **Accesos rápidos**: "Emisión de esta temporada" y "Estrenos del año" aparecen solo si el sitio los permite (hoy, Latanime).
 - La búsqueda por texto de **Latanime** está protegida por Cloudflare: por ahora muestra un aviso; su directorio con filtros sí funciona.
+- **JKAnime** se usa por **jkanime.org** (mismo catálogo), porque jkanime.net pide la verificación de Cloudflare. Su directorio combina todos los filtros (género, tipo, estado, año, temporada, categoría, letra y orden).
+
+## Fase 5 (siguiente): reproductor nativo
+
+Hoy cada servidor se abre como su página web dentro de la app (con su propio reproductor, sus anuncios y sus avisos, que el script controla). En la Fase 5, para los servidores que lo permiten (los que entregan el video directo en HLS `.m3u8` o MP4, como los de JKAnime o el HLS de Anime Ninja), la app saca el enlace del video y lo reproduce con el **reproductor nativo de Android (ExoPlayer/Media3)**:
+- sin anuncios, ventanas ni recuadros del servidor;
+- arranca más rápido y responde al control como cualquier app de TV (pausa, saltos, barra de progreso);
+- elige calidad (1080p/720p…) según Ajustes y retoma el minuto exacto;
+- subtítulos cuando el servidor los trae aparte.
+
+Los servidores que no lo permitan siguen con el reproductor web de ahora.
 
 ## Configuración remota (cuando un sitio cambia)
 

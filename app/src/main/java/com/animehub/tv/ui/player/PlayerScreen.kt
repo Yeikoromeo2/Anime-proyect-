@@ -167,6 +167,8 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
             message = (state.phase as? PlayerPhase.Playing)?.option?.server?.name?.let { "Servidor: $it" },
             actions = listOf(
                 DialogAction("Cambiar servidor") { menuOpen = false; controller.showServers() },
+                // Para avisos o capas del servidor que tapan el video y no se pueden tocar con el control.
+                DialogAction("Quitar recuadros") { menuOpen = false; controller.cleanupOverlays() },
                 DialogAction("Siguiente episodio", enabled = state.hasNext) { menuOpen = false; controller.nextEpisode() },
                 DialogAction("Episodio anterior", enabled = state.hasPrevious) { menuOpen = false; controller.previousEpisode() },
                 DialogAction("Salir del reproductor") { menuOpen = false; controller.onExit(); onExit() },

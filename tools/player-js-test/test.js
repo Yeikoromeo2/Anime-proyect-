@@ -18,7 +18,35 @@ const site = `<!doctype html><html><body style="margin:0;background:#fff">
 const embed = `<!doctype html><html><body style="margin:0">
   <div class="capa" style="position:absolute;inset:0;z-index:99999;background:rgba(0,0,255,.5)">CLIC AQUÍ</div>
   <video src="/video.webm" width="200" height="112"></video>
+  <div class="jw-captions" style="position:absolute;left:0;right:0;bottom:10px;z-index:2147483647;color:#fff">Subtítulo</div>
   <script>window.__popup = window.open('http://anuncio.example/');</script>
+  <script>
+    // Como algunos servidores: tras unos segundos preguntan si continuar donde se dejó.
+    setTimeout(function () {
+      var box = document.createElement('div');
+      box.id = 'resume';
+      box.className = 'resume-box';
+      box.style.cssText = 'position:fixed;left:30%;top:35%;width:40%;z-index:2147483647;background:#222;color:#fff;padding:20px';
+      box.innerHTML = '<p>¿Quieres continuar viendo desde 05:12?</p><button id="no">Empezar de nuevo</button> <button id="si">Continuar</button>';
+      document.body.appendChild(box);
+      document.getElementById('si').onclick = function () { window.__resumed = true; box.remove(); };
+      document.getElementById('no').onclick = function () { window.__restarted = true; box.remove(); };
+      // Otro aviso sin botones.
+      var note = document.createElement('div');
+      note.id = 'nota';
+      note.style.cssText = 'position:absolute;left:10px;top:10px;z-index:99999;background:#000;color:#fff';
+      note.textContent = 'Retomando la reproducción desde donde lo dejaste';
+      document.body.appendChild(note);
+    }, 2500);
+    // Una capa pegajosa que no es un aviso de continuar (se quita con "Quitar recuadros").
+    setTimeout(function () {
+      var sticky = document.createElement('div');
+      sticky.id = 'pegajoso';
+      sticky.style.cssText = 'position:fixed;inset:20% 20%;z-index:2147483647;background:rgba(255,255,0,.6)';
+      sticky.textContent = 'Publicidad';
+      document.body.appendChild(sticky);
+    }, 3000);
+  </script>
 </body></html>`;
 
 function serve(port, routes) {
@@ -99,6 +127,29 @@ function check(name, ok, extra = '') {
   await page.evaluate(() => window.__animehubCmd({ type: 'toggle' }));
   await page.waitForTimeout(2500);
   check('una pausa del usuario se respeta', await frame.evaluate(() => document.querySelector('video').paused));
+
+  // Recuadro "¿continuar viendo?": se pulsa "Continuar" solo y el aviso sin botones se oculta.
+  const prompt = await frame.evaluate(() => ({
+    resumed: window.__resumed === true, restarted: window.__restarted === true,
+    box: !!document.getElementById('resume'),
+    note: getComputedStyle(document.getElementById('nota')).display,
+  }));
+  check('el recuadro de continuar se responde con "Continuar"', prompt.resumed && !prompt.restarted && !prompt.box, JSON.stringify(prompt));
+  check('el aviso sin botones se oculta', prompt.note === 'none', prompt.note);
+  check('avisa a la app del recuadro respondido', messages.some((m) => m.type === 'prompt' && m.accepted));
+
+  // "Quitar recuadros": la capa pegajosa se va; el video y los subtítulos se quedan.
+  check('la capa pegajosa sigue antes de pedir quitarla', await frame.evaluate(() => getComputedStyle(document.getElementById('pegajoso')).display !== 'none'));
+  await page.evaluate(() => window.__animehubCmd({ type: 'cleanup' }));
+  await page.waitForTimeout(500);
+  const clean = await frame.evaluate(() => ({
+    sticky: getComputedStyle(document.getElementById('pegajoso')).display,
+    video: getComputedStyle(document.querySelector('video')).display,
+    captions: getComputedStyle(document.querySelector('.jw-captions')).display,
+  }));
+  check('"Quitar recuadros" oculta la capa y deja video y subtítulos', clean.sticky === 'none' && clean.video !== 'none' && clean.captions !== 'none', JSON.stringify(clean));
+  const outer = await page.evaluate(() => getComputedStyle(document.getElementById('player')).display);
+  check('el iframe del reproductor no se oculta', outer !== 'none', outer);
   await page.screenshot({ path: path.join(__dirname, 'captura.png') });
 
   await browser.close();

@@ -84,7 +84,7 @@ class NavegacionFase2Test : TvUiTest() {
     @Test
     fun busqueda_muestra_cuadricula_de_portadas_y_el_foco_va_al_primer_resultado() {
         searchFor("dragon")
-        waitForText("30 resultados para \"dragon\"")
+        waitForText("60 resultados para \"dragon\"") // 30 de Anime Ninja + 30 de JKAnime
         // El foco pasa solo al primer resultado al terminar la búsqueda.
         compose.waitUntil(5_000) {
             runCatching { compose.onNodeWithContentDescription("Dragon Ball Daima").assertIsFocused(); true }.getOrDefault(false) ||
@@ -99,8 +99,9 @@ class NavegacionFase2Test : TvUiTest() {
     @Test
     fun ficha_con_favorito_y_episodios() {
         searchFor("one piece")
-        waitForText("1 resultados para \"one piece\"")
-        compose.onNodeWithContentDescription("One Piece").assertIsFocused()
+        waitForText("resultados para \"one piece\"", substring = true)
+        // El primero (Anime Ninja) tiene el foco; JKAnime también lo encuentra.
+        compose.onAllNodes(hasContentDescription("One Piece") and isFocused()).assertCountEquals(1)
         key(Key.DirectionCenter)
         waitForText("Ver episodio 1")
         compose.onNodeWithText("Ver episodio 1").assertIsFocused()

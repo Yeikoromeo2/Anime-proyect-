@@ -63,7 +63,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 val detail = buildString {
                     append(site.baseUrl)
                     if (site.domainEdited) append(" · dominio editado")
-                    if (site.config.isPending) append(" · pendiente de análisis")
+                    if (site.config.isClosed) append(" · cerró (no hay nada que ver)")
+                    else if (site.config.isPending) append(" · pendiente de análisis")
                 }
                 SettingItem(
                     title = site.name,

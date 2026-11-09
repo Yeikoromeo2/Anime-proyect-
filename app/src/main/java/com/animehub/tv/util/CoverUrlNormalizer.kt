@@ -16,7 +16,7 @@ object CoverUrlNormalizer {
 
     /** Orden en que se buscan los atributos de la imagen. */
     val ATTRIBUTE_ORDER = listOf(
-        "data-src", "data-lazy-src", "data-original", "data-srcset", "srcset", "src",
+        "data-src", "data-lazy-src", "data-original", "data-setbg", "data-srcset", "srcset", "src",
     )
 
     fun fromAttributes(

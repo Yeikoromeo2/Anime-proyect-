@@ -76,8 +76,8 @@ class NavegacionFase3Test : TvUiTest() {
         assertEquals("es-419", request.intent.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE))
         val spoken = Intent().putStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS, arrayListOf("one piece"))
         shadow.receiveResult(request.intent, Activity.RESULT_OK, spoken)
-        // Anime Ninja encuentra One Piece; Latanime avisa de su verificación de Cloudflare.
-        waitForText("1 resultados para \"one piece\"")
+        // Anime Ninja y JKAnime encuentran One Piece; Latanime avisa de su verificación de Cloudflare.
+        waitForText("resultados para \"one piece\"", substring = true)
         waitForText("Latanime pide una verificación de seguridad", substring = true)
         compose.onNodeWithText("one piece").assertExists()
     }

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -169,16 +169,79 @@
       "baseUrl": "https://www4.animeflv.net",
       "aliases": ["https://www3.animeflv.net", "https://animeflv.net"],
       "enabled": false,
-      "status": "pendiente",
-      "notes": "Sin analizar: el servidor respondía 522 el 2026-11-08. Ver docs/sites/animeflv.md"
+      "status": "cerrado",
+      "notes": "Cerró en 2026: dejó de servir video en junio y hoy todos sus dominios dan error 522. Los sitios con su nombre son copias de otros dueños. Ver docs/sites/animeflv.md"
     },
     {
       "id": "jkanime",
       "name": "JKAnime",
-      "baseUrl": "https://jkanime.net",
-      "enabled": false,
-      "status": "pendiente",
-      "notes": "Sin analizar: desafío interactivo de Cloudflare en todo el sitio. Ver docs/sites/jkanime.md"
+      "engine": "jkanime",
+      "baseUrl": "https://jkanime.org",
+      "aliases": ["https://jkanime.net", "https://jkanime.bz"],
+      "enabled": true,
+      "status": "ok",
+      "notes": "jkanime.net pide la verificación de Cloudflare; jkanime.org (mismo catálogo) abre sin ella. Ver docs/sites/jkanime.md",
+      "search": { "path": "/buscar/{query}/", "queryParam": "q" },
+      "browse": { "path": "/directorio", "pageParam": "p" },
+      "latest": {
+        "path": "/",
+        "card": "#animes div.card > a",
+        "title": "h5.card-title",
+        "image": "img.card-img-top",
+        "episode": "span.badge-primary",
+        "date": "span.badge-secondary",
+        "animeUrlPattern": "^(.*/)[\\d.]+/?$",
+        "animeUrlReplacement": "$1"
+      },
+      "selectors": {
+        "card": "div.page_directorio div.anime__item",
+        "title": "h5 a",
+        "link": "h5 a",
+        "cover": "div.anime__item__pic",
+        "type": "li.anime",
+        "listJson": "var animes = "
+      },
+      "detail": {
+        "cover": "div.anime_pic img",
+        "title": "div.anime_info h3",
+        "synopsis": "div.anime_info p.scroll",
+        "genres": "div.anime_data a[href*='/genero/']",
+        "status": "div.anime_data div.enemision",
+        "statusAiring": "currently",
+        "statusFinished": "finished",
+        "type": "div.anime_data li[rel=tipo]",
+        "fields": "div.anime_data li",
+        "episodesField": "Episodios:",
+        "dateField": "Emitido:",
+        "lastEpisode": "a#uep"
+      },
+      "servers": {
+        "mode": "jkanime-script",
+        "names": "a.servers.btn-show[data-id]",
+        "languages": "#deflang option",
+        "skip": "Mediafire,1Fichier"
+      },
+      "filters": [
+        { "id": "genre", "label": "Género", "param": "genero", "source": "html", "select": "select[name=genero]", "page": "/directorio" },
+        { "id": "type", "label": "Tipo", "param": "tipo", "source": "html", "select": "select[name=tipo]", "page": "/directorio",
+          "canonicalMap": { "animes": "tv", "peliculas": "pelicula", "especiales": "especial", "ovas": "ova", "onas": "ona" } },
+        { "id": "status", "label": "Estado", "param": "estado", "source": "html", "select": "select[name=estado]", "page": "/directorio",
+          "canonicalMap": { "emision": "emision", "finalizados": "finalizado", "estrenos": "proximamente" } },
+        { "id": "year", "label": "Año", "param": "fecha", "source": "html", "select": "select[name=fecha]", "page": "/directorio" },
+        { "id": "season", "label": "Temporada", "param": "temporada", "source": "html", "select": "select[name=temporada]", "page": "/directorio" },
+        { "id": "category", "label": "Categoría", "param": "categoria", "source": "html", "select": "select[name=categoria]", "page": "/directorio" },
+        { "id": "letter", "label": "Letra", "param": "letra", "source": "html", "select": "select[name=letra]", "page": "/directorio" },
+        { "id": "order", "label": "Ordenar", "param": "filtro", "source": "html", "select": "select[name=filtro]", "page": "/directorio",
+          "canonicalMap": { "popularidad": "popular" } }
+      ],
+      "coverPlaceholders": [],
+      "coverRewrites": [],
+      "showcase": [
+        { "kind": "recommended", "path": "/", "card": "div.hero__items", "link": "a.slider-show",
+          "title": "h2", "image": "", "synopsis": "div.hero__text p" },
+        { "kind": "new", "path": "/", "card": "div.trending_div:has(h4:containsOwn(Animes recientes)) div.mode3 > div", "link": "h5 a",
+          "title": "h5 a", "image": "img", "year": "p.card-text.ep" }
+      ]
     }
   ]
 }

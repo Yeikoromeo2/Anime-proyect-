@@ -84,6 +84,32 @@ class SaludSitiosTest {
         assertTrue(servers.isNotEmpty())
     }
 
+    @Test
+    fun jkanimeResponde() = runBlocking {
+        assumeTrue("Solo con -Psalud", System.getProperty("animehub.salud") == "true")
+        val provider = com.animehub.tv.providers.jkanime.JkanimeProvider(TestSites.site("jkanime"), HtmlFetcher(client))
+        val results = provider.search("one piece", FilterSelection.NONE, 1).items
+        println("JKAnime · búsqueda: ${results.size} resultados → ${results.take(3).map { it.title }}")
+        assertTrue("La búsqueda no devolvió resultados", results.isNotEmpty())
+        val latest = provider.latestEpisodes()
+        println("JKAnime · novedades: ${latest.size} → ${latest.take(3).map { "${it.animeTitle} ${it.episodeNumber}" }}")
+        assertTrue("No hay novedades", latest.isNotEmpty())
+        checkShowcase("JKAnime", provider.showcase())
+        val detail = provider.animeDetail(latest.first().animeUrl!!)
+        println("JKAnime · ficha: ${detail.title}, ${detail.episodes.size} episodios, géneros ${detail.genres}")
+        assertTrue("La ficha no tiene episodios", detail.episodes.isNotEmpty())
+        val servers = provider.servers(detail.episodes.last().url)
+        println("JKAnime · servidores: ${servers.map { "${it.name} (${it.language})" }}")
+        assertTrue("Sin servidores", servers.isNotEmpty())
+        val filters = provider.availableFilters()
+        println("JKAnime · filtros: ${filters.map { "${it.label} (${it.options.size})" }}")
+        val genre = filters.first { it.id == "genre" }.options.first { it.value == "accion" }
+        val year = (java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 1).toString()
+        val page = provider.search("", FilterSelection(mapOf("genre" to setOf(genre.value), "year" to setOf(year))), 1)
+        println("JKAnime · acción + $year: ${page.items.size} → ${page.items.take(3).map { it.title }}, más páginas: ${page.hasNextPage}")
+        assertTrue("El directorio con filtros vino vacío", page.items.isNotEmpty())
+    }
+
     /** Recomendados y series nuevas de la portada (lo que muestra Inicio). */
     private fun checkShowcase(site: String, items: List<com.animehub.tv.domain.model.ShowcaseItem>) {
         val byKind = items.groupBy { it.kind }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,7 +47,12 @@ class NavegacionReproductorTest : TvUiTest() {
         setUpImages()
         // Los ajustes se guardan en disco: cada prueba empieza sin servidor preferido.
         runBlocking { settings.clearPreferredServers() }
+        // Tank Chair 6 también está en JKAnime: estas pruebas usan los servidores de Anime Ninja.
+        runBlocking { settings.setSiteEnabled("jkanime", false) }
     }
+
+    @After
+    fun tearDown() = runBlocking { settings.setSiteEnabled("jkanime", true) }
 
     private fun webView(): WebView? {
         fun find(v: View): WebView? = when (v) {

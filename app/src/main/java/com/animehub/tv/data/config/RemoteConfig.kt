@@ -40,7 +40,7 @@ data class SiteConfig(
     val aliases: List<String> = emptyList(),
     /** Activado por defecto (el usuario puede cambiarlo en Ajustes). */
     val enabled: Boolean = true,
-    /** "ok" si hay proveedor; "pendiente" si aún no se analizó. */
+    /** "ok" si hay proveedor; "pendiente" si aún no se analizó; "cerrado" si el sitio dejó de existir. */
     val status: String = STATUS_OK,
     val notes: String? = null,
     val search: SearchConfig? = null,
@@ -56,10 +56,12 @@ data class SiteConfig(
     val showcase: List<ShowcaseConfig> = emptyList(),
 ) {
     val isPending: Boolean get() = status != STATUS_OK
+    val isClosed: Boolean get() = status == STATUS_CLOSED
 
     companion object {
         const val STATUS_OK = "ok"
         const val STATUS_PENDING = "pendiente"
+        const val STATUS_CLOSED = "cerrado"
     }
 }
 

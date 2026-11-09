@@ -44,7 +44,8 @@ class ShowcaseParser(private val s: SiteSupport) {
                 siteId = siteId,
                 title = title,
                 url = s.absolute(href),
-                coverUrl = s.cover(card.selectFirst(config.image)),
+                // Sin selector de imagen: la propia tarjeta lleva la imagen (p. ej. fondo en data-setbg).
+                coverUrl = s.cover(if (config.image.isBlank()) card else card.selectFirst(config.image)),
                 year = SiteSupport.year(text(card, config.year) ?: date),
             ),
             kind = kind,

@@ -36,7 +36,8 @@ class NavegacionFichaTest : TvUiTest() {
         waitForText("Nombre del anime")
         compose.onNode(hasSetTextAction()).performTextInput("one piece")
         compose.onNode(hasSetTextAction()).performImeAction()
-        waitForText("1 resultados para \"one piece\"")
+        // Anime Ninja y JKAnime lo encuentran; el primero (alternando sitios) es el de Anime Ninja.
+        waitForText("resultados para \"one piece\"", substring = true)
         key(Key.DirectionCenter)
         waitForText("Temporada 1 · 61 episodios  ▾")
     }

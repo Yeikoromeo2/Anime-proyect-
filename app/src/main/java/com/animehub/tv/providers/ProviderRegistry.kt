@@ -4,6 +4,7 @@ import com.animehub.tv.data.config.ConfigRepository
 import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.net.HtmlFetcher
 import com.animehub.tv.providers.dooplay.DooPlayProvider
+import com.animehub.tv.providers.jkanime.JkanimeProvider
 import com.animehub.tv.providers.latanime.LatanimeProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -20,6 +21,7 @@ class ProviderRegistry @Inject constructor(
     fun create(site: EffectiveSite): SiteProvider? = when (site.config.engine) {
         ENGINE_DOOPLAY -> DooPlayProvider(site, fetcher)
         ENGINE_LATANIME -> LatanimeProvider(site, fetcher)
+        ENGINE_JKANIME -> JkanimeProvider(site, fetcher)
         else -> null
     }
 
@@ -36,5 +38,6 @@ class ProviderRegistry @Inject constructor(
     companion object {
         const val ENGINE_DOOPLAY = "dooplay"
         const val ENGINE_LATANIME = "latanime"
+        const val ENGINE_JKANIME = "jkanime"
     }
 }

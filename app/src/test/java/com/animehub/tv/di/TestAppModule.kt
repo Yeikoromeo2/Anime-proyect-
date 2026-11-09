@@ -32,6 +32,7 @@ object TestAppModule {
     fun fixtureFor(url: HttpUrl): Pair<String, Int>? = when (url.host) {
         "veranime.ninja" -> ninja(url)?.let { it to 200 }
         "latanime.org" -> latanime(url)
+        "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
         "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200
         else -> videoHost(url.host)
@@ -82,6 +83,23 @@ object TestAppModule {
             else -> null
         }
         return file?.let { it to 200 }
+    }
+
+    private fun jkanime(url: HttpUrl): String? {
+        val path = url.encodedPath
+        return when {
+            path == "/" -> "jkanime/inicio.html"
+            path.startsWith("/buscar/one") -> "jkanime/busqueda_one_piece.html"
+            path.startsWith("/buscar/") -> "jkanime/busqueda_dragon.html"
+            path == "/directorio" && url.queryParameter("p") == "2" -> "jkanime/directorio_accion_2025_p2.html"
+            path == "/directorio" && url.queryParameter("genero") != null -> "jkanime/directorio_accion_2025.html"
+            path == "/directorio" -> "jkanime/directorio.html"
+            path == "/one-piece/" -> "jkanime/anime_one_piece.html"
+            path == "/moyashimon/" -> "jkanime/anime_moyashimon.html"
+            Regex("""^/[^/]+/\d+/$""").matches(path) -> "jkanime/episodio_tank_chair_6.html"
+            Regex("""^/[^/]+/$""").matches(path) -> "jkanime/anime_tank_chair.html"
+            else -> null
+        }
     }
 
     @Provides

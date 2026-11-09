@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.compose.ui.input.key.Key
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.animehub.tv.di.TestAppModule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.Assert.assertEquals
@@ -29,19 +30,21 @@ class NavegacionActualizacionTest : TvUiTest() {
         setUpImages()
     }
 
+    private val V = TestAppModule.UPDATE_TEST_VERSION
+
     private fun idleMain() = shadowOf(Looper.getMainLooper()).idle()
 
     private fun nextStartedActivity(): Intent? = shadowOf(compose.activity.application).nextStartedActivity
 
     @Test
     fun version_nueva_se_descarga_e_instala_encima() {
-        // La app de prueba es la 0.1.0: la Release v0.6.0 es más nueva y aparece en la cabecera.
+        // La Release simulada es la 99.0.0 (más nueva que cualquier compilación): aparece en la cabecera.
         toHeader()
-        compose.waitUntil(10_000) { idleMain(); compose.onAllNodes(androidx.compose.ui.test.hasText("⬆ Versión 0.6.0")).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { idleMain(); compose.onAllNodes(androidx.compose.ui.test.hasText("⬆ Versión $V")).fetchSemanticsNodes().isNotEmpty() }
         repeat(4) { key(Key.DirectionRight) } // Explorar, Historial, Ajustes y el aviso
-        waitForFocus("⬆ Versión 0.6.0")
+        waitForFocus("⬆ Versión $V")
         key(Key.DirectionCenter)
-        waitForText("Nueva versión 0.6.0")
+        waitForText("Nueva versión $V")
         waitForText("se instala encima", substring = true)
         capture("31_actualizacion")
 
@@ -60,6 +63,6 @@ class NavegacionActualizacionTest : TvUiTest() {
         assertEquals(Intent.ACTION_VIEW, install.action)
         assertEquals("application/vnd.android.package-archive", install.type)
         assertEquals("content", install.data?.scheme)
-        waitForText("Instalando la versión 0.6.0")
+        waitForText("Instalando la versión $V")
     }
 }

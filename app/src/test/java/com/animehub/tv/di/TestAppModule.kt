@@ -29,14 +29,20 @@ import javax.inject.Singleton
 @TestInstallIn(components = [SingletonComponent::class], replaces = [AppModule::class])
 object TestAppModule {
 
+    /** Versión que anuncia la Release simulada (siempre más nueva que la app que se prueba). */
+    const val UPDATE_TEST_VERSION = "99.0.0"
+
     /** Página guardada y código HTTP para cada URL de los sitios (null = sin red). */
     fun fixtureFor(url: HttpUrl): Pair<String, Int>? = when (url.host) {
         "veranime.ninja" -> ninja(url)?.let { it to 200 }
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
-        // Actualización desde la app: la Release v0.6.0 real y un "APK" de prueba.
-        "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) "github/release_latest.json" to 200 else null
+        // Actualización desde la app: la Release real, con un número de versión más alto que cualquier
+        // compilación (las de GitHub Actions se llaman como la versión que se publica), y un "APK" de prueba.
+        "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) {
+            "TEXTO:" + Fixtures.read("github/release_latest.json").replace("0.6.0", UPDATE_TEST_VERSION) to 200
+        } else null
         "github.com" -> if (url.encodedPath.endsWith(".apk")) "TEXTO:APK de prueba" to 200 else null
         "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
         "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200

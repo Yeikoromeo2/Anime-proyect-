@@ -108,13 +108,16 @@ class NavegacionFase2Test : TvUiTest() {
         key(Key.DirectionCenter)
         waitForText("Ver episodio 1")
         compose.onNodeWithText("Ver episodio 1").assertIsFocused()
-        waitForText("Temporada 1")
+        waitForText("Temporada 1 · 61 episodios", substring = true)
         key(Key.DirectionRight)
         compose.onNodeWithText("☆ Añadir a favoritos").assertIsFocused()
         key(Key.DirectionCenter)
         waitForText("★ Quitar de favoritos")
         capture("11_ficha_one_piece")
-        // Flecha abajo: el foco baja a la lista de episodios (al que está debajo del botón).
+        // Flecha abajo: fila del selector de temporada / "Ir al episodio…", luego tramos y episodios.
+        key(Key.DirectionDown)
+        compose.onAllNodes(isFocused()).onLast().assert(hasText("Temporada 1", substring = true) or hasText("Ir al episodio…"))
+        key(Key.DirectionDown)
         key(Key.DirectionDown)
         compose.onAllNodes(isFocused()).onLast().assert(hasText("Ep. ", substring = true))
         back() // a la búsqueda

@@ -37,10 +37,12 @@ fun Modifier.initialFocus(state: InitialFocusState): Modifier = composed {
         // Reintenta en cada fotograma durante unos segundos (la pantalla anterior puede seguir
         // animando su salida y retener el foco un momento).
         withTimeoutOrNull(MAX_WAIT_MS) {
-            while (!state.done) {
+            var frames = 0
+            while (!state.done && frames < MAX_FRAMES) {
                 runCatching { requester.requestFocus() }
                 withFrameNanos { }
                 if (focused) state.done = true
+                frames++
             }
         }
     }
@@ -54,3 +56,6 @@ fun Modifier.initialFocus(state: InitialFocusState): Modifier = composed {
 fun Modifier.initialFocus(): Modifier = composed { initialFocus(remember { InitialFocusState() }) }
 
 private const val MAX_WAIT_MS = 3_000L
+
+/** Tope de intentos (≈ 3 s a 60 fps) para no quedar en bucle si el reloj no avanza. */
+private const val MAX_FRAMES = 180

@@ -16,8 +16,9 @@ on:
 permissions:
   contents: write # necesario para publicar Releases al crear un tag
 
+# Un grupo por evento y rama: una publicación manual no cancela la compilación del push.
 concurrency:
-  group: apk-${{ github.ref }}
+  group: apk-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

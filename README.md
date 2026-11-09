@@ -32,7 +32,11 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 ### APK desde GitHub Actions
 
 Cada push compila el APK y lo deja en la pestaña **Actions** → la ejecución → **Artifacts** (`AnimeHubTV-<versión>`).
-Al crear un tag `v1.2.3` (`git tag v1.2.3 && git push origin v1.2.3`) además se publica en **Releases**.
+Para publicar una versión en **Releases** (con enlace directo al APK):
+- desde GitHub: **Actions → Compilar APK → Run workflow**, elige la rama y escribe la versión (por ejemplo `0.2.0`); o
+- con git: `git tag v0.2.0 && git push origin v0.2.0`.
+
+El enlace directo queda así: `https://github.com/Yeikoromeo2/Anime-proyect-/releases/download/v0.2.0/AnimeHubTV-0.2.0.apk`.
 
 ## Firma con tu propio keystore
 

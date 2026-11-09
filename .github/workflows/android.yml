@@ -5,7 +5,13 @@ on:
     branches: ["**"]
     tags: ["v*"]
   pull_request:
+  # Publicar una versión a mano: Actions → "Compilar APK" → Run workflow → escribir la versión.
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión a publicar en Releases (p. ej. 0.1.0). Vacío = solo compilar."
+        required: false
+        default: ""
 
 permissions:
   contents: write # necesario para publicar Releases al crear un tag
@@ -35,14 +41,25 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Versión del APK
+        env:
+          MANUAL_VERSION: ${{ github.event.inputs.version }}
         run: |
+          RELEASE_TAG=""
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          elif [[ -n "$MANUAL_VERSION" ]]; then
+            if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::La versión debe tener la forma 1.2.3"; exit 1
+            fi
+            VERSION="$MANUAL_VERSION"
+            RELEASE_TAG="v$MANUAL_VERSION"
           else
             VERSION="0.1.${GITHUB_RUN_NUMBER}"
           fi
           echo "ANIMEHUB_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
           echo "ANIMEHUB_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
       - name: Preparar la firma (si hay keystore en Secrets)
         env:
@@ -86,9 +103,13 @@ jobs:
           name: informe-tests
           path: app/build/reports/tests/
 
-      - name: Publicar Release (solo con tags v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Con un tag v* o con una versión escrita a mano: crea el tag (si falta) y la Release con el APK.
+      - name: Publicar Release
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: AnimeHub TV ${{ env.ANIMEHUB_VERSION_NAME }}
           files: dist/*.apk
           generate_release_notes: true

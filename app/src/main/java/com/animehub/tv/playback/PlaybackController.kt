@@ -1,5 +1,6 @@
 package com.animehub.tv.playback
 
+import com.animehub.tv.domain.model.DirectStream
 import com.animehub.tv.domain.model.Episode
 import com.animehub.tv.domain.model.ServerHealth
 import com.animehub.tv.domain.model.ServerOption
@@ -46,11 +47,16 @@ data class PlayerState(
     val hasPrevious: Boolean = false,
     /** Servidores del episodio actual (para "Cambiar servidor"). */
     val options: List<ServerOption> = emptyList(),
+    /** Se está usando el reproductor nativo (video directo) en vez de la página del servidor. */
+    val nativePlayback: Boolean = false,
 )
 
-/** Órdenes para la vista web. */
+/** Órdenes para el reproductor (web o nativo). */
 sealed interface PlayerCommand {
+    /** Abrir la página del servidor en el reproductor web. */
     data class Load(val url: String) : PlayerCommand
+    /** Reproducir el video directo en el reproductor nativo. */
+    data class PlayNative(val stream: DirectStream) : PlayerCommand
     /** JSON para window.__animehubCmd: {"type":"toggle"}, {"type":"seekBy","seconds":10}… */
     data class Script(val json: String) : PlayerCommand
     data object Stop : PlayerCommand
@@ -81,6 +87,9 @@ class PlaybackController(
 
     private var current: ServerOption? = null
     private val tried = mutableSetOf<String>()
+    /** Servidores cuyo video directo falló: se usan con el reproductor web. */
+    private val nativeBroken = mutableSetOf<String>()
+    private var native = false
     private var started = false
     private var resumeAtMs: Long? = null
     private var lastSave = -SAVE_EVERY_MS
@@ -139,13 +148,30 @@ class PlaybackController(
         current = option
         tried += option.server.embedUrl
         started = false
-        _state.update { it.copy(phase = PlayerPhase.Playing(option), notice = notice, positionMs = 0, durationMs = 0, paused = false) }
-        _commands.tryEmit(PlayerCommand.Load(option.server.embedUrl))
+        val stream = option.stream?.takeIf { option.server.embedUrl !in nativeBroken }
+        native = stream != null
+        _state.update {
+            it.copy(phase = PlayerPhase.Playing(option), notice = notice, positionMs = 0, durationMs = 0, paused = false, nativePlayback = native)
+        }
+        _commands.tryEmit(if (stream != null) PlayerCommand.PlayNative(stream) else PlayerCommand.Load(option.server.embedUrl))
         watchdog?.cancel()
         watchdog = scope.launch {
             delay(watchdogMs)
-            if (!started) serverFailed("no respondió")
+            if (!started) {
+                if (native) nativeFailed("no arrancó") else serverFailed("no respondió")
+            }
         }
+    }
+
+    /**
+     * El video directo falló: el mismo servidor se abre en el reproductor web (con su página),
+     * retomando donde iba si ya se estaba viendo.
+     */
+    private fun nativeFailed(reason: String) {
+        val option = current ?: return
+        nativeBroken += option.server.embedUrl
+        if (started && _state.value.positionMs > RESUME_MIN_MS) resumeAtMs = _state.value.positionMs
+        play(option, notice = "El reproductor nativo $reason con ${option.server.name}; usando el reproductor web")
     }
 
     /** Si el video no arranca o da error, se prueba el siguiente servidor que no esté caído. */
@@ -183,7 +209,10 @@ class PlaybackController(
                 if (s.durationMs > MIN_EPISODE_MS && s.positionMs >= s.durationMs - END_MARGIN_MS) onEnded()
             }
             "ended" -> onEnded()
-            "error" -> if (!started) serverFailed("dio un error")
+            "error" -> when {
+                native -> nativeFailed("dio un error")
+                !started -> serverFailed("dio un error")
+            }
             // El servidor preguntó si continuar donde se dejó: el script ya respondió por el usuario.
             "prompt" -> _state.update { it.copy(notice = "Se cerró el aviso del servidor") }
             "cleanup" -> if ((obj["hidden"]?.jsonPrimitive?.intOrNull ?: 0) > 0) {

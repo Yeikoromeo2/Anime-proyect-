@@ -10,13 +10,16 @@ import com.animehub.tv.domain.model.ServerHealth
 import com.animehub.tv.domain.model.ServerOption
 import com.animehub.tv.domain.model.VideoServer
 import com.animehub.tv.extractors.AggregatorParsers
+import com.animehub.tv.extractors.DirectStreamExtractor
 import com.animehub.tv.extractors.ServerChecker
 import com.animehub.tv.providers.SiteProvider
 import com.animehub.tv.util.UserMessages
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import java.net.URI
@@ -35,27 +38,39 @@ class ServerRepository @Inject constructor(
     private val settings: SettingsRepository,
     private val errorLog: ErrorLogRepository,
 ) {
-    suspend fun serversFor(provider: SiteProvider, episodeUrl: String): List<ServerOption> {
+    /**
+     * Todo en segundo plano: son muchas peticiones en paralelo y sus resultados no deben esperar
+     * turno en el hilo principal (que también dibuja la pantalla).
+     */
+    suspend fun serversFor(provider: SiteProvider, episodeUrl: String): List<ServerOption> = withContext(Dispatchers.IO) {
         val config = configRepository.loadLocal().config
         val raw = provider.servers(episodeUrl)
         val expanded = expand(raw, config, referer = provider.baseUrl + "/")
             .distinctBy { it.embedUrl }
         val preferred = settings.current().preferredServers[provider.id]
         val checker = ServerChecker(client, config.deadVideoMarkers)
+        val referer = provider.baseUrl + "/"
+        val extractor = DirectStreamExtractor(config.directStreams) { url, ref -> fetcher.get("servidor", url, referer = ref) }
         val options = coroutineScope {
             expanded.map { server ->
                 async {
-                    val result = withTimeoutOrNull(CHECK_TIMEOUT_MS) { checker.check(server.embedUrl, provider.baseUrl + "/") }
+                    // A la vez: ¿responde? y ¿se puede sacar el video directo para el reproductor nativo?
+                    val check = async { withTimeoutOrNull(CHECK_TIMEOUT_MS) { checker.check(server.embedUrl, referer) } }
+                    val direct = async { withTimeoutOrNull(EXTRACT_TIMEOUT_MS) { extractor.extract(server.embedUrl, referer) } }
+                    val result = check.await()
+                    val stream = direct.await()
                     ServerOption(
                         server = server,
-                        health = result?.health ?: ServerHealth.SIN_VERIFICAR,
+                        // Si el video directo salió, el servidor funciona aunque su página no se pudiera comprobar.
+                        health = if (stream != null) ServerHealth.FUNCIONA else result?.health ?: ServerHealth.SIN_VERIFICAR,
                         preferred = preferred != null && sameServer(server.name, preferred),
+                        stream = stream,
                         detail = result?.detail ?: "Tardó demasiado",
                     )
                 }
             }.awaitAll()
         }
-        return sort(options)
+        sort(options)
     }
 
     suspend fun rememberPreferred(siteId: String, serverName: String) = settings.setPreferredServer(siteId, serverName)
@@ -82,13 +97,18 @@ class ServerRepository @Inject constructor(
 
     companion object {
         const val CHECK_TIMEOUT_MS = 10_000L
+        const val EXTRACT_TIMEOUT_MS = 8_000L
 
-        /** Preferido primero, luego los que funcionan, sin verificar y al final los no disponibles. */
+        /**
+         * Preferido primero, luego los que funcionan (los de reproductor nativo antes que los web),
+         * sin verificar y al final los no disponibles.
+         */
         fun sort(options: List<ServerOption>): List<ServerOption> = options.sortedWith(
             compareBy<ServerOption>(
                 { it.health == ServerHealth.NO_DISPONIBLE },
                 { !it.preferred },
                 { it.health != ServerHealth.FUNCIONA },
+                { it.stream == null },
             ),
         )
 

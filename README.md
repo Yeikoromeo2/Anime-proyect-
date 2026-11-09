@@ -15,7 +15,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | Inicio sin filas repetidas + Recomendados con reseña + Explorar el catálogo por categorías | ✅ |
 | JKAnime como tercer sitio + elegir qué sitio ver en Inicio + respuesta automática a los recuadros de "continuar viendo" | ✅ |
 | AnimeFLV (animeflv.or.at) como cuarto sitio + bloqueo de rastreadores, ubicación y WebRTC | ✅ |
-| 5 · Reproductor nativo (ExoPlayer) para los servidores que lo permitan | Siguiente |
+| 5 · Reproductor nativo (Media3/ExoPlayer) para los servidores con video directo: HLS de zilla, Desu/Magi de JKAnime y MP4Upload ([detalle](docs/reproductor-nativo.md)) | ✅ |
 
 ## Requisitos
 
@@ -186,15 +186,21 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 - **"No rastrear":** todas las peticiones envían las señales `DNT: 1` y `Sec-GPC: 1`. Respetarlas es decisión de cada sitio.
 - **Lo que la app no puede ocultar:** tu **IP pública**. Con ella cualquier sitio calcula tu ciudad o país aproximados. Para ocultarla hace falta una VPN instalada en la TV, que afecta a todo el aparato, no solo a la app.
 
-## Fase 5 (siguiente): reproductor nativo
+## Reproductor nativo (Fase 5)
 
-Hoy cada servidor se abre como su página web dentro de la app (con su propio reproductor, sus anuncios y sus avisos, que el script controla). En la Fase 5, para los servidores que lo permiten (los que entregan el video directo en HLS `.m3u8` o MP4, como los de JKAnime o el HLS de Anime Ninja), la app saca el enlace del video y lo reproduce con el **reproductor nativo de Android (ExoPlayer/Media3)**:
-- sin anuncios, ventanas ni recuadros del servidor;
-- arranca más rápido y responde al control como cualquier app de TV (pausa, saltos, barra de progreso);
-- elige calidad (1080p/720p…) según Ajustes y retoma el minuto exacto;
-- subtítulos cuando el servidor los trae aparte.
+Cuando el servidor entrega el video directo, la app lo reproduce con el **reproductor nativo de Android (Media3/ExoPlayer)** en vez de abrir la página del servidor:
+- **sin** anuncios, ventanas ni recuadros del servidor;
+- arranca más rápido y responde al control como una app de TV;
+- respeta la **calidad máxima** de Ajustes y retoma el minuto exacto.
 
-Los servidores que no lo permitan siguen con el reproductor web de ahora.
+- **Servidores con reproductor nativo:** el **HLS** de Anime Ninja y AnimeFLV, **Desu** y **Magi** de JKAnime, y **MP4Upload**.
+- **En la lista:** cada servidor dice "Reproductor nativo" o "Reproductor web"; los nativos van primero, después del preferido.
+- **Si el nativo falla:** el mismo servidor se abre en el reproductor web, desde el mismo minuto, con un aviso.
+- **Detalle:** en [docs/reproductor-nativo.md](docs/reproductor-nativo.md).
+
+| Servidores (nativo / web) | Reproductor nativo | Respaldo web si el nativo falla |
+|---|---|---|
+| ![Servidores](docs/capturas/fase5/20_servidores.png) | ![Nativo](docs/capturas/fase5/21_reproduciendo.png) | ![Respaldo](docs/capturas/fase5/23_respaldo_web.png) |
 
 ## Configuración remota (cuando un sitio cambia)
 
@@ -234,6 +240,7 @@ app/src/main/java/com/animehub/tv/
  ├─ extractors/  agregadores de servidores y comprobación de que el video existe
  ├─ playback/    servidores ordenados (preferido, funcionan) y control de la reproducción/continuidad
  ├─ webview/     reproductor web: bloqueo de anuncios y script inyectado (assets/player/inject.js)
+ ├─ nativeplayer/ reproductor nativo (Media3/ExoPlayer) para los videos directos
  └─ util/        normalización de portadas, formatos
 config/sites.json  configuración publicada (también se incluye en el APK)
 docs/              análisis de cada sitio

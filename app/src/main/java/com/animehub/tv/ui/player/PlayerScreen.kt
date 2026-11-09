@@ -85,18 +85,32 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     val state by controller.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val web = remember(controller) { PlayerWebView(context, session.adHosts, controller::onMessage) }
-    DisposableEffect(web) {
+    // Reproductor nativo para los servidores con video directo (sin la página del servidor).
+    val native = remember(controller) { session.nativeFactory.create(context, session.quality, controller::onMessage) }
+    DisposableEffect(web, native) {
         onDispose {
             controller.onExit()
             web.destroy()
+            native.release()
         }
     }
     LaunchedEffect(controller) {
         controller.commands.collect { cmd ->
             when (cmd) {
-                is PlayerCommand.Load -> web.load(cmd.url, session.referer)
-                is PlayerCommand.Script -> web.command(cmd.json)
-                PlayerCommand.Stop -> web.stop()
+                is PlayerCommand.PlayNative -> {
+                    web.stop()
+                    native.play(cmd.stream)
+                }
+                is PlayerCommand.Load -> {
+                    native.stop()
+                    web.load(cmd.url, session.referer)
+                }
+                // Las órdenes del mando van al reproductor que se está usando.
+                is PlayerCommand.Script -> if (controller.state.value.nativePlayback) native.command(cmd.json) else web.command(cmd.json)
+                PlayerCommand.Stop -> {
+                    native.stop()
+                    web.stop()
+                }
             }
         }
     }
@@ -138,11 +152,19 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                 true
             },
     ) {
-        // La web queda siempre montada (no se recarga al mostrar paneles encima).
+        // Los dos reproductores quedan montados (no se recargan al mostrar paneles encima);
+        // se ve el que se está usando.
+        val showVideo = playing || state.phase is PlayerPhase.NextCountdown
         AndroidView(
             factory = { web.container },
-            modifier = Modifier.fillMaxSize().alpha(if (playing || state.phase is PlayerPhase.NextCountdown) 1f else 0f),
+            modifier = Modifier.fillMaxSize().alpha(if (showVideo && !state.nativePlayback) 1f else 0f),
         )
+        native.view?.let { view ->
+            AndroidView(
+                factory = { view },
+                modifier = Modifier.fillMaxSize().alpha(if (showVideo && state.nativePlayback) 1f else 0f),
+            )
+        }
         when (val phase = state.phase) {
             PlayerPhase.LoadingServers -> CenterMessage("Buscando servidores que funcionen…\n${episodeTitle(session, state)}", null, onExit)
             is PlayerPhase.ChoosingServer -> ServerList(session, state, phase.options, onChoose = controller::choose)
@@ -246,7 +268,15 @@ private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOp
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(episodeTitle(session, state), style = MaterialTheme.typography.titleLarge)
-        Text("${option.server.name} · ${session.siteName}" + if (state.paused) " · En pausa" else "", color = AppColors.TextoSecundario)
+        Text(
+            listOfNotNull(
+                option.server.name,
+                session.siteName,
+                if (state.nativePlayback) "Reproductor nativo" else "Reproductor web",
+                "En pausa".takeIf { state.paused },
+            ).joinToString(" · "),
+            color = AppColors.TextoSecundario,
+        )
         if (state.durationMs > 0) {
             ProgressBar(state.positionMs.toFloat() / state.durationMs)
             Text("${Format.time(state.positionMs)} / ${Format.time(state.durationMs)}", style = MaterialTheme.typography.bodySmall)

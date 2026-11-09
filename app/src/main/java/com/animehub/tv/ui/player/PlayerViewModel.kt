@@ -7,10 +7,12 @@ import androidx.navigation.toRoute
 import com.animehub.tv.data.config.ConfigRepository
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.data.log.ErrorLogRepository
+import com.animehub.tv.data.settings.PreferredQuality
 import com.animehub.tv.data.settings.SettingsRepository
 import com.animehub.tv.domain.model.Episode
 import com.animehub.tv.domain.model.EpisodePager
 import com.animehub.tv.domain.model.WatchProgress
+import com.animehub.tv.nativeplayer.NativePlaybackFactory
 import com.animehub.tv.playback.PlaybackController
 import com.animehub.tv.playback.ServerRepository
 import com.animehub.tv.providers.ProviderRegistry
@@ -31,6 +33,9 @@ data class PlayerSession(
     val referer: String,
     val adHosts: Set<String>,
     val seekSeconds: Int,
+    /** Crea el reproductor nativo para los servidores con video directo. */
+    val nativeFactory: NativePlaybackFactory,
+    val quality: PreferredQuality,
 )
 
 @HiltViewModel
@@ -42,6 +47,7 @@ class PlayerViewModel @Inject constructor(
     private val configRepository: ConfigRepository,
     private val settingsRepository: SettingsRepository,
     private val errorLog: ErrorLogRepository,
+    private val nativeFactory: NativePlaybackFactory,
 ) : ViewModel() {
 
     val route: PlayerRoute = savedStateHandle.toRoute()
@@ -97,6 +103,8 @@ class PlayerViewModel @Inject constructor(
                 referer = provider.baseUrl + "/",
                 adHosts = config.adBlockHosts.toSet(),
                 seekSeconds = settingsRepository.current().seekSeconds,
+                nativeFactory = nativeFactory,
+                quality = settingsRepository.current().preferredQuality,
             )
             controller.start()
         }

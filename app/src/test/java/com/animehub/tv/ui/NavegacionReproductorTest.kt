@@ -1,5 +1,6 @@
 package com.animehub.tv.ui
 
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -13,10 +14,13 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.data.settings.SettingsRepository
+import com.animehub.tv.di.FakeNative
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
@@ -44,6 +48,7 @@ class NavegacionReproductorTest : TvUiTest() {
     fun setUp() {
         hilt.inject()
         setUpImages()
+        FakeNative.reset()
         // Los ajustes se guardan en disco: cada prueba empieza sin servidor preferido.
         runBlocking { settings.clearPreferredServers() }
         // Tank Chair 6 también está en JKAnime y AnimeFLV: estas pruebas usan los servidores de Anime Ninja.
@@ -82,30 +87,63 @@ class NavegacionReproductorTest : TvUiTest() {
         key(Key.DirectionCenter)
     }
 
+    /** Lo que mandaría el reproductor nativo (ExoPlayer) a la app. */
+    private fun nativeMessage(json: String) {
+        compose.runOnUiThread { FakeNative.emit(json) }
+        compose.waitForIdle()
+    }
+
+    private val zillaPlaylist = "https://player.zilla-networks.com/m3u8/fa543590d3399084aa0f1dc73ee1ccac"
+
     @Test
-    fun play_muestra_los_servidores_que_funcionan_y_reproduce_directo() {
+    fun play_muestra_los_servidores_que_funcionan_y_reproduce_directo_en_el_nativo() {
         openTankChairEpisode6()
         waitForText("Elige un servidor", substring = true)
-        // HLS y MP4Upload (sub y doblado) funcionan; Voe y Byse quedan aparte como no disponibles.
+        // HLS y MP4Upload (sub y doblado) funcionan y entregan el video directo; Voe y Byse quedan aparte.
         waitForFocus("▶  HLS · Subtitulado")
+        waitForText("Funciona · Reproductor nativo")
         waitForText("Ver no disponibles (4)")
         capture("20_servidores")
         key(Key.DirectionCenter)
-        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl } == "https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac" }
+        // Sin la página del servidor: la lista HLS va directo al reproductor nativo, con su Referer.
+        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
+        assertEquals("https://player.zilla-networks.com/", FakeNative.played.last().headers["Referer"])
+        assertNotEquals("https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac", webView()?.let { shadowOf(it).lastLoadedUrl })
 
         // Progreso del video: se guarda el minuto exacto.
-        jsMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
-        jsMessage("""{"type":"progress","pos":312.5,"dur":1440,"paused":false}""")
+        nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
+        nativeMessage("""{"type":"progress","pos":312.5,"dur":1440,"paused":false,"frame":"native"}""")
         waitForText("5:12 / 24:00")
+        waitForText("HLS · Anime Ninja · Reproductor nativo")
         capture("21_reproduciendo")
         compose.waitUntil(5_000) {
             runBlocking { library.history.first() }.any { it.episodeNumber == 6f && it.positionMs == 312_500L && it.serverName == "HLS" }
         }
+        // OK pausa el reproductor nativo (no la página web).
+        key(Key.DirectionCenter)
+        compose.waitUntil(5_000) { FakeNative.commands.contains("""{"type":"toggle"}""") }
 
-        // Al terminar: cuenta atrás para el siguiente (Tank Chair tiene 6, así que este es el último).
-        jsMessage("""{"type":"ended"}""")
+        // Al terminar: Tank Chair tiene 6 episodios, así que este es el último.
+        nativeMessage("""{"type":"ended","frame":"native"}""")
         waitForText("Has visto el último episodio disponible")
         assertTrue(runBlocking { library.history.first() }.first { it.episodeNumber == 6f }.completed)
+    }
+
+    @Test
+    fun si_el_nativo_falla_sigue_con_la_pagina_del_mismo_servidor() {
+        openTankChairEpisode6()
+        waitForFocus("▶  HLS · Subtitulado")
+        key(Key.DirectionCenter)
+        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
+        nativeMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        // Mismo servidor, ahora en el reproductor web, con aviso.
+        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl } == "https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac" }
+        waitForText("usando el reproductor web", substring = true)
+        jsMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
+        jsMessage("""{"type":"progress","pos":60,"dur":1440,"paused":false}""")
+        waitForText("1:00 / 24:00")
+        waitForText("HLS · Anime Ninja · Reproductor web")
+        capture("23_respaldo_web")
     }
 
     @Test
@@ -113,21 +151,26 @@ class NavegacionReproductorTest : TvUiTest() {
         openTankChairEpisode6()
         waitForFocus("▶  HLS · Subtitulado")
         key(Key.DirectionCenter) // elige HLS: queda como preferido
-        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl }?.contains("zilla-networks") == true }
+        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
         back() // salir del reproductor
         waitForFocus("Ver episodio 6 · nuevo")
         // Episodio 5: ahora reproduce directo con el preferido, sin lista.
         activate("Ep. 5")
         waitForText("Servidor preferido: HLS · ↑ para cambiar")
-        jsMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
-        jsMessage("""{"type":"progress","pos":1439,"dur":1440,"paused":false}""")
+        compose.waitUntil(10_000) { FakeNative.played.size >= 2 }
+        nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
+        nativeMessage("""{"type":"progress","pos":1439,"dur":1440,"paused":false,"frame":"native"}""")
         // Cerca del final: siguiente episodio en 10 s.
         waitForText("Siguiente: Episodio 6 en", substring = true)
         capture("22_siguiente_episodio")
         activate("Ver ahora")
         waitForText("Tank Chair · Episodio 6", substring = true)
-        // Los servidores del episodio 6 se buscan en segundo plano: se espera a que cargue el preferido
-        // (entre episodios el reproductor pasa por about:blank, así que no basta con mirar al instante).
-        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl }?.contains("zilla-networks") == true }
+        // Los servidores del episodio 6 se buscan en segundo plano y la respuesta vuelve al hilo
+        // principal: en Robolectric ese hilo solo avanza cuando la prueba lo procesa, así que se
+        // procesa en cada comprobación (en la TV corre solo).
+        compose.waitUntil(10_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            FakeNative.played.size >= 3
+        }
     }
 }

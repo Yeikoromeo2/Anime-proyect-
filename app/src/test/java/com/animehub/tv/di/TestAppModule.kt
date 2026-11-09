@@ -7,6 +7,7 @@ import com.animehub.tv.data.db.FavoriteDao
 import com.animehub.tv.data.db.SearchHistoryDao
 import com.animehub.tv.data.db.WatchProgressDao
 import com.animehub.tv.fixtures.Fixtures
+import com.animehub.tv.nativeplayer.NativePlaybackFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,12 +37,18 @@ object TestAppModule {
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
         "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
         "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200
-        else -> videoHost(url.host)
+        else -> videoHost(url)
     }
 
-    /** Servidores de video simulados: HLS y MP4Upload funcionan, Voe "borrado", Byse caído. */
-    private fun videoHost(host: String): Pair<String, Int>? = when (host) {
-        "player.zilla-networks.com", "www.mp4upload.com" -> "TEXTO:<html><video src='v.mp4'></video></html>" to 200
+    /**
+     * Servidores de video simulados: HLS y MP4Upload funcionan (y entregan el video directo para el
+     * reproductor nativo), Voe "borrado", Byse caído.
+     */
+    private fun videoHost(url: HttpUrl): Pair<String, Int>? = when (url.host) {
+        "player.zilla-networks.com" ->
+            if (url.encodedPath.startsWith("/m3u8/")) "servidores/zilla.m3u8" to 200 else "TEXTO:<html><video src='v.mp4'></video></html>" to 200
+        "www.mp4upload.com" ->
+            if (url.encodedPath.startsWith("/embed-")) "servidores/mp4upload_embed.html" to 200 else "TEXTO:<html><video src='v.mp4'></video></html>" to 200
         "voe.sx" -> "TEXTO:<h1>File Not Found</h1>" to 200
         "byselapuix.com" -> "TEXTO:" to 503
         else -> null
@@ -106,6 +113,8 @@ object TestAppModule {
         val path = url.encodedPath
         return when {
             path == "/" -> "jkanime/inicio.html"
+            path.startsWith("/jkplayer/umv") -> "servidores/jkplayer_magi.html"
+            path.startsWith("/jkplayer/") -> "servidores/jkplayer_desu.html"
             path.startsWith("/buscar/one") -> "jkanime/busqueda_one_piece.html"
             path.startsWith("/buscar/") -> "jkanime/busqueda_dragon.html"
             path == "/directorio" && url.queryParameter("p") == "2" -> "jkanime/directorio_accion_2025_p2.html"
@@ -134,6 +143,11 @@ object TestAppModule {
                 .build()
         }
         .build()
+
+    /** Reproductor nativo simulado (en Robolectric no se reproduce video de verdad). */
+    @Provides
+    @Singleton
+    fun provideNativePlaybackFactory(): NativePlaybackFactory = FakeNative.factory
 
     @Provides
     @Singleton

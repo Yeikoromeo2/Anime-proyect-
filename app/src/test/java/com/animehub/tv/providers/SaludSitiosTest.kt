@@ -133,6 +133,32 @@ class SaludSitiosTest {
         assertTrue("Catálogo vacío", catalog.items.isNotEmpty())
     }
 
+    /** Fase 5: video directo para el reproductor nativo (HLS de zilla y Desu de JKAnime). */
+    @Test
+    fun videoDirectoResponde() = runBlocking {
+        assumeTrue("Solo con -Psalud", System.getProperty("animehub.salud") == "true")
+        val fetcher = HtmlFetcher(client)
+        val extractor = com.animehub.tv.extractors.DirectStreamExtractor(TestSites.config.directStreams) { url, ref -> fetcher.get("salud", url, referer = ref) }
+
+        val flv = com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider(TestSites.site("animeflv"), fetcher)
+        val flvEpisode = flv.latestEpisodes().first()
+        val hls = flv.servers(flvEpisode.episodeUrl).first { it.name == "HLS" }
+        val zilla = extractor.extract(hls.embedUrl, flv.baseUrl + "/")
+        println("Video directo · AnimeFLV ${flvEpisode.animeTitle} ${flvEpisode.episodeNumber} · HLS → ${zilla?.url}")
+        assertTrue("Sin video directo en el HLS de zilla", zilla != null)
+        assertTrue(fetcher.get("salud", zilla!!.url, referer = zilla.headers["Referer"]).startsWith("#EXTM3U"))
+
+        // A veces el enlace de Desu de un episodio está roto en el propio sitio: basta con que funcione en alguno reciente.
+        val jk = com.animehub.tv.providers.jkanime.JkanimeProvider(TestSites.site("jkanime"), fetcher)
+        val results = jk.latestEpisodes().take(6).map { ep ->
+            val desu = jk.servers(ep.episodeUrl).firstOrNull { it.name == "Desu" }
+            val stream = desu?.let { extractor.extract(it.embedUrl, jk.baseUrl + "/") }
+            println("Video directo · JKAnime ${ep.animeTitle} ${ep.episodeNumber} · Desu → ${stream?.url?.take(60) ?: "sin video directo (queda el reproductor web)"}")
+            stream
+        }
+        assertTrue("Ningún Desu reciente dio video directo", results.any { it != null })
+    }
+
     /** Recomendados y series nuevas de la portada (lo que muestra Inicio). */
     private fun checkShowcase(site: String, items: List<com.animehub.tv.domain.model.ShowcaseItem>) {
         val byKind = items.groupBy { it.kind }

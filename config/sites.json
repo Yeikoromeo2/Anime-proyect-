@@ -1,9 +1,14 @@
 {
-  "version": 5,
+  "version": 6,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
     { "type": "embeds-object", "hosts": ["animeav1.com"] }
+  ],
+  "directStreams": [
+    { "type": "zilla", "hosts": ["player.zilla-networks.com"] },
+    { "type": "jkplayer", "hosts": ["jkanime.org", "jkanime.net", "jkanime.bz"] },
+    { "type": "mp4upload", "hosts": ["mp4upload.com"] }
   ],
   "deadVideoMarkers": [
     "file not found", "file was deleted", "file has been deleted", "file is no longer available",
@@ -19,7 +24,8 @@
     "agl003.com", "unboltsecole.com",
     "google-analytics.com", "analytics.google.com", "googletagmanager.com", "stats.jkdesa.com",
     "connect.facebook.net", "scorecardresearch.com", "mc.yandex.ru", "mc.yandex.com", "histats.com",
-    "statcounter.com", "static.cloudflareinsights.com", "hotjar.com", "clarity.ms", "quantserve.com", "onesignal.com"
+    "statcounter.com", "static.cloudflareinsights.com", "hotjar.com", "clarity.ms", "quantserve.com", "onesignal.com",
+    "ufouxbwn.com"
   ],
   "sites": [
     {

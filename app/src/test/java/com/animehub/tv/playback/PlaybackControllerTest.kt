@@ -15,6 +15,9 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import com.animehub.tv.domain.model.DirectStream
+import com.animehub.tv.domain.model.StreamType
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -164,6 +167,49 @@ class PlaybackControllerTest {
         assertEquals(PlayerCommand.Script("""{"type":"cleanup"}"""), commands.last())
         c.onMessage("""{"type":"cleanup","hidden":1}""")
         assertEquals("Se quitaron los recuadros que tapaban el video", c.state.value.notice)
+        job.cancel()
+        c.onExit()
+    }
+
+    private fun native(name: String, preferred: Boolean = false) = ServerOption(
+        VideoServer(name, "https://$name.example/e/1"), ServerHealth.FUNCIONA, preferred,
+        stream = DirectStream("https://$name.example/video.m3u8", StreamType.HLS, mapOf("Referer" to "https://$name.example/")),
+    )
+
+    @Test
+    fun `con video directo usa el reproductor nativo y si falla abre la pagina del mismo servidor`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(native("zilla", preferred = true), opt("voe")))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        assertEquals(PlayerCommand.PlayNative(DirectStream("https://zilla.example/video.m3u8", StreamType.HLS, mapOf("Referer" to "https://zilla.example/"))), commands.last())
+        assertTrue(c.state.value.nativePlayback)
+        // El nativo no pudo: mismo servidor en el reproductor web (no salta a Voe).
+        c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+        assertFalse(c.state.value.nativePlayback)
+        assertTrue(c.state.value.notice!!.contains("usando el reproductor web"))
+        // Si la página tampoco arranca, entonces sí pasa al siguiente servidor.
+        advanceTimeBy(25_001)
+        assertEquals(PlayerCommand.Load("https://voe.example/e/1"), commands.last())
+        job.cancel()
+        c.onExit()
+    }
+
+    @Test
+    fun `si el nativo falla a mitad sigue en la web desde el mismo minuto`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(native("zilla", preferred = true)))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage(progress(600.0, 1440.0))
+        c.onMessage("""{"type":"error","code":2001,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+        // La página arranca: salta al minuto donde iba.
+        c.onMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
+        assertEquals(PlayerCommand.Script("""{"type":"seekTo","seconds":600.0}"""), commands.last())
         job.cancel()
         c.onExit()
     }

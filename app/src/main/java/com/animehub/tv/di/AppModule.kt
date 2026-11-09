@@ -16,6 +16,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
+import com.animehub.tv.nativeplayer.ExoNativePlaybackFactory
+import com.animehub.tv.nativeplayer.NativePlaybackFactory
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -51,4 +53,9 @@ object AppModule {
 
     @Provides
     fun provideSearchHistoryDao(db: AppDatabase): SearchHistoryDao = db.searchHistoryDao()
+
+    /** Reproductor nativo (Media3/ExoPlayer) para los videos directos. */
+    @Provides
+    @Singleton
+    fun provideNativePlaybackFactory(client: OkHttpClient): NativePlaybackFactory = ExoNativePlaybackFactory(client)
 }

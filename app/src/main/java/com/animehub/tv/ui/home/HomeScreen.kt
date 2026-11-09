@@ -34,6 +34,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.domain.model.EpisodeCard
+import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
 import com.animehub.tv.ui.components.WideCard
@@ -50,6 +51,7 @@ fun HomeScreen(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
+    onResume: (WatchProgress) -> Unit,
     onOpenEpisode: (siteId: String, animeUrl: String, episodeUrl: String, title: String, image: String?) -> Unit,
     onExit: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -150,7 +152,8 @@ fun HomeScreen(
                         subtitle = "Ep. ${Format.episode(p.episodeNumber)} – ${Format.time(p.positionMs)}",
                         badge = state.siteNames[p.siteId],
                         progress = p.fraction,
-                        onClick = { onOpenAnime(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl) },
+                        // Continuar viendo: reproduce directo desde el minuto guardado.
+                        onClick = { onResume(p) },
                     )
                 }
             }

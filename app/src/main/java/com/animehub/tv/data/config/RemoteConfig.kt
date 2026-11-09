@@ -14,7 +14,20 @@ data class RemoteConfig(
     /** User-Agent opcional para todas las peticiones (si no, se usa el de la app). */
     val userAgent: String? = null,
     val sites: List<SiteConfig> = emptyList(),
+    /** Páginas "multiservidor" que agrupan reproductores (se abren en sus servidores reales). */
+    val aggregators: List<AggregatorConfig> = emptyList(),
+    /** Textos que indican que un video fue borrado (para marcar el servidor como no disponible). */
+    val deadVideoMarkers: List<String> = emptyList(),
+    /** Dominios de anuncios que el reproductor web bloquea. */
+    val adBlockHosts: List<String> = emptyList(),
 )
+
+/**
+ * @param type "msp-xor" (botones con URL en Base64 cifrada con la clave "pk" de la página) o
+ *  "embeds-object" (objeto JS `embeds:{SUB:[{server,url}],DUB:[…]}`).
+ */
+@Serializable
+data class AggregatorConfig(val type: String, val hosts: List<String>)
 
 @Serializable
 data class SiteConfig(

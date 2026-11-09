@@ -43,6 +43,7 @@ import com.animehub.tv.util.Format
 @Composable
 fun HistoryScreen(
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
+    onResume: (WatchProgress) -> Unit,
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,6 +102,10 @@ fun HistoryScreen(
             title = item.animeTitle,
             message = "Episodio ${Format.episode(item.episodeNumber)} · ${Format.time(item.positionMs)}",
             actions = listOf(
+                DialogAction(if (item.completed) "Volver a verlo" else "Continuar en ${Format.time(item.positionMs)}") {
+                    selected = null
+                    onResume(item)
+                },
                 DialogAction("Ver ficha del anime") {
                     selected = null
                     onOpenAnime(item.siteId, item.animeUrl, item.animeTitle, item.coverUrl)

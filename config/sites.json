@@ -1,6 +1,22 @@
 {
-  "version": 1,
-  "updated": "2026-11-08",
+  "version": 2,
+  "updated": "2026-11-09",
+  "aggregators": [
+    { "type": "msp-xor", "hosts": ["darkanimes.com"] },
+    { "type": "embeds-object", "hosts": ["animeav1.com"] }
+  ],
+  "deadVideoMarkers": [
+    "file not found", "file was deleted", "file has been deleted", "file is no longer available",
+    "video not found", "video is not available", "this video has been removed", "no longer available",
+    "archivo no encontrado", "el archivo fue eliminado", "video no disponible", "el video no existe"
+  ],
+  "adBlockHosts": [
+    "araplhn.org", "abscloud.org", "taigasginep.com", "profitablecpmratenetwork.com", "aarems.org",
+    "doubleclick.net", "googlesyndication.com", "googleadservices.com", "adservice.google.com",
+    "popads.net", "popcash.net", "propellerads.com", "adsterra.com", "exoclick.com", "juicyads.com",
+    "onclickads.net", "hilltopads.net", "a-ads.com", "adcash.com", "clickadu.com", "trafficstars.com",
+    "hentaionline.net", "verhentai.ninja", "veranimex.com", "eroneko2.net"
+  ],
   "sites": [
     {
       "id": "latanime",

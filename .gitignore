@@ -14,3 +14,4 @@ captures/
 *.jks
 *.keystore
 keystore.properties
+tools/player-js-test/captura.png

@@ -11,7 +11,8 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | 1 · Esqueleto (Inicio, navegación con el control, Ajustes, configuración remota, Room, APK en GitHub Actions) | ✅ |
 | 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
 | 3 · Filtros dinámicos + búsqueda por voz (+ proveedor de Latanime) | ✅ |
-| 4 · Servidores + reproductor WebView + historial con minuto | Siguiente |
+| 4 · Servidores que funcionan + reproductor WebView a pantalla completa + continuidad + historial con minuto | ✅ |
+| 5 · Reproductor nativo (ExoPlayer) para los servidores que lo permitan | Siguiente |
 
 ## Requisitos
 
@@ -25,6 +26,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 ./gradlew testDebugUnitTest   # tests: parsers con los HTML de fixtures + navegación con el D-pad (Robolectric)
 ./gradlew testDebugUnitTest -Pcapturas   # además guarda capturas de pantalla en app/build/capturas
 ./gradlew testDebugUnitTest -Psalud --tests '*SaludSitiosTest*'   # "salud de sitios": prueba EN VIVO cada sitio (búsqueda de "one piece")
+node tools/player-js-test/test.js   # prueba el script del reproductor web en Chromium (Playwright)
 ./gradlew assembleDebug       # APK de depuración → app/build/outputs/apk/debug/
 ./gradlew assembleRelease     # APK de release   → app/build/outputs/apk/release/
 ```
@@ -103,11 +105,35 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Voz](docs/capturas/fase3/12_busqueda_voz.png) | ![Filtros](docs/capturas/fase3/13_panel_filtros.png) | ![Resultados](docs/capturas/fase3/14_resultados_filtrados.png) |
 
+| Temporadas en un desplegable | Tramos de 50 episodios | Ir al episodio (teclado numérico) |
+|---|---|---|
+| ![Temporadas](docs/capturas/fase4/16_desplegable_temporadas.png) | ![Tramos](docs/capturas/fase4/17_temporada_21_tramos.png) | ![Teclado](docs/capturas/fase4/18_teclado_numerico.png) |
+
+| Servidores que funcionan | Reproduciendo | Siguiente episodio |
+|---|---|---|
+| ![Servidores](docs/capturas/fase4/20_servidores.png) | ![Reproduciendo](docs/capturas/fase4/21_reproduciendo.png) | ![Siguiente](docs/capturas/fase4/22_siguiente_episodio.png) |
+
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
 
 ## Inicio: capítulos nuevos de frente
 
 Al abrir la app, arriba del todo está **"Últimos capítulos"**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Debajo, una fila de **novedades por sitio** (como la portada de cada web) y después **Continuar viendo** y **Favoritos**. Al elegir un capítulo nuevo se abre su ficha con ese capítulo marcado como **NUEVO** y enfocado.
+
+## Ficha: series con muchos episodios
+
+- **Temporada**: el botón "Temporada N · X episodios ▾" abre la lista de todas las temporadas (por ejemplo, las 21 de One Piece) y salta a la elegida.
+- **Tramos**: si la temporada tiene más de 50 episodios, aparecen chips "1–50", "51–100"… para ir directo a ese bloque.
+- **Ir al episodio…**: teclado numérico grande (sirve también con los números del control); escribe por ejemplo `1015` y el foco queda en ese episodio, sin importar la temporada.
+
+## Reproducción y continuidad
+
+1. Al pulsar un episodio se buscan sus servidores (incluidos los que vienen dentro de agregadores como *darkanimes* o *animeav1*) y **se comprueban todos a la vez** (10 s máximo): solo aparecen arriba los que **funcionan**; los caídos o borrados quedan en "Ver no disponibles".
+2. Si ya elegiste un servidor antes en ese sitio (el **preferido**), arranca directo con él. Si no, eliges uno con OK y queda recordado.
+3. El video se pone **a pantalla completa** solo (se ocultan anuncios y ventanas emergentes). Si un servidor no arranca en 25 s, se prueba el siguiente que funcione, con un aviso.
+4. Si ya habías visto parte del episodio, **continúa en el minuto guardado** (5 s antes).
+5. Al terminar, cuenta atrás de 10 s y **pasa al siguiente episodio** (OK = "Ver ahora", o "Cancelar"). En el último disponible avisa que no hay más.
+
+Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
 
 ## Búsqueda, filtros y voz
 
@@ -127,6 +153,8 @@ Los dominios, rutas, selectores CSS y filtros de cada sitio están en [`config/s
 Para corregir un sitio sin reinstalar: edita `config/sites.json`, **sube el número de `version`**, haz push a `main` y en la TV pulsa **Ajustes → Actualizar configuración**.
 
 > Si el repositorio es **privado**, la URL `raw.githubusercontent.com` no funcionará desde la TV. En ese caso publica el JSON en un sitio público (por ejemplo un Gist público) y pon esa URL en Ajustes.
+
+En el mismo archivo están las listas generales: `aggregators` (páginas que reúnen varios servidores), `deadVideoMarkers` (textos que indican un video borrado) y `adBlockHosts` (dominios de anuncios que el reproductor bloquea).
 
 Cada dominio se puede corregir también a mano en **Ajustes → Sitios → (sitio) → Editar dominio**.
 
@@ -150,6 +178,9 @@ app/src/main/java/com/animehub/tv/
  │   ├─ net/     OkHttp, User-Agent, reintentos, cookies compartidas, detección de Cloudflare
  │   └─ log/     registro de los últimos 50 errores
  ├─ providers/   un proveedor por sitio (interfaz SiteProvider)
+ ├─ extractors/  agregadores de servidores y comprobación de que el video existe
+ ├─ playback/    servidores ordenados (preferido, funcionan) y control de la reproducción/continuidad
+ ├─ webview/     reproductor web: bloqueo de anuncios y script inyectado (assets/player/inject.js)
  └─ util/        normalización de portadas, formatos
 config/sites.json  configuración publicada (también se incluye en el APK)
 docs/              análisis de cada sitio

@@ -114,6 +114,7 @@ dependencies {
 
     implementation(libs.datastore.preferences)
     implementation(libs.okhttp)
+    implementation(libs.androidx.webkit)
     implementation(libs.jsoup)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

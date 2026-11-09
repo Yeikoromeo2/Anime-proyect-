@@ -43,6 +43,22 @@ class SaludSitiosTest {
         val servers = provider.servers(detail.episodes.first().url)
         println("Anime Ninja · servidores del primer episodio: ${servers.map { it.name + " → " + it.embedUrl }}")
         assertTrue("No se detectaron servidores", servers.isNotEmpty())
+        // El "MULTISERVER" se abre en sus servidores reales (darkanimes / animeav1).
+        val fetcher = HtmlFetcher(client)
+        val real = servers.flatMap { s ->
+            val html = fetcher.get("agregador", s.embedUrl, referer = "https://veranime.ninja/")
+            when {
+                "darkanimes" in s.embedUrl -> com.animehub.tv.extractors.AggregatorParsers.mspXor(html)
+                "animeav1" in s.embedUrl -> com.animehub.tv.extractors.AggregatorParsers.embedsObject(html)
+                else -> listOf(s)
+            }
+        }
+        println("Anime Ninja · servidores reales: ${real.map { "${it.name} (${it.language}) → ${it.embedUrl}" }}")
+        assertTrue("El multiservidor no se pudo abrir", real.size > servers.size)
+        // Y de un episodio reciente (suele venir de animeav1).
+        val recent = provider.latestEpisodes().first()
+        val recentServers = provider.servers(recent.episodeUrl)
+        println("Anime Ninja · ${recent.animeTitle} ${recent.episodeNumber}: ${recentServers.map { it.name + " → " + it.embedUrl }}")
     }
 
     @Test

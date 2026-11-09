@@ -50,12 +50,11 @@ import coil3.compose.AsyncImage
 import com.animehub.tv.domain.model.AnimeStatus
 import com.animehub.tv.domain.model.Episode
 import com.animehub.tv.domain.model.WatchProgress
-import com.animehub.tv.ui.components.ActionsDialog
-import com.animehub.tv.ui.components.DialogAction
 import com.animehub.tv.ui.components.ProgressBar
 import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
+import com.animehub.tv.ui.navigation.PlayerRoute
 import com.animehub.tv.util.Format
 
 /**
@@ -65,9 +64,19 @@ import com.animehub.tv.util.Format
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel()) {
+fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: AnimeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var selected by remember { mutableStateOf<Episode?>(null) }
+    // Elegir un episodio lo reproduce: servidores que funcionan y reproducción directa.
+    val play: (Episode) -> Unit = { ep ->
+        onPlay(
+            PlayerRoute(
+                siteId = state.route.siteId, animeUrl = state.route.url,
+                animeTitle = state.detail?.title?.ifBlank { null } ?: state.route.title,
+                coverUrl = state.detail?.coverUrl ?: state.route.coverUrl,
+                episodeUrl = ep.url, episodeNumber = ep.number,
+            ),
+        )
+    }
     val focus = rememberInitialFocusState()
     val detail = state.detail
     val episodes = detail?.episodes.orEmpty()
@@ -148,14 +157,14 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
                         val firstEpisode = episodes.firstOrNull()
                         when {
                             state.error != null -> Button(onClick = viewModel::reload, modifier = Modifier.initialFocus(focus)) { Text("Reintentar") }
-                            highlighted != null -> Button(onClick = { selected = highlighted }, modifier = Modifier.initialFocus(focus)) {
+                            highlighted != null -> Button(onClick = { play(highlighted) }, modifier = Modifier.initialFocus(focus)) {
                                 Text("Ver episodio ${Format.episode(highlighted.number)} · nuevo")
                             }
                             last != null -> Button(
-                                onClick = { selected = episodes.firstOrNull { it.url == last.episodeUrl } ?: firstEpisode },
+                                onClick = { (episodes.firstOrNull { sameUrl(it.url, last.episodeUrl) } ?: firstEpisode)?.let(play) },
                                 modifier = Modifier.initialFocus(focus),
                             ) { Text("Continuar Ep. ${Format.episode(last.episodeNumber)} – ${Format.time(last.positionMs)}") }
-                            firstEpisode != null -> Button(onClick = { selected = firstEpisode }, modifier = Modifier.initialFocus(focus)) {
+                            firstEpisode != null -> Button(onClick = { play(firstEpisode) }, modifier = Modifier.initialFocus(focus)) {
                                 Text(if (episodes.size == 1) "Ver" else "Ver episodio ${Format.episode(firstEpisode.number)}")
                             }
                         }
@@ -201,7 +210,7 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
             EpisodeButton(
                 ep, state.progress[ep.url], isNew = ep == highlighted,
                 modifier = if (focusTarget != null && sameUrl(ep.url, focusTarget!!)) Modifier.initialFocus(targetFocus) else Modifier,
-            ) { selected = ep }
+            ) { play(ep) }
         }
     }
 
@@ -236,18 +245,6 @@ fun AnimeScreen(onBack: () -> Unit, viewModel: AnimeViewModel = hiltViewModel())
         null -> Unit
     }
 
-    selected?.let { ep ->
-        val p = state.progress[ep.url]
-        ActionsDialog(
-            title = "${detail?.title ?: state.route.title} · Episodio ${Format.episode(ep.number)}",
-            message = buildString {
-                if (p != null) append("Visto hasta ${Format.time(p.positionMs)}. ")
-                append("La elección de servidor y la reproducción llegan en la Fase 4.")
-            },
-            actions = listOf(DialogAction("Entendido") { selected = null }),
-            onDismiss = { selected = null },
-        )
-    }
 }
 
 private enum class EpisodePicker { Season, GoTo }

@@ -32,6 +32,16 @@ object TestAppModule {
     fun fixtureFor(url: HttpUrl): Pair<String, Int>? = when (url.host) {
         "veranime.ninja" -> ninja(url)?.let { it to 200 }
         "latanime.org" -> latanime(url)
+        "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
+        "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200
+        else -> videoHost(url.host)
+    }
+
+    /** Servidores de video simulados: HLS y MP4Upload funcionan, Voe "borrado", Byse caído. */
+    private fun videoHost(host: String): Pair<String, Int>? = when (host) {
+        "player.zilla-networks.com", "www.mp4upload.com" -> "TEXTO:<html><video src='v.mp4'></video></html>" to 200
+        "voe.sx" -> "TEXTO:<h1>File Not Found</h1>" to 200
+        "byselapuix.com" -> "TEXTO:" to 503
         else -> null
     }
 
@@ -39,6 +49,8 @@ object TestAppModule {
         val query = url.queryParameter("s")
         val path = url.encodedPath
         return when {
+            path == "/wp-admin/admin-ajax.php" -> "animeninja/player_ajax_tank_chair_6.json"
+            path.startsWith("/ver/") -> "animeninja/episodio_tank_chair_6.html"
             query == "one piece" -> "animeninja/busqueda_one_piece.html"
             query != null && path.startsWith("/page/2/") -> "animeninja/busqueda_dragon_p2.html"
             query != null -> "animeninja/busqueda_dragon.html"
@@ -80,7 +92,7 @@ object TestAppModule {
                 .code(fixture?.second ?: 503)
                 .message(if (fixture != null) "OK" else "Sin red en las pruebas")
                 .apply { if (fixture?.second == 403) header("cf-mitigated", "challenge") }
-                .body((fixture?.first?.let(Fixtures::read) ?: "").toResponseBody())
+                .body((fixture?.first?.let { if (it.startsWith("TEXTO:")) it.removePrefix("TEXTO:") else Fixtures.read(it) } ?: "").toResponseBody())
                 .build()
         }
         .build()

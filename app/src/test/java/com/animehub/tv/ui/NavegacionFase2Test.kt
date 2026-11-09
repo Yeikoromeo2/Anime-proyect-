@@ -84,7 +84,7 @@ class NavegacionFase2Test : TvUiTest() {
     @Test
     fun busqueda_muestra_cuadricula_de_portadas_y_el_foco_va_al_primer_resultado() {
         searchFor("dragon")
-        waitForText("60 resultados para \"dragon\"") // 30 de Anime Ninja + 30 de JKAnime
+        waitForText("61 resultados para \"dragon\"") // 30 de Anime Ninja + 30 de JKAnime + 1 de AnimeFLV
         // El foco pasa solo al primer resultado al terminar la búsqueda.
         compose.waitUntil(5_000) {
             runCatching { compose.onNodeWithContentDescription("Dragon Ball Daima").assertIsFocused(); true }.getOrDefault(false) ||

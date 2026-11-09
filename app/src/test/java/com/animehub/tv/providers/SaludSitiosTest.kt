@@ -110,6 +110,29 @@ class SaludSitiosTest {
         assertTrue("El directorio con filtros vino vacío", page.items.isNotEmpty())
     }
 
+    @Test
+    fun animeFlvResponde() = runBlocking {
+        assumeTrue("Solo con -Psalud", System.getProperty("animehub.salud") == "true")
+        val provider = com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider(TestSites.site("animeflv"), HtmlFetcher(client))
+        val results = provider.search("one piece", FilterSelection.NONE, 1).items
+        println("AnimeFLV · búsqueda: ${results.size} resultados → ${results.take(3).map { it.title }}")
+        assertTrue("La búsqueda no devolvió resultados", results.isNotEmpty())
+        val latest = provider.latestEpisodes()
+        println("AnimeFLV · novedades: ${latest.size} → ${latest.take(3).map { "${it.animeTitle} ${it.episodeNumber}" }}")
+        assertTrue("No hay novedades", latest.isNotEmpty())
+        val news = provider.showcase()
+        println("AnimeFLV · series nuevas: ${news.size} → ${news.take(3).map { it.card.title }}")
+        val detail = provider.animeDetail(latest.first().animeUrl!!)
+        println("AnimeFLV · ficha: ${detail.title}, ${detail.episodes.size} episodios, géneros ${detail.genres}")
+        assertTrue("La ficha no tiene episodios", detail.episodes.isNotEmpty())
+        val servers = provider.servers(detail.episodes.last().url)
+        println("AnimeFLV · servidores: ${servers.map { "${it.name} (${it.language})" }}")
+        assertTrue("Sin servidores", servers.isNotEmpty())
+        val catalog = provider.search("", FilterSelection.NONE, 2)
+        println("AnimeFLV · catálogo p2: ${catalog.items.size}, más páginas: ${catalog.hasNextPage}")
+        assertTrue("Catálogo vacío", catalog.items.isNotEmpty())
+    }
+
     /** Recomendados y series nuevas de la portada (lo que muestra Inicio). */
     private fun checkShowcase(site: String, items: List<com.animehub.tv.domain.model.ShowcaseItem>) {
         val byKind = items.groupBy { it.kind }

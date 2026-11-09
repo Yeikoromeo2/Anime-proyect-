@@ -112,11 +112,9 @@ class NavegacionExplorarTest : TvUiTest() {
     @Test
     fun elegir_un_solo_sitio_en_inicio_y_explorar_lo_usa() {
         waitForFocusedDescription(LATEST_FIRST)
-        key(Key.DirectionUp) // "Viendo: Todos los sitios · Latanime · Anime Ninja · JKAnime"
+        key(Key.DirectionUp) // "Viendo: Todos los sitios · Latanime · Anime Ninja · AnimeFLV · JKAnime"
         waitForFocus("Todos los sitios")
-        key(Key.DirectionRight)
-        key(Key.DirectionRight)
-        key(Key.DirectionRight)
+        repeat(4) { key(Key.DirectionRight) }
         waitForFocus("JKAnime")
         key(Key.DirectionCenter)
         // Solo JKAnime: sus capítulos, sus destacados y sus géneros, sin mezclar.
@@ -137,10 +135,14 @@ class NavegacionExplorarTest : TvUiTest() {
         capture("30_explorar_jkanime")
     }
 
+    /** Desde la fila de sitios sube a la cabecera y va hasta "Buscar" (el primer botón). */
     private fun toHeaderFromChips() {
+        val header = listOf("Buscar", "Explorar", "Historial", "Ajustes")
+        fun headerFocused() = header.any { compose.onAllNodes(hasText(it) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
+        repeat(4) { if (!headerFocused()) key(Key.DirectionUp) }
         repeat(4) {
             if (compose.onAllNodes(hasText("Buscar") and isFocused()).fetchSemanticsNodes().isNotEmpty()) return
-            key(Key.DirectionUp)
+            key(Key.DirectionLeft)
         }
     }
 }

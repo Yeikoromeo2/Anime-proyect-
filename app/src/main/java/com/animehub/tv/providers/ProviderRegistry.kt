@@ -3,6 +3,7 @@ package com.animehub.tv.providers
 import com.animehub.tv.data.config.ConfigRepository
 import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.net.HtmlFetcher
+import com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider
 import com.animehub.tv.providers.dooplay.DooPlayProvider
 import com.animehub.tv.providers.jkanime.JkanimeProvider
 import com.animehub.tv.providers.latanime.LatanimeProvider
@@ -22,6 +23,7 @@ class ProviderRegistry @Inject constructor(
         ENGINE_DOOPLAY -> DooPlayProvider(site, fetcher)
         ENGINE_LATANIME -> LatanimeProvider(site, fetcher)
         ENGINE_JKANIME -> JkanimeProvider(site, fetcher)
+        ENGINE_ANIMEFLV_WP -> AnimeFlvWpProvider(site, fetcher)
         else -> null
     }
 
@@ -42,6 +44,7 @@ class ProviderRegistry @Inject constructor(
         const val ENGINE_DOOPLAY = "dooplay"
         const val ENGINE_LATANIME = "latanime"
         const val ENGINE_JKANIME = "jkanime"
-        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME)
+        const val ENGINE_ANIMEFLV_WP = "animeflv-wp"
+        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP)
     }
 }

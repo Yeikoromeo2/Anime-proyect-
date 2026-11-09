@@ -7,13 +7,14 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 
 | Fase | Estado |
 |---|---|
-| 0 · Análisis de sitios | Latanime, Anime Ninja y JKAnime analizados; AnimeFLV cerró en 2026 ([resumen](docs/fase0-resumen.md), [JKAnime](docs/sites/jkanime.md), [AnimeFLV](docs/sites/animeflv.md)) |
+| 0 · Análisis de sitios | Latanime, Anime Ninja, JKAnime y AnimeFLV (copia animeflv.or.at; el original cerró en 2026) ([resumen](docs/fase0-resumen.md), [JKAnime](docs/sites/jkanime.md), [AnimeFLV](docs/sites/animeflv.md)) |
 | 1 · Esqueleto (Inicio, navegación con el control, Ajustes, configuración remota, Room, APK en GitHub Actions) | ✅ |
 | 2 · Primer proveedor: Anime Ninja (novedades, búsqueda con portadas, ficha y episodios) | ✅ |
 | 3 · Filtros dinámicos + búsqueda por voz (+ proveedor de Latanime) | ✅ |
 | 4 · Servidores que funcionan + reproductor WebView a pantalla completa + continuidad + historial con minuto | ✅ |
 | Inicio sin filas repetidas + Recomendados con reseña + Explorar el catálogo por categorías | ✅ |
 | JKAnime como tercer sitio + elegir qué sitio ver en Inicio + respuesta automática a los recuadros de "continuar viendo" | ✅ |
+| AnimeFLV (animeflv.or.at) como cuarto sitio + bloqueo de rastreadores, ubicación y WebRTC | ✅ |
 | 5 · Reproductor nativo (ExoPlayer) para los servidores que lo permitan | Siguiente |
 
 ## Requisitos
@@ -127,7 +128,7 @@ Se generan en las pruebas de navegación, que recorren la app solo con flechas, 
 
 ## Inicio: capítulos nuevos de frente
 
-Debajo de la cabecera, **"Viendo: Todos los sitios · Latanime · Anime Ninja · JKAnime"**: con un sitio elegido, todas las filas (y los géneros) son solo de ese sitio, sin mezclar. La elección se recuerda y Buscar y Explorar empiezan en ese sitio.
+Debajo de la cabecera, **"Viendo: Todos los sitios · Latanime · Anime Ninja · AnimeFLV · JKAnime"**: con un sitio elegido, todas las filas (y los géneros) son solo de ese sitio, sin mezclar. La elección se recuerda y Buscar y Explorar empiezan en ese sitio.
 
 Al abrir la app, de arriba abajo:
 1. **Últimos capítulos**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Es una sola fila: ya no se repite una fila por sitio. Si un sitio falla, debajo aparece su aviso con **Reintentar**.
@@ -172,7 +173,18 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 - **Filtros** (botón "Filtros"): con un sitio elegido se ven **sus filtros reales**, leídos de su web. En "Todos los sitios" solo los comunes (género, año, tipo, estado), traducidos al parámetro de cada sitio; si un sitio no puede aplicar un filtro se omite con un aviso.
 - **Accesos rápidos**: "Emisión de esta temporada" y "Estrenos del año" aparecen solo si el sitio los permite (hoy, Latanime).
 - La búsqueda por texto de **Latanime** está protegida por Cloudflare: por ahora muestra un aviso; su directorio con filtros sí funciona.
+- **AnimeFLV**: el original cerró en 2026; se usa la copia **animeflv.or.at**, que no tiene filtros (solo búsqueda y "Todo el catálogo") y solo guarda los episodios recientes.
 - **JKAnime** se usa por **jkanime.org** (mismo catálogo), porque jkanime.net pide la verificación de Cloudflare. Su directorio combina todos los filtros (género, tipo, estado, año, temporada, categoría, letra y orden).
+
+## Anuncios, rastreo y ubicación
+
+- **Anuncios y rastreadores:** el reproductor bloquea los dominios de `adBlockHosts` (en `config/sites.json`, editable sin reinstalar) y sus subdominios. Ahí están las redes de anuncios y ventanas emergentes de los servidores y rastreadores como Google Analytics/Tag Manager, Facebook, Yandex Metrica, Histats, Hotjar, Clarity y las estadísticas de los propios sitios.
+- **Ubicación:**
+  - la app no tiene permiso de ubicación;
+  - en el reproductor, la geolocalización está desactivada y cualquier pedido de ubicación, cámara o micrófono de una página se rechaza.
+- **WebRTC:** desactivado en todas las páginas del reproductor, para que no puedan ver la IP local de tu red.
+- **"No rastrear":** todas las peticiones envían las señales `DNT: 1` y `Sec-GPC: 1`. Respetarlas es decisión de cada sitio.
+- **Lo que la app no puede ocultar:** tu **IP pública**. Con ella cualquier sitio calcula tu ciudad o país aproximados. Para ocultarla hace falta una VPN instalada en la TV, que afecta a todo el aparato, no solo a la app.
 
 ## Fase 5 (siguiente): reproductor nativo
 

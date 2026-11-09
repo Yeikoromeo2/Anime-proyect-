@@ -33,6 +33,7 @@ object TestAppModule {
         "veranime.ninja" -> ninja(url)?.let { it to 200 }
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
+        "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
         "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
         "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200
         else -> videoHost(url.host)
@@ -83,6 +84,22 @@ object TestAppModule {
             else -> null
         }
         return file?.let { it to 200 }
+    }
+
+    private fun animeflv(url: HttpUrl): String? {
+        val path = url.encodedPath
+        val query = url.queryParameter("s")
+        return when {
+            query != null && query.startsWith("one") -> "animeflv/busqueda_one_piece.html"
+            query != null -> "animeflv/busqueda_dragon.html"
+            path == "/" -> "animeflv/inicio.html"
+            path == "/anime/" -> "animeflv/anime_lista.html"
+            path.startsWith("/anime/page/") -> "animeflv/anime_lista_p11.html"
+            path == "/anime/one-piece/" -> "animeflv/anime_one_piece.html"
+            path.startsWith("/anime/") -> "animeflv/anime_tank_chair.html"
+            Regex("""^/\d{4}/\d{2}/\d{2}/""").containsMatchIn(path) -> "animeflv/episodio_tank_chair_6.html"
+            else -> null
+        }
     }
 
     private fun jkanime(url: HttpUrl): String? {

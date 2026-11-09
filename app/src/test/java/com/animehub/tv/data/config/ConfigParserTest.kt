@@ -26,8 +26,10 @@ class ConfigParserTest {
         assertFalse(latanime.isPending)
         assertTrue(latanime.selectors.containsKey("card"))
         assertEquals(listOf("year", "genre", "type", "letter", "status"), latanime.filters.map { it.id })
+        // AnimeFLV (copia animeflv.or.at) ya tiene proveedor.
         val flv = config.sites.first { it.id == "animeflv" }
-        assertTrue(flv.isPending)
+        assertFalse(flv.isPending)
+        assertEquals("animeflv-wp", flv.engine)
     }
 
     @Test
@@ -67,7 +69,11 @@ class ConfigParserTest {
         assertEquals("https://latanime.org", sites.getValue("latanime").baseUrl)
         assertEquals("https://nuevo.ninja", sites.getValue("animeninja").baseUrl)
         assertTrue(sites.getValue("animeninja").domainEdited)
+        assertTrue(sites.getValue("animeflv").enabled)
         // Un sitio pendiente de análisis no se puede activar.
-        assertFalse(sites.getValue("animeflv").enabled)
+        val pending = ConfigParser.parse(
+            """{"version":1,"sites":[{"id":"x","name":"X","baseUrl":"https://x.com","status":"pendiente","enabled":true}]}""",
+        )
+        assertFalse(ConfigRepository.applySettings(pending, AppSettings(siteEnabled = mapOf("x" to true))).single().enabled)
     }
 }

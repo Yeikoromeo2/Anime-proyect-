@@ -18,12 +18,13 @@ object Http {
     const val ACCEPT_LANGUAGE = "es-419,es;q=0.9"
 }
 
-/** Añade User-Agent e idioma a todas las peticiones. */
+/** Añade User-Agent, idioma y las señales de "no rastrear" (DNT y Global Privacy Control) a todas las peticiones. */
 class UserAgentInterceptor(private val userAgent: () -> String) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val builder = request.newBuilder().header("User-Agent", userAgent())
         if (request.header("Accept-Language") == null) builder.header("Accept-Language", Http.ACCEPT_LANGUAGE)
+        builder.header("DNT", "1").header("Sec-GPC", "1")
         return chain.proceed(builder.build())
     }
 }

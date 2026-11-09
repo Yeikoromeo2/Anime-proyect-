@@ -148,6 +148,18 @@ function check(name, ok, extra = '') {
     captions: getComputedStyle(document.querySelector('.jw-captions')).display,
   }));
   check('"Quitar recuadros" oculta la capa y deja video y subtítulos', clean.sticky === 'none' && clean.video !== 'none' && clean.captions !== 'none', JSON.stringify(clean));
+  // Privacidad: sin ubicación, sin WebRTC y sin beacons de estadísticas, en todos los marcos.
+  const privacy = await frame.evaluate(() => new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      () => resolve({ geo: 'permitida' }),
+      (err) => resolve({ geo: err.code, rtc: typeof window.RTCPeerConnection, beacon: navigator.sendBeacon('http://127.0.0.1:8712/beacon', 'x') }),
+    );
+  }));
+  check('la ubicación se deniega en el iframe', privacy.geo === 1, JSON.stringify(privacy));
+  check('WebRTC no está disponible (no revela la IP local)', privacy.rtc === 'undefined');
+  const topRtc = await page.evaluate(() => typeof window.RTCPeerConnection);
+  check('tampoco en el marco principal', topRtc === 'undefined', topRtc);
+
   const outer = await page.evaluate(() => getComputedStyle(document.getElementById('player')).display);
   check('el iframe del reproductor no se oculta', outer !== 'none', outer);
   await page.screenshot({ path: path.join(__dirname, 'captura.png') });

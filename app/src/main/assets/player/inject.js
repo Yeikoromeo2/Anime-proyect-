@@ -7,10 +7,29 @@
  *  - Recibe órdenes del control remoto (play/pausa, saltos) y las reenvía a los iframes.
  *  - Responde solo a los recuadros de "¿continuar donde lo dejaste?" de algunos servidores
  *    (pulsa "Continuar" o los oculta) y, con la orden "cleanup", quita las capas que tapan el video.
+ *  - Privacidad: las páginas no pueden pedir la ubicación ni usar WebRTC (que revela la IP local),
+ *    y los "beacons" de estadísticas no salen.
  */
 (function () {
   if (window.__animehub) return;
   window.__animehub = true;
+
+  /* ---- Privacidad (antes de que cargue el código de la página) ---- */
+  try {
+    if (navigator.geolocation) {
+      var deny = function (ok, fail) { if (typeof fail === 'function') fail({ code: 1, message: 'denied', PERMISSION_DENIED: 1 }); };
+      Object.defineProperty(navigator, 'geolocation', {
+        value: { getCurrentPosition: deny, watchPosition: function (ok, fail) { deny(ok, fail); return 0; }, clearWatch: function () {} },
+        configurable: false,
+      });
+    }
+  } catch (e) { /* sin efecto */ }
+  try {
+    ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel'].forEach(function (name) {
+      if (name in window) Object.defineProperty(window, name, { value: undefined, configurable: false });
+    });
+  } catch (e) { /* sin efecto */ }
+  try { navigator.sendBeacon = function () { return true; }; } catch (e) { /* sin efecto */ }
 
   var isTop = window.top === window;
   var video = null;

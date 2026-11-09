@@ -18,7 +18,7 @@ data class RemoteConfig(
     val aggregators: List<AggregatorConfig> = emptyList(),
     /** Textos que indican que un video fue borrado (para marcar el servidor como no disponible). */
     val deadVideoMarkers: List<String> = emptyList(),
-    /** Dominios de anuncios que el reproductor web bloquea. */
+    /** Dominios de anuncios y de rastreo que el reproductor web bloquea (también sus subdominios). */
     val adBlockHosts: List<String> = emptyList(),
 )
 

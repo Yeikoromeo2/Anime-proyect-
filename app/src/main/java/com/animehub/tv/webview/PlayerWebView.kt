@@ -9,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.GeolocationPermissions
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -60,6 +62,8 @@ class PlayerWebView(
             javaScriptCanOpenWindowsAutomatically = false
             setSupportMultipleWindows(true) // y onCreateWindow devuelve false: no se abre ninguna
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            // Privacidad: las páginas de los servidores no pueden pedir la ubicación.
+            setGeolocationEnabled(false)
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         if (injectsInFrames) WebViewCompat.addDocumentStartJavaScript(this, script, setOf("*"))
@@ -136,6 +140,16 @@ class PlayerWebView(
 
     private inner class Chrome : WebChromeClient() {
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean = false
+
+        /** Ubicación: siempre denegada, sin preguntar. */
+        override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?) {
+            callback?.invoke(origin, false, false)
+        }
+
+        /** Cámara, micrófono u otros permisos que pida una página: denegados. */
+        override fun onPermissionRequest(request: PermissionRequest?) {
+            request?.deny()
+        }
 
         override fun onShowCustomView(view: View, callback: CustomViewCallback) {
             customView?.let { container.removeView(it) }

@@ -17,7 +17,6 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
@@ -47,12 +46,16 @@ class NavegacionReproductorTest : TvUiTest() {
         setUpImages()
         // Los ajustes se guardan en disco: cada prueba empieza sin servidor preferido.
         runBlocking { settings.clearPreferredServers() }
-        // Tank Chair 6 también está en JKAnime: estas pruebas usan los servidores de Anime Ninja.
-        runBlocking { settings.setSiteEnabled("jkanime", false) }
+        // Tank Chair 6 también está en JKAnime y AnimeFLV: estas pruebas usan los servidores de Anime Ninja.
+        runBlocking { OTHERS.forEach { settings.setSiteEnabled(it, false) } }
     }
 
     @After
-    fun tearDown() = runBlocking { settings.setSiteEnabled("jkanime", true) }
+    fun tearDown() = runBlocking { OTHERS.forEach { settings.setSiteEnabled(it, true) } }
+
+    private companion object {
+        val OTHERS = listOf("jkanime", "animeflv")
+    }
 
     private fun webView(): WebView? {
         fun find(v: View): WebView? = when (v) {
@@ -123,6 +126,8 @@ class NavegacionReproductorTest : TvUiTest() {
         capture("22_siguiente_episodio")
         activate("Ver ahora")
         waitForText("Tank Chair · Episodio 6", substring = true)
-        assertEquals(true, webView()?.let { shadowOf(it).lastLoadedUrl }?.contains("zilla-networks"))
+        // Los servidores del episodio 6 se buscan en segundo plano: se espera a que cargue el preferido
+        // (entre episodios el reproductor pasa por about:blank, así que no basta con mirar al instante).
+        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl }?.contains("zilla-networks") == true }
     }
 }

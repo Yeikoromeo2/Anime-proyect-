@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -15,7 +15,11 @@
     "doubleclick.net", "googlesyndication.com", "googleadservices.com", "adservice.google.com",
     "popads.net", "popcash.net", "propellerads.com", "adsterra.com", "exoclick.com", "juicyads.com",
     "onclickads.net", "hilltopads.net", "a-ads.com", "adcash.com", "clickadu.com", "trafficstars.com",
-    "hentaionline.net", "verhentai.ninja", "veranimex.com", "eroneko2.net"
+    "hentaionline.net", "verhentai.ninja", "veranimex.com", "eroneko2.net",
+    "agl003.com", "unboltsecole.com",
+    "google-analytics.com", "analytics.google.com", "googletagmanager.com", "stats.jkdesa.com",
+    "connect.facebook.net", "scorecardresearch.com", "mc.yandex.ru", "mc.yandex.com", "histats.com",
+    "statcounter.com", "static.cloudflareinsights.com", "hotjar.com", "clarity.ms", "quantserve.com", "onesignal.com"
   ],
   "sites": [
     {
@@ -166,11 +170,59 @@
     {
       "id": "animeflv",
       "name": "AnimeFLV",
-      "baseUrl": "https://www4.animeflv.net",
-      "aliases": ["https://www3.animeflv.net", "https://animeflv.net"],
-      "enabled": false,
-      "status": "cerrado",
-      "notes": "Cerró en 2026: dejó de servir video en junio y hoy todos sus dominios dan error 522. Los sitios con su nombre son copias de otros dueños. Ver docs/sites/animeflv.md"
+      "engine": "animeflv-wp",
+      "baseUrl": "https://animeflv.or.at",
+      "aliases": ["https://www.animeflv.or.at", "https://www4.animeflv.net", "https://www3.animeflv.net", "https://animeflv.net"],
+      "enabled": true,
+      "status": "ok",
+      "notes": "El AnimeFLV original (animeflv.net) cerró en 2026. animeflv.or.at es una copia no oficial en WordPress que sigue publicando. Ver docs/sites/animeflv.md",
+      "search": { "path": "/", "queryParam": "s" },
+      "browse": { "path": "/anime/", "pageParam": "/page/{page}/" },
+      "latest": {
+        "path": "/",
+        "card": "section.home-recent-episodes div.ht_grid_1_4",
+        "link": "a.thumbnail-link",
+        "title": "h2.entry-title",
+        "image": "img",
+        "episode": "span.ep-number",
+        "titleRegex": "^(.+?)\\s+Episodio\\s+(\\d+(?:\\.\\d+)?)$",
+        "categoryPrefix": "category-",
+        "categoryIgnore": "category-anime",
+        "animePath": "/anime/{slug}/",
+        "animeUrlPattern": "/\\d{4}/\\d{2}/\\d{2}/(.+)-episodio-[\\d.]+/?$",
+        "animeUrlReplacement": "/anime/$1/"
+      },
+      "selectors": {
+        "searchCard": "div.search-series-card",
+        "card": "div.listCats div.ht_grid_1_4",
+        "link": "a.thumbnail-link",
+        "title": "h2.entry-title",
+        "cover": "img.anime-image",
+        "nextPage": "a.next.page-numbers"
+      },
+      "detail": {
+        "title": "h1.anime-title",
+        "cover": "img.poster-image",
+        "synopsis": "div.anime-synopsis > p",
+        "genres": "span.genre-tag",
+        "rating": "div.rating-score",
+        "episodesJson": "script.animeflv-episodes-data"
+      },
+      "servers": {
+        "mode": "base64-buttons",
+        "item": "div.server-frames div.button-container",
+        "name": "span.tooltip-text",
+        "button": "button[data-src]",
+        "urlAttr": "data-src",
+        "languageAttr": "app_type"
+      },
+      "filters": [],
+      "coverPlaceholders": [],
+      "coverRewrites": [],
+      "showcase": [
+        { "kind": "new", "path": "/", "card": "div.listCatsHome div.ht_grid_1_5", "link": "a.thumbnail-link",
+          "title": "h2.entry-title", "image": "img.anime-image", "synopsis": "div.Description > p:last-of-type" }
+      ]
     },
     {
       "id": "jkanime",

@@ -62,6 +62,9 @@ jobs:
           echo "ANIMEHUB_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
+      # Sin Secrets se firma con la clave fija del proyecto (signing/): todas las versiones llevan la
+      # misma firma y se instalan encima de la anterior. Con Secrets se usaría esa otra clave
+      # (y la siguiente instalación pediría desinstalar una vez).
       - name: Preparar la firma (si hay keystore en Secrets)
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -79,7 +82,7 @@ jobs:
             } >> "$GITHUB_ENV"
             echo "Se firmará con el keystore propio."
           else
-            echo "::warning::No hay keystore en Secrets: el APK se firma con una clave de depuración temporal (no se podrá actualizar encima de otra versión)."
+            echo "Se firma con la clave fija del proyecto (signing/animehub-release.jks)."
           fi
 
       - name: Tests y compilación

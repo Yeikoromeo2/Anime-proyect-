@@ -9,16 +9,19 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Firma de release: se lee de variables de entorno (GitHub Actions) o de keystore.properties (local).
-val keystoreProps = Properties().apply {
-    val f = rootProject.file("keystore.properties")
+// Firma de release, en este orden: variables de entorno (Secrets de GitHub Actions),
+// keystore.properties (local) o la clave fija del proyecto en signing/ (está en el repo para que
+// cada versión se instale encima de la anterior sin desinstalar).
+fun loadProps(path: String) = Properties().apply {
+    val f = rootProject.file(path)
     if (f.exists()) f.inputStream().use { load(it) }
 }
+val keystoreProps = loadProps("keystore.properties").takeIf { !it.isEmpty } ?: loadProps("signing/release.properties")
 fun signingValue(envName: String, propName: String): String? =
     System.getenv(envName)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(propName)
 
-val releaseStoreFile = signingValue("ANIMEHUB_KEYSTORE_FILE", "storeFile")
-val hasReleaseSigning = releaseStoreFile != null && file(releaseStoreFile).exists()
+val releaseStoreFile = signingValue("ANIMEHUB_KEYSTORE_FILE", "storeFile")?.let { rootProject.file(it).takeIf { f -> f.exists() } ?: file(it) }
+val hasReleaseSigning = releaseStoreFile != null && releaseStoreFile.exists()
 
 android {
     namespace = "com.animehub.tv"
@@ -36,7 +39,7 @@ android {
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = file(releaseStoreFile!!)
+                storeFile = releaseStoreFile
                 storePassword = signingValue("ANIMEHUB_KEYSTORE_PASSWORD", "storePassword")
                 keyAlias = signingValue("ANIMEHUB_KEY_ALIAS", "keyAlias")
                 keyPassword = signingValue("ANIMEHUB_KEY_PASSWORD", "keyPassword")
@@ -47,7 +50,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Sin keystore propio se firma con la clave de depuración para que el APK sea instalable.
+            // Siempre con la misma clave (la del proyecto si no hay otra): así se actualiza encima.
             signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
         debug {

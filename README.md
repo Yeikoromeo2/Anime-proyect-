@@ -16,6 +16,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | JKAnime como tercer sitio + elegir qué sitio ver en Inicio + respuesta automática a los recuadros de "continuar viendo" | ✅ |
 | AnimeFLV (animeflv.or.at) como cuarto sitio + bloqueo de rastreadores, ubicación y WebRTC | ✅ |
 | 5 · Reproductor nativo (Media3/ExoPlayer) para los servidores con video directo: HLS de zilla, Desu/Magi de JKAnime y MP4Upload ([detalle](docs/reproductor-nativo.md)) | ✅ |
+| Actualizaciones encima (firma fija) + "Buscar actualización" desde la app | ✅ |
 
 ## Requisitos
 
@@ -41,40 +42,17 @@ Para publicar una versión en **Releases** (con enlace directo al APK):
 - desde GitHub: **Actions → Compilar APK → Run workflow**, elige la rama y escribe la versión (por ejemplo `0.2.0`); o
 - con git: `git tag v0.2.0 && git push origin v0.2.0`.
 
-El enlace directo queda así: `https://github.com/Yeikoromeo2/Anime-proyect-/releases/download/v0.2.0/AnimeHubTV-0.2.0.apk`.
+El enlace directo queda así: `https://github.com/Yeikoromeo2/Anime-proyect-/releases/download/v0.2.0/AnimeHubTV-0.2.0.apk`. Desde la 0.7.0, la app instalada avisa sola de cada versión nueva (ver "Actualizaciones").
 
-## Firma con tu propio keystore
+## Actualizaciones (sin desinstalar)
 
-Sin keystore, GitHub firma cada APK con una clave temporal distinta, y Android **no deja instalar una versión encima de otra** con firma distinta. Para poder actualizar sin desinstalar:
+Todas las versiones se firman con **la misma clave**, la del proyecto en [`signing/`](signing/). Por eso Android instala cada versión nueva **encima** de la anterior y conserva favoritos, historial y ajustes.
 
-1. Crea el keystore una sola vez (guárdalo en un lugar seguro, **no** lo subas al repo):
-   ```bash
-   keytool -genkeypair -v -keystore animehub.jks -alias animehub \
-           -keyalg RSA -keysize 4096 -validity 10000
-   ```
-   Te pedirá una contraseña y unos datos (nombre, país…; puedes poner cualquier cosa).
-2. Conviértelo a texto Base64:
-   ```bash
-   base64 -w0 animehub.jks > animehub.jks.b64      # Linux
-   base64 -i animehub.jks -o animehub.jks.b64      # macOS
-   ```
-   En Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("animehub.jks")) > animehub.jks.b64`
-3. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**, crea:
-
-   | Secret | Valor |
-   |---|---|
-   | `ANDROID_KEYSTORE_BASE64` | el contenido de `animehub.jks.b64` |
-   | `ANDROID_KEYSTORE_PASSWORD` | la contraseña del keystore |
-   | `ANDROID_KEY_ALIAS` | `animehub` |
-   | `ANDROID_KEY_PASSWORD` | la contraseña de la clave (la misma si no pusiste otra) |
-
-Para firmar en tu PC, crea `keystore.properties` en la raíz (está en `.gitignore`):
-```properties
-storeFile=/ruta/a/animehub.jks
-storePassword=…
-keyAlias=animehub
-keyPassword=…
-```
+- **Desde la TV:** al abrir la app, si hay una versión nueva en Releases aparece **"⬆ Versión X"** al final de la cabecera de Inicio. También está en **Ajustes → Actualizaciones → Buscar actualización**. La app descarga el APK y abre el instalador de Android; confirmas **Actualizar** y listo.
+- **La primera vez**, Android pide permitir que AnimeHub TV instale apps. La app abre ese ajuste: activa "Permitir de esta fuente", vuelve con Atrás y elige **Instalar**.
+- **Una sola vez**, al pasar de la 0.6.0 o anterior a la 0.7.0, hay que **desinstalar** la versión vieja, porque esas versiones se firmaron con claves temporales. Desde la 0.7.0 ya no hace falta nunca.
+- **La clave está en el repositorio a propósito** (el repo es público): así no hay que configurar nada. El riesgo es que alguien podría firmar un APK falso con ella, pero solo te afectaría si instalaras un APK que no saliera de tu propia Release.
+- **No agregues** los Secrets `ANDROID_KEYSTORE_*` en GitHub: si existen, el workflow firma con esa otra clave y la siguiente instalación volvería a pedir desinstalar.
 
 ## Instalar en la TV
 

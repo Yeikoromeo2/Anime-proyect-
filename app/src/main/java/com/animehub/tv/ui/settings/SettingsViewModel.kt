@@ -10,6 +10,7 @@ import com.animehub.tv.data.log.ErrorEntry
 import com.animehub.tv.data.log.ErrorLogRepository
 import com.animehub.tv.data.settings.AppSettings
 import com.animehub.tv.data.settings.SettingsRepository
+import com.animehub.tv.data.update.UpdateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +40,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val configRepository: ConfigRepository,
     private val errorLog: ErrorLogRepository,
+    /** Actualización de la app desde Releases. */
+    val appUpdates: UpdateManager,
 ) : ViewModel() {
 
     val state: StateFlow<SettingsUiState> = combine(

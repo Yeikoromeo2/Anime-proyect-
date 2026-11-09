@@ -8,6 +8,7 @@ import com.animehub.tv.data.db.FavoriteEntity
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.data.log.ErrorLogRepository
 import com.animehub.tv.data.settings.SettingsRepository
+import com.animehub.tv.data.update.UpdateManager
 import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.FilterOption
 import com.animehub.tv.domain.model.FilterTranslator
@@ -137,6 +138,8 @@ class HomeViewModel @Inject constructor(
     private val registry: ProviderRegistry,
     private val errorLog: ErrorLogRepository,
     private val settings: SettingsRepository,
+    /** Actualización de la app desde Releases (se busca una vez al abrir). */
+    val updates: UpdateManager,
 ) : ViewModel() {
 
     private val content = MutableStateFlow(HomeContent())
@@ -165,6 +168,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init {
+        updates.checkOnStart()
         // Recarga cuando cambian los sitios activos o sus dominios.
         viewModelScope.launch {
             config.sites

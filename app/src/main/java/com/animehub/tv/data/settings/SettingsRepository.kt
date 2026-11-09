@@ -95,6 +95,10 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         const val DEFAULT_REMOTE_CONFIG_URL =
             "https://raw.githubusercontent.com/Yeikoromeo2/Anime-proyect-/main/config/sites.json"
 
+        /** Última versión publicada (Releases) para actualizar desde la app. */
+        const val DEFAULT_RELEASES_API_URL =
+            "https://api.github.com/repos/Yeikoromeo2/Anime-proyect-/releases/latest"
+
         private val REMOTE_URL = stringPreferencesKey("remote_config_url")
         private val SITE_ENABLED = stringSetPreferencesKey("site_enabled")
         private val DOMAINS = stringSetPreferencesKey("domain_overrides")

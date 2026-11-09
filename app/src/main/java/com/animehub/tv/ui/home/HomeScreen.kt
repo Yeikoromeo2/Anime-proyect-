@@ -36,12 +36,16 @@ import androidx.tv.material3.FilterChip
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
+import com.animehub.tv.data.update.UpdateState
 import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.ShowcaseItem
 import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
 import com.animehub.tv.ui.components.ReviewCard
+import com.animehub.tv.ui.update.UpdateDialog
+import com.animehub.tv.ui.update.headerLabel
+import com.animehub.tv.ui.update.showsInHeader
 import com.animehub.tv.ui.components.WideCard
 import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
@@ -63,6 +67,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val update by viewModel.updates.state.collectAsStateWithLifecycle()
+    var updateDialog by remember { mutableStateOf(false) }
     val onRetryLatest: (String) -> Unit = { viewModel.reloadLatest(it) }
     var confirmExit by remember { mutableStateOf(false) }
     // En Inicio, "Atrás" pide confirmación antes de salir.
@@ -82,7 +88,12 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        item { HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) }
+        item {
+            HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) {
+                // Versión nueva en Releases: botón al final de la cabecera.
+                if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel()) }
+            }
+        }
 
         // Qué sitio se está viendo: todos mezclados o uno solo (se recuerda).
         if (state.siteChoices.size > 1) {
@@ -196,6 +207,10 @@ fun HomeScreen(
         }
     }
 
+    if (updateDialog && update != UpdateState.Idle) {
+        UpdateDialog(update, viewModel.updates.installedVersion, viewModel.updates) { updateDialog = false }
+    }
+
     if (confirmExit) {
         ConfirmDialog(
             title = "¿Salir de AnimeHub TV?",
@@ -215,6 +230,7 @@ private fun HomeHeader(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onSearchFocus: (Boolean) -> Unit,
+    extra: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
     val voiceAvailable = remember { VoiceSearch.isAvailable(context) }
@@ -233,6 +249,7 @@ private fun HomeHeader(
             if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤 Voz") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
+            extra()
         }
     }
 }

@@ -10,8 +10,9 @@ captures/
 .externalNativeBuild/
 .cxx/
 .kotlin/
-# Firma: nunca subir el keystore
+# Firma: no subir otros keystores (la clave fija del proyecto está en signing/ a propósito)
 *.jks
 *.keystore
+!signing/animehub-release.jks
 keystore.properties
 tools/player-js-test/captura.png

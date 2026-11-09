@@ -20,7 +20,9 @@ import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
 import com.animehub.tv.BuildConfig
 import com.animehub.tv.data.config.EffectiveSite
+import com.animehub.tv.data.update.UpdateState
 import com.animehub.tv.ui.components.ActionsDialog
+import com.animehub.tv.ui.update.UpdateDialog
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.DialogAction
 import com.animehub.tv.ui.components.ListDialog
@@ -47,6 +49,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
+    val appUpdate by viewModel.appUpdates.state.collectAsStateWithLifecycle()
+    var updateDialog by remember { mutableStateOf(false) }
     var dialogError by remember { mutableStateOf<String?>(null) }
     val firstFocus = rememberInitialFocusState()
 
@@ -138,8 +142,30 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             )
         }
 
+        item { Section("Actualizaciones") }
+        item {
+            SettingItem(
+                title = "Buscar actualización",
+                subtitle = "Versión instalada ${BuildConfig.VERSION_NAME} · " + when (val u = appUpdate) {
+                    is UpdateState.Available -> "hay una nueva: ${u.update.version}"
+                    is UpdateState.Downloading -> "descargando ${(u.progress * 100).toInt()} %"
+                    is UpdateState.UpToDate -> "ya tienes la última"
+                    UpdateState.Checking -> "buscando…"
+                    else -> "se instala encima, sin perder tus datos"
+                },
+                onClick = {
+                    if (appUpdate !is UpdateState.Available && appUpdate !is UpdateState.Downloading) viewModel.appUpdates.check()
+                    updateDialog = true
+                },
+            )
+        }
+
         item { Section("Acerca de") }
         item { SettingItem(title = "Versión de la app", subtitle = BuildConfig.VERSION_NAME, onClick = {}) }
+    }
+
+    if (updateDialog && appUpdate != UpdateState.Idle) {
+        UpdateDialog(appUpdate, BuildConfig.VERSION_NAME, viewModel.appUpdates) { updateDialog = false }
     }
 
     when (val d = dialog) {

@@ -35,6 +35,9 @@ object TestAppModule {
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
+        // Actualización desde la app: la Release v0.6.0 real y un "APK" de prueba.
+        "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) "github/release_latest.json" to 200 else null
+        "github.com" -> if (url.encodedPath.endsWith(".apk")) "TEXTO:APK de prueba" to 200 else null
         "animeav1.com" -> "animeninja/embed_animeav1_tank_chair_6.html" to 200
         "darkanimes.com" -> "animeninja/embed_darkanimes_one_piece_1.html" to 200
         else -> videoHost(url)

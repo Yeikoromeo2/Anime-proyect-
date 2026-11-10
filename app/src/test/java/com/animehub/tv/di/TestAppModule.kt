@@ -165,6 +165,11 @@ object TestAppModule {
     @Singleton
     fun provideNativePlaybackFactory(): NativePlaybackFactory = FakeNative.factory
 
+    /** Voz simulada (en Robolectric no hay servicio de voz): la prueba decide qué "se dijo". */
+    @Provides
+    @Singleton
+    fun provideVoiceEngine(): com.animehub.tv.voice.VoiceEngine = FakeVoice
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =

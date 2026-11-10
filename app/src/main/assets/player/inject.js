@@ -9,6 +9,7 @@
  *    (pulsa "Continuar" o los oculta) y, con la orden "cleanup", quita las capas que tapan el video.
  *  - Privacidad: las páginas no pueden pedir la ubicación ni usar WebRTC (que revela la IP local),
  *    y los "beacons" de estadísticas no salen.
+ *  - "Alta calidad" (Ajustes): elige la calidad más alta en hls.js, JW Player y video.js.
  */
 (function () {
   if (window.__animehub) return;
@@ -30,6 +31,91 @@
     });
   } catch (e) { /* sin efecto */ }
   try { navigator.sendBeacon = function () { return true; }; } catch (e) { /* sin efecto */ }
+
+  /* ---- "Alta calidad" (Ajustes): la calidad más alta en el reproductor del servidor ----
+   * Sin esto cada reproductor elige según la velocidad (empieza bajo y va subiendo). Funciona con
+   * los reproductores más usados: hls.js, JW Player y video.js. Si el video tiene una sola calidad,
+   * no cambia nada. La app antepone `window.__animehubHigh = true` cuando está activada. */
+  var HIGH = window.__animehubHigh === true;
+  var hlsInstances = [];
+
+  /* Puntaje de una calidad: primero la altura (1080 > 720), luego la tasa de bits. "Auto" vale 0. */
+  function qualityScore(l) {
+    if (!l) return 0;
+    var h = l.height || parseInt(l.label || l.name || '', 10) || 0;
+    return h * 1e8 + (l.bitrate || 0);
+  }
+
+  function topIndex(levels) {
+    var best = -1, bestScore = 0;
+    for (var i = 0; levels && i < levels.length; i++) {
+      var sc = qualityScore(levels[i]);
+      if (sc > bestScore) { bestScore = sc; best = i; }
+    }
+    return best;
+  }
+
+  if (HIGH) {
+    // hls.js se carga como `window.Hls`: se envuelve para elegir la calidad más alta al leer la lista.
+    try {
+      var wrapHls = function (H) {
+        if (typeof H !== 'function' || H.__ah) return H;
+        function W() {
+          var inst = Reflect.construct(H, arguments, W);
+          try {
+            inst.on(H.Events.MANIFEST_PARSED, function () {
+              var t = topIndex(inst.levels);
+              if (t >= 0) inst.currentLevel = t;
+            });
+          } catch (e) { /* versión sin eventos */ }
+          hlsInstances.push(inst);
+          return inst;
+        }
+        W.prototype = H.prototype;
+        Object.setPrototypeOf(W, H);
+        W.__ah = true;
+        return W;
+      };
+      var currentHls = wrapHls(window.Hls);
+      Object.defineProperty(window, 'Hls', {
+        configurable: true,
+        get: function () { return currentHls; },
+        set: function (v) { currentHls = wrapHls(v); },
+      });
+    } catch (e) { /* sin efecto */ }
+  }
+
+  function preferHighQuality() {
+    if (!HIGH) return;
+    try {
+      if (typeof window.jwplayer === 'function') {
+        var jw = window.jwplayer();
+        if (jw && jw.getQualityLevels) {
+          var t = topIndex(jw.getQualityLevels());
+          if (t >= 0 && jw.getCurrentQuality() !== t) jw.setCurrentQuality(t);
+        }
+      }
+    } catch (e) { /* sin JW Player */ }
+    try {
+      if (window.videojs && window.videojs.getPlayers) {
+        var players = window.videojs.getPlayers();
+        for (var k in players) {
+          var q = players[k] && players[k].qualityLevels && players[k].qualityLevels();
+          if (!q || !q.length) continue;
+          var arr = [];
+          for (var i = 0; i < q.length; i++) arr.push(q[i]);
+          var top = topIndex(arr);
+          if (top >= 0) for (var j = 0; j < q.length; j++) if (q[j].enabled !== (j === top)) q[j].enabled = (j === top);
+        }
+      }
+    } catch (e) { /* sin video.js */ }
+    hlsInstances.forEach(function (inst) {
+      try {
+        var t2 = topIndex(inst.levels);
+        if (t2 >= 0 && inst.currentLevel !== t2) inst.currentLevel = t2;
+      } catch (e) { /* instancia cerrada */ }
+    });
+  }
 
   var isTop = window.top === window;
   var video = null;
@@ -117,6 +203,7 @@
     ['playing', 'pause', 'ended', 'loadedmetadata'].forEach(function (ev) {
       v.addEventListener(ev, function () { status(ev); });
     });
+    v.addEventListener('playing', preferHighQuality);
     v.addEventListener('error', function () { send({ type: 'error', code: v.error ? v.error.code : 0 }); });
     send({ type: 'video' });
     tryPlay();
@@ -303,7 +390,11 @@
   // Sin ventanas emergentes de anuncios.
   try { window.open = function () { return null; }; } catch (e) { /* sin efecto */ }
 
-  setInterval(function () { if (video) status('progress'); }, 5000);
+  setInterval(function () {
+    if (!video) return;
+    status('progress');
+    preferHighQuality();
+  }, 5000);
   setInterval(scan, 1000);
   // Revisión completa de respaldo, poco frecuente (la normal es la del MutationObserver).
   setInterval(function () { dismissPrompts(); }, 8000);

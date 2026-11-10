@@ -22,9 +22,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.ListItem
+import com.animehub.tv.ui.components.ListItem
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.animehub.tv.ui.components.OutlinedButton
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.animehub.tv.domain.model.WatchProgress

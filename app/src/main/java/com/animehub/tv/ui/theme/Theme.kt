@@ -16,6 +16,9 @@ object AppColors {
     val Foco = Color(0xFFFFFFFF)
     val TextoSecundario = Color(0xFFB9B4CC)
     val Error = Color(0xFFFF6B6B)
+    val Aviso = Color(0xFFFFC857)
+    /** Rosa "sakura" para detalles de estilo anime (brillos, degradados). */
+    val Sakura = Color(0xFFFF7EB6)
 }
 
 @Composable

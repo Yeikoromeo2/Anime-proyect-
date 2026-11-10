@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -34,9 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.theme.AppColors
@@ -107,24 +107,33 @@ fun TvTextField(
     placeholder: String = "",
     keyboardType: KeyboardType = KeyboardType.Text,
     onDone: () -> Unit = {},
+    /** Barra de búsqueda redondeada, con lupa y texto más grande. */
+    pill: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(if (pill) 28.dp else 10.dp)
+    val size = if (pill) 20.sp else 18.sp
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
-        textStyle = TextStyle(color = Color.White, fontSize = 18.sp),
+        textStyle = TextStyle(color = Color.White, fontSize = size),
         cursorBrush = SolidColor(AppColors.Acento2),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { onDone() }),
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
-            .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-            .border(if (focused) 3.dp else 1.dp, if (focused) AppColors.Foco else AppColors.TextoSecundario, RoundedCornerShape(10.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .background(if (pill) AppColors.Superficie else Color.Black.copy(alpha = 0.35f), shape)
+            .border(if (focused) 3.dp else 1.dp, if (focused) AppColors.Foco else AppColors.TextoSecundario.copy(alpha = if (pill) 0.5f else 1f), shape)
+            .padding(horizontal = if (pill) 22.dp else 16.dp, vertical = 14.dp),
         decorationBox = { inner ->
-            if (value.isEmpty()) Text(placeholder, color = AppColors.TextoSecundario, fontSize = 18.sp)
-            inner()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (pill) Text("🔍  ", fontSize = size)
+                Box {
+                    if (value.isEmpty()) Text(placeholder, color = AppColors.TextoSecundario, fontSize = size)
+                    inner()
+                }
+            }
         },
     )
 }

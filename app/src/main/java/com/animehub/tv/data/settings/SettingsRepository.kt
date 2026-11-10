@@ -16,10 +16,24 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class PreferredQuality(val etiqueta: String) {
-    AUTO("Automática"), Q1080("1080p"), Q720("720p"), Q480("480p");
+/**
+ * Calidad del video. Automática: se adapta a la velocidad de internet. Alta calidad: la más alta
+ * que tenga el video, aunque tarde más en cargar.
+ */
+enum class PreferredQuality(val etiqueta: String, val detalle: String) {
+    AUTO("Automática", "se adapta a tu internet"),
+    HIGH("Alta calidad", "siempre la más alta del video");
 
     fun next(): PreferredQuality = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        /** Lee lo guardado; las versiones anteriores tenían 1080p/720p/480p. */
+        fun fromStored(name: String?): PreferredQuality = when (name) {
+            null -> AUTO
+            "Q1080" -> HIGH
+            else -> entries.firstOrNull { it.name == name } ?: AUTO
+        }
+    }
 }
 
 data class AppSettings(
@@ -52,8 +66,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             siteEnabled = decodeMap(p[SITE_ENABLED]).mapValues { it.value.toBoolean() },
             domainOverrides = decodeMap(p[DOMAINS]),
             preferredServers = decodeMap(p[SERVERS]),
-            preferredQuality = p[QUALITY]?.let { runCatching { PreferredQuality.valueOf(it) }.getOrNull() }
-                ?: PreferredQuality.AUTO,
+            preferredQuality = PreferredQuality.fromStored(p[QUALITY]),
             seekSeconds = p[SEEK] ?: 10,
             lastConfigUpdate = p[LAST_UPDATE] ?: 0L,
             homeSite = p[HOME_SITE]?.takeIf { it.isNotBlank() },

@@ -31,7 +31,7 @@ import javax.inject.Inject
 /**
  * Reproductor nativo con Media3/ExoPlayer. Usa el mismo cliente HTTP de la app (User-Agent,
  * "no rastrear") más las cabeceras que pide cada servidor de video (Referer, Origin).
- * La calidad máxima sale de Ajustes; en "Automática" se adapta a la conexión.
+ * La calidad sale de Ajustes: "Automática" se adapta a la conexión; "Alta calidad" usa siempre la más alta.
  */
 @OptIn(UnstableApi::class)
 class ExoNativePlayback(
@@ -45,12 +45,9 @@ class ExoNativePlayback(
     private val trackSelector = DefaultTrackSelector(context).apply {
         setParameters(
             buildUponParameters().apply {
-                when (quality) {
-                    PreferredQuality.Q1080 -> setMaxVideoSize(1920, 1080)
-                    PreferredQuality.Q720 -> setMaxVideoSize(1280, 720)
-                    PreferredQuality.Q480 -> setMaxVideoSize(854, 480)
-                    PreferredQuality.AUTO -> Unit
-                }
+                // Alta calidad: la pista de mayor resolución que la TV pueda mostrar, sin bajar
+                // aunque la conexión sea lenta. Automática: ExoPlayer mide la velocidad y se adapta.
+                if (quality == PreferredQuality.HIGH) setForceHighestSupportedBitrate(true)
             },
         )
     }

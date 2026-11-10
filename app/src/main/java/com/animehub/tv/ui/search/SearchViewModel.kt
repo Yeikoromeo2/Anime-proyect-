@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
 import java.util.Calendar
+import com.animehub.tv.voice.VoiceEngine
 import javax.inject.Inject
 
 data class SiteChip(val id: String?, val name: String)
@@ -67,6 +68,8 @@ class SearchViewModel @Inject constructor(
     private val registry: ProviderRegistry,
     private val errorLog: ErrorLogRepository,
     private val settings: SettingsRepository,
+    /** Reconocimiento de voz dentro de la app. */
+    val voice: VoiceEngine,
 ) : ViewModel() {
 
     val recentSearches: StateFlow<List<String>> =

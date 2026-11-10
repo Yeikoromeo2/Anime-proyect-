@@ -1,5 +1,10 @@
 package com.animehub.tv.ui
 
+import android.Manifest
+import com.animehub.tv.di.FakeVoice
+import com.animehub.tv.voice.VoiceState
+import org.junit.Assert.assertNull
+
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
@@ -40,6 +45,7 @@ class NavegacionFase3Test : TvUiTest() {
     fun setUp() {
         hilt.inject()
         setUpImages()
+        FakeVoice.reset()
     }
 
     private fun openSearch() {
@@ -80,6 +86,25 @@ class NavegacionFase3Test : TvUiTest() {
         waitForText("resultados para \"one piece\"", substring = true)
         waitForText("Latanime pide una verificación de seguridad", substring = true)
         compose.onNodeWithText("one piece").assertExists()
+    }
+
+    @Test
+    fun voz_dentro_de_la_app_sin_abrir_el_asistente_de_la_tv() {
+        FakeVoice.available = true
+        shadowOf(compose.activity.application).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        openSearch()
+        compose.onNodeWithText("🎤 Hablar").assertIsFocused()
+        key(Key.DirectionCenter)
+        // Panel propio de la app (no la pantalla del asistente, que tapaba todo).
+        waitForText("Te escucho…")
+        compose.runOnUiThread { FakeVoice.emit(VoiceState.Listening(level = 0.8f, partial = "one pi")) }
+        waitForText("“one pi”")
+        capture("35_voz_en_la_app")
+        compose.runOnUiThread { FakeVoice.emit(VoiceState.Result("one piece")) }
+        waitForText("resultados para \"one piece\"", substring = true)
+        compose.onNodeWithText("Te escucho…").assertDoesNotExist()
+        assertNull(shadowOf(compose.activity).nextStartedActivityForResult)
+        assertEquals(1, FakeVoice.started)
     }
 
     @Test

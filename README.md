@@ -1,6 +1,6 @@
 # AnimeHub TV
 
-App para Android TV / Google TV que reúne varios sitios de anime en una interfaz nativa pensada para el control remoto y la voz.
+App para Android TV / Google TV (y también tablets, con la pantalla táctil) que reúne varios sitios de anime en una interfaz nativa pensada para el control remoto y la voz.
 **Uso personal:** se instala a mano; no se publica en Google Play ni se redistribuye.
 
 ## Estado
@@ -17,6 +17,7 @@ App para Android TV / Google TV que reúne varios sitios de anime en una interfa
 | AnimeFLV (animeflv.or.at) como cuarto sitio + bloqueo de rastreadores, ubicación y WebRTC | ✅ |
 | 5 · Reproductor nativo (Media3/ExoPlayer) para los servidores con video directo: HLS de zilla, Desu/Magi de JKAnime y MP4Upload ([detalle](docs/reproductor-nativo.md)) | ✅ |
 | Actualizaciones encima (firma fija) + "Buscar actualización" desde la app | ✅ |
+| Tablets (táctil) + icono estilo anime + calidad Automática/Alta + servidores en cuadros (arranca solo el mejor) + logos de los sitios + ficha animada + voz dentro de la app | ✅ |
 
 ## Requisitos
 
@@ -92,7 +93,11 @@ La app aparece en la fila de apps de la TV con su banner.
 
 | Servidores que funcionan | Reproduciendo | Siguiente episodio |
 |---|---|---|
-| ![Servidores](docs/capturas/fase4/20_servidores.png) | ![Reproduciendo](docs/capturas/fase4/21_reproduciendo.png) | ![Siguiente](docs/capturas/fase4/22_siguiente_episodio.png) |
+| ![Servidores](docs/capturas/fase5/20_servidores.png) | ![Reproduciendo](docs/capturas/fase4/21_reproduciendo.png) | ![Siguiente](docs/capturas/fase4/22_siguiente_episodio.png) |
+
+| Ficha con miniaturas de episodios | Búsqueda | Voz dentro de la app |
+|---|---|---|
+| ![Ficha](docs/capturas/ficha/17_temporada_21_tramos.png) | ![Búsqueda](docs/capturas/busqueda/12_busqueda_voz.png) | ![Voz](docs/capturas/busqueda/35_voz_en_la_app.png) |
 
 | Inicio viendo solo JKAnime | Explorar empieza en ese sitio | |
 |---|---|---|
@@ -104,9 +109,32 @@ La app aparece en la fila de apps de la TV con su banner.
 
 Se generan en las pruebas de navegación, que recorren la app solo con flechas, OK y Atrás. En las pruebas no hay red, así que las portadas aparecen como bloques de color; en la TV se ven las imágenes reales de cada sitio.
 
+## Tablets (pantalla táctil)
+
+La misma app se instala en una tablet y se maneja tocando:
+- **Botones, tarjetas, listas y menús** responden al toque (los componentes de TV solo respondían al control remoto: en la tablet se veían pero no hacían nada). Con el control remoto todo funciona igual que antes.
+- **Las filas y listas** se desplazan arrastrando con el dedo.
+- **En el reproductor**, un toque muestra los controles: volver, Servidores, Opciones, retroceder, pausa/reproducir y avanzar. El **doble toque** a la izquierda o a la derecha salta 10 s atrás o adelante. La capa táctil también evita tocar sin querer los anuncios de la página del servidor.
+- **En vertical** (Android 16 deja girar las apps en tablets): la cabecera de Inicio pasa a dos filas y lo demás se acomoda.
+
+| Tablet: Inicio | Tablet: controles del reproductor | Tablet en vertical |
+|---|---|---|
+| ![Inicio](docs/capturas/tablet/40_tablet_inicio.png) | ![Controles](docs/capturas/tablet/41_tablet_controles.png) | ![Vertical](docs/capturas/tablet/42_tablet_vertical_inicio.png) |
+
+## Icono
+
+"Kitsu", un zorrito kitsune original de ojos grandes al estilo anime, con una marca de "play" en la frente:
+- **Tablet y teléfono:** icono adaptable. Cada lanzador le da su forma (círculo, cuadrado redondeado…).
+- **Android TV / Google TV:** banner con la mascota y "AnimeHub TV".
+- **Dentro de la app:** en la cabecera de Inicio, en "Todos los sitios" y en la búsqueda por voz.
+
+![Icono y banner](docs/capturas/icono/vista.png)
+
+Los dibujos están en [`design/icono/`](design/icono/README.md) (SVG) y se convierten a PNG con un comando.
+
 ## Inicio: capítulos nuevos de frente
 
-Debajo de la cabecera, **"Viendo: Todos los sitios · Latanime · Anime Ninja · AnimeFLV · JKAnime"**: con un sitio elegido, todas las filas (y los géneros) son solo de ese sitio, sin mezclar. La elección se recuerda y Buscar y Explorar empiezan en ese sitio.
+Debajo de la cabecera, **"Viendo: Todos los sitios · Latanime · Anime Ninja · AnimeFLV · JKAnime"**, cada uno con **su logo redondo** (el de su web; si no carga, sus iniciales sobre su color). Los logos están en `config/sites.json` (`logo`, `logoAlign`, `color`) y se corrigen sin reinstalar. Con un sitio elegido, todas las filas (y los géneros) son solo de ese sitio, sin mezclar. La elección se recuerda y Buscar y Explorar empiezan en ese sitio.
 
 Al abrir la app, de arriba abajo:
 1. **Últimos capítulos**: lo que cada web acaba de publicar, mezclando todos los sitios activos (el foco va directo al capítulo más reciente). Es una sola fila: ya no se repite una fila por sitio. Si un sitio falla, debajo aparece su aviso con **Reintentar**.
@@ -128,14 +156,16 @@ En "Todos los sitios" se usan los géneros comunes, traducidos a cada sitio. Ani
 
 ## Ficha: series con muchos episodios
 
+La ficha tiene de fondo la **portada difuminada**. Si el sitio trae **miniaturas de los episodios** (Anime Ninja y Latanime), los episodios se ven como miniaturas y el fondo cambia con un fundido a la del episodio por el que pasas. La portada y el texto entran con una animación corta.
+
 - **Temporada**: el botón "Temporada N · X episodios ▾" abre la lista de todas las temporadas (por ejemplo, las 21 de One Piece) y salta a la elegida.
 - **Tramos**: si la temporada tiene más de 50 episodios, aparecen chips "1–50", "51–100"… para ir directo a ese bloque.
 - **Ir al episodio…**: teclado numérico grande (sirve también con los números del control); escribe por ejemplo `1015` y el foco queda en ese episodio, sin importar la temporada.
 
 ## Reproducción y continuidad
 
-1. Al pulsar un episodio se buscan sus servidores (incluidos los que vienen dentro de agregadores como *darkanimes* o *animeav1*) y **se comprueban todos a la vez** (10 s máximo): solo aparecen arriba los que **funcionan**; los caídos o borrados quedan en "Ver no disponibles".
-2. Si ya elegiste un servidor antes en ese sitio (el **preferido**), arranca directo con él. Si no, eliges uno con OK y queda recordado.
+1. Al pulsar un episodio se buscan sus servidores (incluidos los que vienen dentro de agregadores como *darkanimes* o *animeav1*) y **se comprueban todos a la vez** (10 s máximo).
+2. **Arranca solo, sin preguntar:** con el servidor **preferido** (el que elegiste antes en ese sitio) o, si no hay, con **el primero más viable**: uno que funciona y, si es posible, con reproductor nativo. Para cambiar: **↑ → Cambiar servidor** (en la tablet, el botón **Servidores**). Los servidores se ven en **cuadros compactos**, con su estado (verde funciona, rojo caído) y si usan el reproductor nativo o el web. El que elijas ahí queda como preferido.
 3. El video se pone **a pantalla completa** solo (se ocultan anuncios y ventanas emergentes). Si un servidor no arranca en 25 s, se prueba el siguiente que funcione, con un aviso.
 4. Si ya habías visto parte del episodio, **continúa en el minuto guardado** (5 s antes).
 5. Al terminar, cuenta atrás de 10 s y **pasa al siguiente episodio** (OK = "Ver ahora", o "Cancelar"). En el último disponible avisa que no hay más.
@@ -146,13 +176,22 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 
 ## Búsqueda, filtros y voz
 
-- **Voz**: en Búsqueda el botón 🎤 tiene el foco al entrar; lo dictado (español latino, `es-419`) se escribe en el campo y se busca al instante. En Inicio, el botón "🎤 Voz" abre el dictado directamente. Si la TV no tiene reconocimiento de voz, los botones no aparecen.
+- **Voz dentro de la app:** en Búsqueda el botón 🎤 tiene el foco al entrar. Al pulsarlo, la app escucha con **su propio panel**: la mascota late con tu voz y lo que se va entendiendo aparece en pantalla. Ya no se abre la pantalla del asistente de la TV, que tapaba la app (el "doble pantallazo"). Lo dicho (español latino, `es-419`) se busca al instante. La primera vez Android pide permiso para el micrófono. Si la TV no tiene el servicio de voz, o se niega el permiso, se usa la pantalla de voz del sistema como antes. En Inicio, el botón "🎤 Voz" abre lo mismo.
 - **Sitios**: "Todos los sitios" busca en paralelo (15 s máximo por sitio) o elige uno solo con su chip.
 - **Filtros** (botón "Filtros"): con un sitio elegido se ven **sus filtros reales**, leídos de su web. En "Todos los sitios" solo los comunes (género, año, tipo, estado), traducidos al parámetro de cada sitio; si un sitio no puede aplicar un filtro se omite con un aviso.
 - **Accesos rápidos**: "Emisión de esta temporada" y "Estrenos del año" aparecen solo si el sitio los permite (hoy, Latanime).
 - La búsqueda por texto de **Latanime** está protegida por Cloudflare: por ahora muestra un aviso; su directorio con filtros sí funciona.
 - **AnimeFLV**: el original cerró en 2026; se usa la copia **animeflv.or.at**, que no tiene filtros (solo búsqueda y "Todo el catálogo") y solo guarda los episodios recientes.
 - **JKAnime** se usa por **jkanime.org** (mismo catálogo), porque jkanime.net pide la verificación de Cloudflare. Su directorio combina todos los filtros (género, tipo, estado, año, temporada, categoría, letra y orden).
+
+## Calidad del video
+
+En **Ajustes → Calidad del video** hay dos opciones:
+- **Automática** (la de siempre): el reproductor mide tu internet y sube o baja la calidad para no cortarse.
+- **Alta calidad:** siempre la más alta que tenga el video, aunque tarde más en cargar.
+  - **Reproductor nativo:** la pista de mayor resolución que la TV pueda mostrar.
+  - **Reproductor web:** se elige la más alta en los reproductores más usados por los servidores (JW Player, hls.js y video.js).
+- Si un servidor tiene **una sola calidad**, no hay nada que elegir: se ve esa.
 
 ## Anuncios, rastreo y ubicación
 

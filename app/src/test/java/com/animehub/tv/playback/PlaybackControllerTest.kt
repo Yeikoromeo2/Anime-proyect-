@@ -66,16 +66,31 @@ class PlaybackControllerTest {
     }
 
     @Test
-    fun `sin preferido muestra solo la lista y al elegir lo recuerda`() = runTest(UnconfinedTestDispatcher()) {
+    fun `sin preferido arranca solo con el primero viable y al elegir otro lo recuerda`() = runTest(UnconfinedTestDispatcher()) {
         val preferred = mutableListOf<String>()
-        val c = controller(listOf(opt("voe"), opt("roto", ServerHealth.NO_DISPONIBLE)), preferred = preferred)
+        val c = controller(listOf(opt("roto", ServerHealth.NO_DISPONIBLE), opt("voe"), opt("filemoon")), preferred = preferred)
         c.start()
         runCurrent()
+        // Sin preguntar: el primero que no está caído (la lista ya viene ordenada por el repositorio).
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        assertEquals("Servidor: voe · ↑ para cambiar", c.state.value.notice)
+        assertTrue(preferred.isEmpty()) // arrancar solo no lo marca como preferido
+        // La lista se abre cuando se quiere; elegir uno sí lo recuerda.
+        c.showServers()
         val phase = c.state.value.phase as PlayerPhase.ChoosingServer
-        c.choose(phase.options.first())
+        c.choose(phase.options.first { it.server.name == "filemoon" })
         runCurrent()
-        assertEquals(listOf("voe"), preferred)
-        assertTrue(c.state.value.phase is PlayerPhase.Playing)
+        assertEquals(listOf("filemoon"), preferred)
+        assertEquals("filemoon", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
+    }
+
+    @Test
+    fun `si todos estan caidos muestra la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("roto", ServerHealth.NO_DISPONIBLE), opt("otro", ServerHealth.NO_DISPONIBLE)))
+        c.start()
+        runCurrent()
+        assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
         c.onExit()
     }
 

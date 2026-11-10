@@ -1,6 +1,27 @@
 package com.animehub.tv.ui.anime
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.tv.material3.CardDefaults
+import coil3.request.ImageRequest
+import com.animehub.tv.ui.components.Badge
+import com.animehub.tv.ui.components.Card
+import com.animehub.tv.ui.components.focusBorder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip
+import com.animehub.tv.ui.components.FilterChip
 import com.animehub.tv.domain.model.EpisodePager
 import com.animehub.tv.ui.components.ChoiceDialog
 import com.animehub.tv.ui.components.NumberPadDialog
@@ -41,10 +62,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.Button
+import com.animehub.tv.ui.components.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.animehub.tv.ui.components.OutlinedButton
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.animehub.tv.domain.model.AnimeStatus
@@ -122,9 +143,18 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
         gridState.scrollToItem(if (index < 12) headerItems - 1 else headerItems + index - 6)
     }
 
+    // Fondo de la ficha: la portada difuminada; al pasar por un episodio con miniatura, su imagen.
+    val cover = detail?.coverUrl ?: state.route.coverUrl
+    var backdrop by remember { mutableStateOf<String?>(null) }
+    val thumbnails = remember(episodes) { episodes.any { it.imageUrl != null } }
+    // Entrada animada de la cabecera (portada desde la izquierda, texto con fundido).
+    val entered = remember { MutableTransitionState(false).apply { targetState = true } }
+
+    Box(Modifier.fillMaxSize().background(AppColors.Fondo)) {
+    Backdrop(backdrop ?: cover)
     LazyVerticalGrid(
         state = gridState,
-        columns = GridCells.Adaptive(minSize = 120.dp),
+        columns = GridCells.Adaptive(minSize = if (thumbnails) 180.dp else 120.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 64.dp, vertical = 36.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -132,13 +162,27 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
     ) {
         item(span = { GridItemSpan(maxLineSpan) }, key = "cabecera") {
             Row(horizontalArrangement = Arrangement.spacedBy(36.dp), modifier = Modifier.padding(bottom = 12.dp)) {
-                AsyncImage(
-                    model = detail?.coverUrl ?: state.route.coverUrl,
-                    contentDescription = state.route.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(width = 220.dp, height = 320.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.Superficie),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
+                AnimatedVisibility(
+                    visibleState = entered,
+                    enter = fadeIn(tween(450)) + slideInHorizontally(tween(550)) { -it / 3 } + scaleIn(tween(550), initialScale = 0.92f),
+                ) {
+                    AsyncImage(
+                        model = cover,
+                        contentDescription = state.route.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(width = 220.dp, height = 320.dp)
+                            .shadow(24.dp, RoundedCornerShape(12.dp), ambientColor = AppColors.Acento, spotColor = AppColors.Acento)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AppColors.Superficie),
+                    )
+                }
+                AnimatedVisibility(
+                    visibleState = entered,
+                    enter = fadeIn(tween(600, delayMillis = 150)) + slideInVertically(tween(600, delayMillis = 150)) { it / 8 },
+                    modifier = Modifier.weight(1f),
+                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(detail?.title?.ifBlank { null } ?: state.route.title, style = MaterialTheme.typography.headlineMedium, maxLines = 2)
                     val meta = listOfNotNull(
                         detail?.type?.etiqueta, detail?.year?.toString(),
@@ -174,6 +218,7 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
                         ) { Text(if (state.isFavorite) "★ Quitar de favoritos" else "☆ Añadir a favoritos") }
                     }
                 }
+                }
             }
         }
         if (needsBrowser) {
@@ -207,11 +252,18 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
         }
         items(visible, key = { it.url }) { ep ->
             val targetFocus = remember(focusTarget) { InitialFocusState() }
-            EpisodeButton(
-                ep, state.progress[ep.url], isNew = ep == highlighted,
-                modifier = if (focusTarget != null && sameUrl(ep.url, focusTarget!!)) Modifier.initialFocus(targetFocus) else Modifier,
-            ) { play(ep) }
+            val focusModifier = (if (focusTarget != null && sameUrl(ep.url, focusTarget!!)) Modifier.initialFocus(targetFocus) else Modifier)
+                // El fondo sigue al episodio enfocado (su miniatura, si el sitio la tiene).
+                .onFocusChanged { if (it.isFocused) backdrop = ep.imageUrl }
+            Box(Modifier.animateItem(fadeInSpec = tween(350), placementSpec = null, fadeOutSpec = null)) {
+                if (thumbnails) {
+                    EpisodeThumbnail(ep, state.progress[ep.url], isNew = ep == highlighted, modifier = focusModifier) { play(ep) }
+                } else {
+                    EpisodeButton(ep, state.progress[ep.url], isNew = ep == highlighted, modifier = focusModifier) { play(ep) }
+                }
+            }
         }
+    }
     }
 
     when (picker) {
@@ -289,6 +341,71 @@ private fun EpisodeButton(
                     modifier = Modifier.align(Alignment.TopEnd).padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
+            if (progress != null && !watched) ProgressBar(progress.fraction, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
+        }
+    }
+}
+
+/**
+ * Fondo de la ficha: la imagen muy reducida y ampliada (queda difuminada en cualquier Android) y
+ * oscurecida para que el texto se lea. Cambia con un fundido al pasar por los episodios.
+ */
+@Composable
+private fun Backdrop(url: String?) {
+    val context = LocalContext.current
+    Crossfade(targetState = url, animationSpec = tween(700), label = "fondo") { image ->
+        Box(Modifier.fillMaxSize()) {
+            if (image != null) {
+                AsyncImage(
+                    model = remember(image) { ImageRequest.Builder(context).data(image).size(160).build() },
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().blur(18.dp).alpha(0.55f),
+                )
+            }
+        }
+    }
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.horizontalGradient(listOf(AppColors.Fondo.copy(alpha = 0.92f), AppColors.Fondo.copy(alpha = 0.55f), AppColors.Fondo.copy(alpha = 0.75f))),
+        ),
+    )
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, AppColors.Fondo.copy(alpha = 0.9f)), startY = 300f)))
+}
+
+/** Episodio con miniatura (cuando el sitio la tiene): imagen 16:9, número y progreso. */
+@Composable
+private fun EpisodeThumbnail(
+    episode: Episode,
+    progress: WatchProgress?,
+    isNew: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val watched = progress?.completed == true
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        shape = CardDefaults.shape(RoundedCornerShape(10.dp)),
+        scale = CardDefaults.scale(focusedScale = 1.07f),
+        border = focusBorder(),
+        colors = CardDefaults.colors(containerColor = AppColors.Superficie),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = episode.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().alpha(if (watched) 0.45f else 1f),
+            )
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)), startY = 60f)))
+            Text(
+                (if (watched) "✓ " else "") + "Ep. ${Format.episode(episode.number)}",
+                style = MaterialTheme.typography.titleSmall,
+                color = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+            if (isNew) Badge("NUEVO", Modifier.align(Alignment.TopEnd))
             if (progress != null && !watched) ProgressBar(progress.fraction, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
         }
     }

@@ -180,7 +180,7 @@ private fun RoundIcon(modifier: Modifier, alpha: Float = 0.8f, size: Int = 128, 
     }
 }
 
-private fun DrawScope.drawPlay() {
+internal fun DrawScope.drawPlay() {
     val path = Path().apply {
         moveTo(size.width * 0.22f, size.height * 0.1f)
         lineTo(size.width * 0.92f, size.height * 0.5f)
@@ -190,7 +190,7 @@ private fun DrawScope.drawPlay() {
     drawPath(path, Color.White)
 }
 
-private fun DrawScope.drawPause() {
+internal fun DrawScope.drawPause() {
     val barWidth = size.width * 0.28f
     val radius = CornerRadius(barWidth * 0.25f)
     drawRoundRect(Color.White, Offset(size.width * 0.14f, size.height * 0.1f), Size(barWidth, size.height * 0.8f), radius)
@@ -198,7 +198,7 @@ private fun DrawScope.drawPause() {
 }
 
 /** Dos triángulos (avanzar) o reflejados (retroceder). */
-private fun DrawScope.drawSeek(forward: Boolean) {
+internal fun DrawScope.drawSeek(forward: Boolean) {
     fun triangle(start: Float) = Path().apply {
         val w = size.width * 0.48f
         if (forward) {

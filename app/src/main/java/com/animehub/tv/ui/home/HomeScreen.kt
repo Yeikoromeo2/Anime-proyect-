@@ -1,6 +1,28 @@
 package com.animehub.tv.ui.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.tv.material3.Border
+import androidx.tv.material3.CardDefaults
+import coil3.compose.AsyncImage
+import com.animehub.tv.R
+import com.animehub.tv.data.config.EffectiveSite
+import com.animehub.tv.ui.components.Card
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,11 +52,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.Button
+import com.animehub.tv.ui.components.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip
+import com.animehub.tv.ui.components.FilterChip
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.animehub.tv.ui.components.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.data.update.UpdateState
 import com.animehub.tv.domain.model.EpisodeCard
@@ -91,7 +113,7 @@ fun HomeScreen(
         item {
             HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) {
                 // Versión nueva en Releases: botón al final de la cabecera.
-                if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel()) }
+                if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel(), maxLines = 1, softWrap = false) }
             }
         }
 
@@ -233,15 +255,24 @@ private fun HomeHeader(
     extra: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val voiceAvailable = remember { VoiceSearch.isAvailable(context) }
+    val voiceAvailable = remember { VoiceSearch.anyAvailable(context) }
     // Foco inicial inmediato: "Buscar" (luego pasa al capítulo más reciente cuando carga).
     val focus = rememberInitialFocusState()
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column {
-            Text("AnimeHub TV", style = MaterialTheme.typography.headlineMedium)
-            Text("Tus sitios de anime en un solo lugar", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
+    val title: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Kitsu, la mascota de la app (el mismo dibujo del icono).
+            Image(
+                painter = painterResource(R.drawable.mascota),
+                contentDescription = null,
+                modifier = Modifier.padding(end = 14.dp).size(48.dp),
+            )
+            Column {
+                Text("AnimeHub TV", style = MaterialTheme.typography.headlineMedium)
+                Text("Tus sitios de anime en un solo lugar", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
+            }
         }
-        Spacer(Modifier.weight(1f))
+    }
+    val buttons: @Composable () -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onSearch, modifier = Modifier.initialFocus(focus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Buscar") }
             OutlinedButton(onClick = onExplore) { Text("Explorar") }
@@ -250,6 +281,22 @@ private fun HomeHeader(
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
             extra()
+        }
+    }
+    // TV y tablet en horizontal: todo en una fila. Pantalla angosta (tablet en vertical): los
+    // botones pasan a una segunda fila que se puede desplazar.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth >= 760.dp) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                title()
+                Spacer(Modifier.weight(1f))
+                buttons()
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                title()
+                Box(Modifier.horizontalScroll(rememberScrollState())) { buttons() }
+            }
         }
     }
 }
@@ -295,14 +342,70 @@ private fun <T> ContentRow(
 @Composable
 private fun SiteChooser(state: HomeUiState, onSelect: (String?) -> Unit) {
     val selected = state.currentSite?.id
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Viendo:", color = AppColors.TextoSecundario, modifier = Modifier.padding(end = 4.dp))
-        FilterChip(selected = selected == null, onClick = { onSelect(null) }) { Text("Todos los sitios") }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Viendo:", color = AppColors.TextoSecundario, modifier = Modifier.padding(end = 2.dp))
+        SiteBubble("Todos los sitios", selected == null, onClick = { onSelect(null) }) {
+            Image(painterResource(R.drawable.mascota), contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
         state.siteChoices.forEach { site ->
-            FilterChip(selected = selected == site.id, onClick = { onSelect(site.id) }) { Text(site.name) }
+            SiteBubble(site.name, selected == site.id, onClick = { onSelect(site.id) }) { SiteLogo(site) }
         }
     }
 }
+
+/** Sitio para elegir: su logo redondo y el nombre. El elegido lleva un aro de color. */
+@Composable
+private fun SiteBubble(name: String, selected: Boolean, onClick: () -> Unit, logo: @Composable () -> Unit) {
+    Card(
+        onClick = onClick,
+        shape = CardDefaults.shape(RoundedCornerShape(28.dp)),
+        scale = CardDefaults.scale(focusedScale = 1.08f),
+        border = CardDefaults.border(focusedBorder = Border(BorderStroke(2.dp, AppColors.Foco), shape = RoundedCornerShape(28.dp))),
+        colors = CardDefaults.colors(
+            containerColor = if (selected) AppColors.SuperficieFoco.copy(alpha = 0.6f) else AppColors.Superficie,
+            contentColor = Color.White,
+            focusedContainerColor = AppColors.SuperficieFoco,
+            focusedContentColor = Color.White,
+        ),
+    ) {
+        Row(
+            Modifier.padding(start = 4.dp, end = 14.dp, top = 3.dp, bottom = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .border(if (selected) 2.dp else 1.dp, if (selected) AppColors.Acento2 else Color.White.copy(alpha = 0.25f), CircleShape)
+                    .padding(if (selected) 2.dp else 1.dp)
+                    .clip(CircleShape),
+            ) { logo() }
+            Text(name, style = MaterialTheme.typography.labelLarge, color = if (selected) AppColors.Acento2 else Color.White)
+        }
+    }
+}
+
+/** Logo del sitio (de su web); mientras carga o si falla, sus iniciales sobre su color. */
+@Composable
+private fun SiteLogo(site: EffectiveSite) {
+    val color = remember(site.config.color) {
+        runCatching { Color(android.graphics.Color.parseColor(site.config.color)) }.getOrDefault(AppColors.Acento)
+    }
+    Box(Modifier.fillMaxSize().background(color), contentAlignment = Alignment.Center) {
+        Text(initials(site.name), style = MaterialTheme.typography.labelLarge, color = Color.White)
+        AsyncImage(
+            model = site.config.logo,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = BiasAlignment(site.config.logoAlign, 0f),
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+private fun initials(name: String) =
+    name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+        .let { if (it.length == 1) name.take(2) else it }
 
 /** Novedades que aún cargan o que fallaron (con "Reintentar"), debajo de "Últimos capítulos". */
 @Composable

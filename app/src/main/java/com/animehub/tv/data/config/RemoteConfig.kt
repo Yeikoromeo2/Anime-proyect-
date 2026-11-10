@@ -59,6 +59,12 @@ data class SiteConfig(
     val coverRewrites: List<RewriteConfig> = emptyList(),
     /** Secciones de la portada del sitio que se muestran en Inicio (recomendados, series nuevas). */
     val showcase: List<ShowcaseConfig> = emptyList(),
+    /** Logo del sitio (se muestra redondo en Inicio). */
+    val logo: String? = null,
+    /** Para logos alargados: qué parte se ve en el círculo (-1 izquierda, 0 centro, 1 derecha). */
+    val logoAlign: Float = 0f,
+    /** Color del sitio ("#RRGGBB"): fondo del círculo si el logo no carga (se ven las iniciales). */
+    val color: String? = null,
 ) {
     val isPending: Boolean get() = status != STATUS_OK
     val isClosed: Boolean get() = status == STATUS_CLOSED

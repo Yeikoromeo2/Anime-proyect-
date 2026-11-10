@@ -64,7 +64,7 @@ sealed interface PlayerCommand {
 
 /**
  * Lógica del reproductor sin dependencias de Android (se prueba en la JVM):
- * elegir servidor (preferido o el primero que funciona), retomar 5 s antes del minuto guardado,
+ * elegir servidor (preferido o el primero más viable, sin preguntar), retomar 5 s antes del minuto guardado,
  * guardar el progreso, cambiar de servidor si el video no arranca y pasar al siguiente episodio.
  */
 class PlaybackController(
@@ -124,11 +124,16 @@ class PlaybackController(
                 return@launch
             }
             _state.update { it.copy(options = options) }
+            // Siempre arranca solo: el preferido o, si no hay, el primero más viable (la lista ya
+            // viene ordenada: los que funcionan y los de reproductor nativo primero). Si falla, pasa
+            // al siguiente; la lista se puede abrir en cualquier momento para elegir otro.
             val usable = options.filter { it.health != ServerHealth.NO_DISPONIBLE }
-            val auto = usable.firstOrNull { it.preferred }
+            val preferred = usable.firstOrNull { it.preferred }
+            val best = preferred ?: usable.firstOrNull()
             when {
                 options.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.Failed("No se encontraron servidores para este episodio")) }
-                auto != null -> play(auto, notice = "Servidor preferido: ${auto.server.name} · ↑ para cambiar")
+                preferred != null -> play(preferred, notice = "Servidor preferido: ${preferred.server.name} · ↑ para cambiar")
+                best != null -> play(best, notice = "Servidor: ${best.server.name} · ↑ para cambiar")
                 else -> _state.update { it.copy(phase = PlayerPhase.ChoosingServer(options)) }
             }
         }

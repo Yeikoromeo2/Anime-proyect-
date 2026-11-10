@@ -21,11 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.tv.material3.Button
+import com.animehub.tv.ui.components.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip
+import com.animehub.tv.ui.components.FilterChip
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.animehub.tv.ui.components.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.domain.model.FilterGroup
 import com.animehub.tv.domain.model.FilterSelection

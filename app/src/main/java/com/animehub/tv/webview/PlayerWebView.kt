@@ -35,6 +35,8 @@ class PlayerWebView(
     context: Context,
     private val adHosts: Set<String>,
     private val onMessage: (String) -> Unit,
+    /** "Alta calidad": el script elige la calidad más alta en el reproductor del servidor. */
+    highQuality: Boolean = false,
 ) {
     /** Contenedor: la WebView y, encima, la vista de pantalla completa si el sitio la pide. */
     val container = FrameLayout(context).apply {
@@ -42,7 +44,8 @@ class PlayerWebView(
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
     }
-    private val script = context.assets.open("player/inject.js").bufferedReader().use { it.readText() }
+    private val script = (if (highQuality) "window.__animehubHigh = true;\n" else "") +
+        context.assets.open("player/inject.js").bufferedReader().use { it.readText() }
     private var allowedHost: String? = null
     private var customView: View? = null
     private val injectsInFrames = runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) }.getOrDefault(false)

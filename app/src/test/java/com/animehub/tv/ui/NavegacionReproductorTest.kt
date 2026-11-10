@@ -93,23 +93,27 @@ class NavegacionReproductorTest : TvUiTest() {
         compose.waitForIdle()
     }
 
+    /**
+     * Los servidores se buscan en segundo plano y la respuesta vuelve al hilo principal: en
+     * Robolectric ese hilo solo avanza cuando la prueba lo procesa (en la TV corre solo).
+     */
+    private fun waitForPlayer(condition: () -> Boolean) = compose.waitUntil(10_000) {
+        shadowOf(Looper.getMainLooper()).idle()
+        condition()
+    }
+
     private fun waitForDescription(description: String) =
         compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
 
     private val zillaPlaylist = "https://player.zilla-networks.com/m3u8/fa543590d3399084aa0f1dc73ee1ccac"
 
     @Test
-    fun play_muestra_los_servidores_que_funcionan_y_reproduce_directo_en_el_nativo() {
+    fun play_arranca_solo_con_el_mejor_servidor_en_el_nativo_y_muestra_los_demas_en_cuadros() {
         openTankChairEpisode6()
-        waitForText("Elige un servidor", substring = true)
-        // HLS y MP4Upload (sub y doblado) funcionan y entregan el video directo; Voe y Byse quedan aparte.
-        waitForFocus("▶  HLS · Subtitulado")
-        waitForText("Funciona · Reproductor nativo")
-        waitForText("Ver no disponibles (4)")
-        capture("20_servidores")
-        key(Key.DirectionCenter)
+        // Sin preguntar: el mejor servidor (HLS, que funciona y entrega el video directo) arranca solo.
         // Sin la página del servidor: la lista HLS va directo al reproductor nativo, con su Referer.
-        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
+        waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
+        waitForText("Servidor: HLS · ↑ para cambiar")
         assertEquals("https://player.zilla-networks.com/", FakeNative.played.last().headers["Referer"])
         assertNotEquals("https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac", webView()?.let { shadowOf(it).lastLoadedUrl })
 
@@ -143,6 +147,17 @@ class NavegacionReproductorTest : TvUiTest() {
         key(Key.DirectionLeft)
         waitForDescription("−10 s")
 
+        // ↑ → "Cambiar servidor": todos en cuadros (HLS y MP4Upload con reproductor nativo; Voe y Byse caídos, al final).
+        key(Key.DirectionUp)
+        activate("Cambiar servidor")
+        waitForText("Elige un servidor", substring = true)
+        waitForFocusedDescription("HLS · Subtitulado")
+        waitForText("No disponible", substring = true)
+        capture("20_servidores")
+        activateDescription("MP4Upload · Subtitulado")
+        waitForPlayer { FakeNative.played.last().url.endsWith("/video.mp4") }
+        nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
+
         // Al terminar: Tank Chair tiene 6 episodios, así que este es el último.
         nativeMessage("""{"type":"ended","frame":"native"}""")
         waitForText("Has visto el último episodio disponible")
@@ -152,9 +167,7 @@ class NavegacionReproductorTest : TvUiTest() {
     @Test
     fun si_el_nativo_falla_sigue_con_la_pagina_del_mismo_servidor() {
         openTankChairEpisode6()
-        waitForFocus("▶  HLS · Subtitulado")
-        key(Key.DirectionCenter)
-        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
+        waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
         nativeMessage("""{"type":"error","code":2004,"frame":"native"}""")
         // Mismo servidor, ahora en el reproductor web, con aviso.
         compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl } == "https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac" }
@@ -172,15 +185,22 @@ class NavegacionReproductorTest : TvUiTest() {
     @Test
     fun con_servidor_preferido_reproduce_sin_preguntar_y_pasa_al_siguiente() {
         openTankChairEpisode6()
-        waitForFocus("▶  HLS · Subtitulado")
-        key(Key.DirectionCenter) // elige HLS: queda como preferido
-        compose.waitUntil(10_000) { FakeNative.played.any { it.url == zillaPlaylist } }
+        waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
+        // Elegirlo en la lista lo deja como preferido (arrancar solo no).
+        key(Key.DirectionUp)
+        activate("Cambiar servidor")
+        waitForFocusedDescription("HLS · Subtitulado")
+        key(Key.DirectionCenter)
+        waitForPlayer { FakeNative.played.size >= 2 }
         back() // salir del reproductor
         waitForFocus("Ver episodio 6 · nuevo")
-        // Episodio 5: ahora reproduce directo con el preferido, sin lista.
+        // Episodio 5: ahora reproduce directo con el preferido, sin lista. (Con miniaturas, los
+        // episodios quedan más abajo: se baja hasta él.)
+        compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasText("Ver episodio 6 · nuevo")))
+            .onFirst().performScrollToNode(hasText("Ep. 5"))
         activate("Ep. 5")
         waitForText("Servidor preferido: HLS · ↑ para cambiar")
-        compose.waitUntil(10_000) { FakeNative.played.size >= 2 }
+        waitForPlayer { FakeNative.played.size >= 3 }
         nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
         nativeMessage("""{"type":"progress","pos":1439,"dur":1440,"paused":false,"frame":"native"}""")
         // Cerca del final: siguiente episodio en 10 s.
@@ -193,7 +213,7 @@ class NavegacionReproductorTest : TvUiTest() {
         // procesa en cada comprobación (en la TV corre solo).
         compose.waitUntil(10_000) {
             shadowOf(Looper.getMainLooper()).idle()
-            FakeNative.played.size >= 3
+            FakeNative.played.size >= 4
         }
     }
 }

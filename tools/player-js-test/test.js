@@ -55,6 +55,32 @@ const embed = `<!doctype html><html><body style="margin:0">
   </script>
 </body></html>`;
 
+// "Alta calidad": un JW Player y un hls.js simulados con varias calidades (como los de Filemoon,
+// Streamwish y otros), cargados por la página como en la realidad (después del script).
+const calidad = `<!doctype html><html><body style="margin:0">
+  <video src="/video.webm" width="200" height="112"></video>
+  <script>
+    window.__jwq = 0;
+    window.jwplayer = function () {
+      return {
+        getQualityLevels: function () { return [{ label: 'Auto' }, { label: '1080p' }, { label: '720p' }, { label: '360p' }]; },
+        getCurrentQuality: function () { return window.__jwq; },
+        setCurrentQuality: function (i) { window.__jwq = i; },
+      };
+    };
+    window.Hls = class {
+      static get Events() { return { MANIFEST_PARSED: 'hlsManifestParsed' }; }
+      static isSupported() { return true; }
+      constructor() { this.levels = []; this.currentLevel = -1; this.handlers = {}; }
+      on(ev, fn) { this.handlers[ev] = fn; }
+      loadSource(levels) { this.levels = levels; if (this.handlers.hlsManifestParsed) this.handlers.hlsManifestParsed(); }
+    };
+    var h = new Hls();
+    h.loadSource([{ height: 360, bitrate: 800000 }, { height: 1080, bitrate: 5000000 }, { height: 720, bitrate: 2500000 }]);
+    window.__hls = { level: h.currentLevel, instance: h instanceof Hls, events: Hls.Events.MANIFEST_PARSED, supported: Hls.isSupported() };
+  </script>
+</body></html>`;
+
 function serve(port, routes) {
   return new Promise((resolve) => {
     const srv = http.createServer((req, res) => {
@@ -85,7 +111,7 @@ function check(name, ok, extra = '') {
 
 (async () => {
   const s1 = await serve(8711, { '/': ['text/html', site] });
-  const s2 = await serve(8712, { '/embed': ['text/html', embed], '/video.webm': ['video/webm', video] });
+  const s2 = await serve(8712, { '/embed': ['text/html', embed], '/video.webm': ['video/webm', video], '/calidad': ['text/html', calidad] });
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const messages = [];
@@ -181,6 +207,25 @@ function check(name, ok, extra = '') {
   const outer = await page.evaluate(() => getComputedStyle(document.getElementById('player')).display);
   check('el iframe del reproductor no se oculta', outer !== 'none', outer);
   await page.screenshot({ path: path.join(__dirname, 'captura.png') });
+
+  // "Alta calidad" activada en Ajustes: la app antepone window.__animehubHigh = true al script.
+  const hq = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await hq.addInitScript(`window.AnimeHub = { postMessage: function () {} };`);
+  await hq.addInitScript('window.__animehubHigh = true;\n' + script);
+  await hq.goto('http://127.0.0.1:8712/calidad');
+  await hq.waitForTimeout(2500);
+  const high = await hq.evaluate(() => ({ jw: window.__jwq, hls: window.__hls }));
+  check('alta calidad: JW Player pasa a 1080p (no "Auto")', high.jw === 1, JSON.stringify(high));
+  check('alta calidad: hls.js elige la calidad más alta', high.hls.level === 1, JSON.stringify(high.hls));
+  check('hls.js envuelto sigue funcionando igual', high.hls.instance && high.hls.events === 'hlsManifestParsed' && high.hls.supported);
+  // Sin la opción, el script no toca la calidad.
+  const auto = await browser.newPage();
+  await auto.addInitScript(`window.AnimeHub = { postMessage: function () {} };`);
+  await auto.addInitScript(script);
+  await auto.goto('http://127.0.0.1:8712/calidad');
+  await auto.waitForTimeout(2500);
+  const autoQ = await auto.evaluate(() => ({ jw: window.__jwq, hls: window.__hls.level }));
+  check('automática: la calidad la decide el reproductor', autoQ.jw === 0 && autoQ.hls === -1, JSON.stringify(autoQ));
 
   await browser.close();
   s1.close(); s2.close();

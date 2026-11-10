@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -31,6 +31,9 @@
     {
       "id": "latanime",
       "name": "Latanime",
+      "logo": "https://latanime.org/img/logito.png",
+      "logoAlign": -0.72,
+      "color": "#E62E9B",
       "engine": "latanime",
       "baseUrl": "https://latanime.org",
       "enabled": true,
@@ -100,6 +103,8 @@
     {
       "id": "animeninja",
       "name": "Anime Ninja",
+      "logo": "https://veranime.ninja/wp-content/uploads/2026/03/cropped-cropped-485dd3a5-d9ff-4223-a66c-26688335c706-scaled-1-1-192x192.png",
+      "color": "#C0392B",
       "engine": "dooplay",
       "baseUrl": "https://veranime.ninja",
       "aliases": ["https://animelhd.com"],
@@ -176,6 +181,8 @@
     {
       "id": "animeflv",
       "name": "AnimeFLV",
+      "logo": "https://animeflv.or.at/wp-content/uploads/2026/06/cropped-animeflv-logo-new-192x192.jpg",
+      "color": "#F39C12",
       "engine": "animeflv-wp",
       "baseUrl": "https://animeflv.or.at",
       "aliases": ["https://www.animeflv.or.at", "https://www4.animeflv.net", "https://www3.animeflv.net", "https://animeflv.net"],
@@ -233,6 +240,8 @@
     {
       "id": "jkanime",
       "name": "JKAnime",
+      "logo": "https://cdn.jkdesa.com/assets3/css/img/favicon.ico",
+      "color": "#1E88E5",
       "engine": "jkanime",
       "baseUrl": "https://jkanime.org",
       "aliases": ["https://jkanime.net", "https://jkanime.bz"],

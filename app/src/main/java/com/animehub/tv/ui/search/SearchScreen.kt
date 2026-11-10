@@ -1,6 +1,25 @@
 package com.animehub.tv.ui.search
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.core.content.ContextCompat
+import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.OutlinedButtonDefaults
+import com.animehub.tv.R
+import com.animehub.tv.voice.VoiceSession
+import com.animehub.tv.voice.VoiceState
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,11 +51,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.Button
+import com.animehub.tv.ui.components.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip
+import com.animehub.tv.ui.components.FilterChip
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.animehub.tv.ui.components.OutlinedButton
 import androidx.tv.material3.Text
 import com.animehub.tv.domain.model.AnimeCard
 import com.animehub.tv.domain.model.FilterSelection
@@ -66,7 +85,9 @@ fun SearchScreen(
     var text by rememberSaveable { mutableStateOf("") }
     var panelOpen by rememberSaveable { mutableStateOf(false) }
     var voiceError by remember { mutableStateOf<String?>(null) }
-    val voiceAvailable = remember { VoiceSearch.isAvailable(context) }
+    // Voz dentro de la app (sin abrir el asistente de la TV); si no hay, la pantalla del sistema.
+    val inAppVoice = remember { viewModel.voice.isAvailable(context) }
+    val voiceAvailable = remember { inAppVoice || VoiceSearch.isAvailable(context) }
     val gridState = rememberLazyGridState()
     // Un estado de foco por búsqueda: cada búsqueda nueva lleva el foco al primer resultado.
     val resultsFocus = remember(state.version) { InitialFocusState() }
@@ -79,13 +100,41 @@ fun SearchScreen(
             viewModel.search(spoken)
         }
     }
-    val startVoiceSearch: () -> Unit = {
-        voiceError = null
+    val systemVoice: () -> Unit = {
         try {
             voiceLauncher.launch(VoiceSearch.intent())
         } catch (e: ActivityNotFoundException) {
             voiceError = "No se pudo abrir el reconocimiento de voz"
         }
+    }
+    var session by remember { mutableStateOf<VoiceSession?>(null) }
+    DisposableEffect(Unit) { onDispose { session?.destroy() } }
+    var voiceOpen by remember { mutableStateOf(false) }
+    val listen: () -> Unit = {
+        val current = session ?: viewModel.voice.create(context).also { session = it }
+        voiceOpen = true
+        current.start()
+    }
+    // El micrófono necesita permiso la primera vez; si se niega, queda la pantalla de voz del sistema.
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) listen() else systemVoice()
+    }
+    val startVoiceSearch: () -> Unit = {
+        voiceError = null
+        when {
+            !inAppVoice -> systemVoice()
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> listen()
+            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+    val idle = remember { MutableStateFlow<VoiceState>(VoiceState.Idle) }
+    val voiceState by (session?.state ?: idle).collectAsStateWithLifecycle()
+    // Lo entendido va al campo y se busca de inmediato.
+    LaunchedEffect(voiceState) {
+        val result = voiceState as? VoiceState.Result ?: return@LaunchedEffect
+        voiceOpen = false
+        text = result.text
+        viewModel.search(result.text)
     }
     var voiceStarted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -102,6 +151,7 @@ fun SearchScreen(
             .collect { last -> if (state.results.isNotEmpty() && last >= gridState.layoutInfo.totalItemsCount - 6) viewModel.loadMore() }
     }
 
+    Box(Modifier.fillMaxSize()) {
     LazyVerticalGrid(
         state = gridState,
         columns = GridCells.Fixed(6),
@@ -112,20 +162,39 @@ fun SearchScreen(
     ) {
         item(span = { GridItemSpan(maxLineSpan) }, key = "cabecera") {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                Text("Buscar", style = MaterialTheme.typography.headlineMedium)
+                Column {
+                    Text("Buscar", style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        if (voiceAvailable) "Escribe o di el nombre de un anime" else "Escribe el nombre de un anime",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppColors.TextoSecundario,
+                    )
+                }
+                // Barra de búsqueda: micrófono de color, campo redondeado, Buscar y Filtros.
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (voiceAvailable) {
-                        Button(onClick = startVoiceSearch, modifier = Modifier.initialFocus()) { Text("🎤 Hablar") }
+                        Button(
+                            onClick = startVoiceSearch,
+                            modifier = Modifier.initialFocus(),
+                            shape = ButtonDefaults.shape(RoundedCornerShape(28.dp)),
+                            colors = ButtonDefaults.colors(
+                                containerColor = AppColors.Acento,
+                                contentColor = Color.White,
+                                focusedContainerColor = AppColors.Sakura,
+                                focusedContentColor = Color.White,
+                            ),
+                        ) { Text("🎤 Hablar") }
                     }
                     TvTextField(
                         value = text,
                         onValueChange = { text = it },
                         placeholder = "Nombre del anime",
                         onDone = { viewModel.search(text) },
-                        modifier = Modifier.width(440.dp).let { if (voiceAvailable) it else it.initialFocus() },
+                        pill = true,
+                        modifier = Modifier.width(460.dp).let { if (voiceAvailable) it else it.initialFocus() },
                     )
-                    Button(onClick = { viewModel.search(text) }) { Text("Buscar") }
-                    OutlinedButton(onClick = { panelOpen = true }) {
+                    Button(onClick = { viewModel.search(text) }, shape = ButtonDefaults.shape(RoundedCornerShape(28.dp))) { Text("Buscar") }
+                    OutlinedButton(onClick = { panelOpen = true }, shape = OutlinedButtonDefaults.shape(RoundedCornerShape(28.dp))) {
                         Text(if (state.filters.activeCount > 0) "Filtros (${state.filters.activeCount})" else "Filtros")
                     }
                 }
@@ -155,6 +224,7 @@ fun SearchScreen(
                         }
                     }
                 }
+                if (!state.searched && !state.loading) WelcomeHint(voiceAvailable)
                 if (!state.searched && recent.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Búsquedas recientes", style = MaterialTheme.typography.titleMedium)
@@ -168,18 +238,33 @@ fun SearchScreen(
             }
         }
         itemsIndexed(state.results, key = { _, card -> card.siteId + card.url }) { index, card ->
-            ResultCard(
-                card = card,
-                siteName = state.siteNames[card.siteId],
-                cardModifier = if (index == 0) Modifier.initialFocus(resultsFocus) else Modifier,
-                onClick = { onOpenAnime(card.siteId, card.url, card.title, card.coverUrl) },
-            )
+            // Los resultados aparecen con un fundido suave.
+            Box(Modifier.animateItem(fadeInSpec = tween(300), placementSpec = null, fadeOutSpec = null)) {
+                ResultCard(
+                    card = card,
+                    siteName = state.siteNames[card.siteId],
+                    cardModifier = if (index == 0) Modifier.initialFocus(resultsFocus) else Modifier,
+                    onClick = { onOpenAnime(card.siteId, card.url, card.title, card.coverUrl) },
+                )
+            }
         }
         if (state.loadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "cargando-mas") {
                 Text("Cargando más resultados…", color = AppColors.TextoSecundario)
             }
         }
+    }
+
+    if (voiceOpen && voiceState !is VoiceState.Result) {
+        VoicePanel(
+            state = voiceState,
+            onCancel = {
+                session?.stop()
+                voiceOpen = false
+            },
+            onRetry = listen,
+        )
+    }
     }
 
     if (panelOpen) {
@@ -196,6 +281,29 @@ fun SearchScreen(
                 viewModel.search(text)
             },
         )
+    }
+}
+
+/** Antes de buscar: la mascota y una pista de qué hacer. */
+@Composable
+private fun WelcomeHint(voice: Boolean) {
+    Row(
+        Modifier
+            .background(Brush.horizontalGradient(listOf(AppColors.SuperficieFoco.copy(alpha = 0.6f), Color.Transparent)), RoundedCornerShape(20.dp))
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Image(painterResource(R.drawable.mascota), contentDescription = null, modifier = Modifier.size(64.dp))
+        Column {
+            Text("¿Qué quieres ver hoy?", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (voice) "Pulsa 🎤 Hablar y di el nombre, o escríbelo. También puedes buscar solo con filtros."
+                else "Escribe el nombre del anime. También puedes buscar solo con filtros.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppColors.TextoSecundario,
+            )
+        }
     }
 }
 

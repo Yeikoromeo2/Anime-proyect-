@@ -58,4 +58,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNativePlaybackFactory(client: OkHttpClient): NativePlaybackFactory = ExoNativePlaybackFactory(client)
+
+    /** Voz dentro de la app (sin abrir la pantalla del asistente de la TV). */
+    @Provides
+    @Singleton
+    fun provideVoiceEngine(): com.animehub.tv.voice.VoiceEngine = com.animehub.tv.voice.AndroidVoiceEngine()
 }

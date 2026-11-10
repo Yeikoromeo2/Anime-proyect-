@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.ListItem
+import com.animehub.tv.ui.components.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
@@ -117,8 +117,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
         item {
             SettingItem(
-                title = "Calidad preferida",
-                subtitle = "${state.settings.preferredQuality.etiqueta} (pulsa para cambiar)",
+                title = "Calidad del video",
+                subtitle = "${state.settings.preferredQuality.etiqueta}: ${state.settings.preferredQuality.detalle} (pulsa para cambiar)",
                 onClick = { viewModel.nextQuality() },
             )
         }

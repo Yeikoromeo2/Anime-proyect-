@@ -1,6 +1,7 @@
 package com.animehub.tv.ui.anime
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.MutableTransitionState
@@ -175,7 +176,10 @@ fun AnimeScreen(
     // Fondo de la ficha: la portada difuminada; al pasar por un episodio con miniatura, su imagen.
     val cover = detail?.coverUrl ?: state.route.coverUrl
     var backdrop by remember { mutableStateOf<String?>(null) }
-    val thumbnails = remember(episodes) { episodes.any { it.imageUrl != null } }
+    // Todos los sitios con tarjetas de imagen: la miniatura del episodio (Anime Ninja, JKAnime) o,
+    // si el sitio no la tiene (Latanime, AnimeFLV), la imagen del anime.
+    LaunchedEffect(visible) { viewModel.loadThumbnails(visible) }
+    val thumbOf: (Episode) -> String? = { ep -> ep.imageUrl ?: state.thumbnails[ep.number] }
     // Entrada animada de la cabecera (portada desde la izquierda, texto con fundido).
     val entered = remember { MutableTransitionState(false).apply { targetState = true } }
 
@@ -183,7 +187,7 @@ fun AnimeScreen(
     Backdrop(backdrop ?: cover)
     LazyVerticalGrid(
         state = gridState,
-        columns = GridCells.Adaptive(minSize = if (thumbnails) 180.dp else 120.dp),
+        columns = GridCells.Adaptive(minSize = 180.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 64.dp, vertical = 36.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -284,13 +288,9 @@ fun AnimeScreen(
             val targetFocus = remember(focusTarget) { InitialFocusState() }
             val focusModifier = (if (focusTarget != null && sameUrl(ep.url, focusTarget!!)) Modifier.initialFocus(targetFocus) else Modifier)
                 // El fondo sigue al episodio enfocado (su miniatura, si el sitio la tiene).
-                .onFocusChanged { if (it.isFocused) backdrop = ep.imageUrl }
+                .onFocusChanged { if (it.isFocused) backdrop = thumbOf(ep) }
             Box(Modifier.animateItem(fadeInSpec = tween(350), placementSpec = null, fadeOutSpec = null)) {
-                if (thumbnails) {
-                    EpisodeThumbnail(ep, state.progress[ep.url], isNew = ep == highlighted, modifier = focusModifier) { play(ep) }
-                } else {
-                    EpisodeButton(ep, state.progress[ep.url], isNew = ep == highlighted, modifier = focusModifier) { play(ep) }
-                }
+                EpisodeThumbnail(ep, thumbOf(ep) ?: cover, state.progress[ep.url], isNew = ep == highlighted, modifier = focusModifier) { play(ep) }
             }
         }
     }
@@ -346,49 +346,6 @@ private fun PlayTarget(tvs: List<PlayTarget>, target: PlayTarget?, onSelect: (Pl
 
 private fun seasonLabel(season: Int?) = season?.let { "Temporada $it" } ?: "Episodios"
 
-/** Botón de episodio: número, marca de visto y barra si está a medias. */
-@Composable
-private fun EpisodeButton(
-    episode: Episode,
-    progress: WatchProgress?,
-    isNew: Boolean = false,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val watched = progress?.completed == true
-    Button(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(64.dp),
-        shape = ButtonDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ButtonDefaults.colors(
-            containerColor = when {
-                isNew -> AppColors.SuperficieFoco
-                watched -> AppColors.Superficie.copy(alpha = 0.5f)
-                else -> AppColors.Superficie
-            },
-            contentColor = if (watched) AppColors.TextoSecundario else androidx.compose.ui.graphics.Color.White,
-        ),
-        contentPadding = PaddingValues(0.dp),
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            Text(
-                (if (watched) "✓ " else "") + "Ep. ${Format.episode(episode.number)}",
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            if (isNew) {
-                Text(
-                    "NUEVO",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.Acento2,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
-            if (progress != null && !watched) ProgressBar(progress.fraction, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
-        }
-    }
-}
-
 /**
  * Fondo de la ficha: la imagen muy reducida y ampliada (queda difuminada en cualquier Android) y
  * oscurecida para que el texto se lea. Cambia con un fundido al pasar por los episodios.
@@ -416,16 +373,23 @@ private fun Backdrop(url: String?) {
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, AppColors.Fondo.copy(alpha = 0.9f)), startY = 300f)))
 }
 
-/** Episodio con miniatura (cuando el sitio la tiene): imagen 16:9, número y progreso. */
+/**
+ * Episodio como tarjeta de imagen 16:9 (miniatura del episodio o, si el sitio no la tiene, la
+ * imagen del anime).
+ * - Visto: la tarjeta se oscurece con una capa semitransparente y un sello grande "VISTO".
+ * - A medias: sin sello; una barra donde quedó y "Ibas en 12:34".
+ */
 @Composable
 private fun EpisodeThumbnail(
     episode: Episode,
+    imageUrl: String?,
     progress: WatchProgress?,
     isNew: Boolean,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val watched = progress?.completed == true
+    val partial = progress?.takeIf { !watched && it.positionMs > 0 }
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().aspectRatio(16f / 9f),
@@ -435,21 +399,40 @@ private fun EpisodeThumbnail(
         colors = CardDefaults.colors(containerColor = AppColors.Superficie),
     ) {
         Box(Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = episode.imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().alpha(if (watched) 0.45f else 1f),
-            )
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)), startY = 60f)))
+            AsyncImage(model = imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)), startY = 60f)))
+            if (watched) {
+                // Visto: lámina negra semitransparente sobre toda la tarjeta y un sello grande.
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
+                Text(
+                    "✓  VISTO",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(50))
+                        .border(1.5.dp, Color.White.copy(alpha = 0.55f), RoundedCornerShape(50))
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            }
             Text(
-                (if (watched) "✓ " else "") + "Ep. ${Format.episode(episode.number)}",
+                "Ep. ${Format.episode(episode.number)}",
                 style = MaterialTheme.typography.titleSmall,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 10.dp, vertical = 8.dp),
+                color = if (watched) Color.White.copy(alpha = 0.75f) else Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, end = 10.dp, bottom = if (partial != null) 14.dp else 8.dp),
             )
             if (isNew) Badge("NUEVO", Modifier.align(Alignment.TopEnd))
-            if (progress != null && !watched) ProgressBar(progress.fraction, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
+            if (partial != null) {
+                Text(
+                    "Ibas en ${Format.time(partial.positionMs)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppColors.Acento2,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 14.dp),
+                )
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(6.dp).background(Color.White.copy(alpha = 0.25f))) {
+                    Box(Modifier.fillMaxWidth(partial.fraction.coerceIn(0.02f, 1f)).height(6.dp).background(AppColors.Acento2))
+                }
+            }
         }
     }
 }

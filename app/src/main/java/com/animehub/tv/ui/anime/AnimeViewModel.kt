@@ -32,6 +32,8 @@ data class AnimeUiState(
     /** Progreso por URL de episodio. */
     val progress: Map<String, WatchProgress> = emptyMap(),
     val siteName: String? = null,
+    /** Miniaturas que el sitio da aparte (JKAnime), por número de episodio. */
+    val thumbnails: Map<Float, String> = emptyMap(),
 ) {
     /** Último episodio visto (para "Continuar Ep. X – mm:ss"). */
     val lastWatched: WatchProgress? get() = progress.values.maxByOrNull { it.updatedAt }
@@ -58,13 +60,28 @@ class AnimeViewModel @Inject constructor(
 
     private data class LoadState(val loading: Boolean = true, val detail: AnimeDetail? = null, val error: String? = null, val siteName: String? = null)
 
+    private val thumbnails = MutableStateFlow<Map<Float, String>>(emptyMap())
+    private val requestedThumbs = mutableSetOf<Float>()
+
     val state: StateFlow<AnimeUiState> = combine(
         load,
         library.isFavorite(route.siteId, route.url),
         library.progressForAnime(route.siteId, route.url),
-    ) { l, fav, progress ->
-        AnimeUiState(route, l.loading, l.detail, l.error, fav, progress.associateBy { it.episodeUrl }, l.siteName)
+        thumbnails,
+    ) { l, fav, progress, thumbs ->
+        AnimeUiState(route, l.loading, l.detail, l.error, fav, progress.associateBy { it.episodeUrl }, l.siteName, thumbs)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnimeUiState(route))
+
+    /** Pide las miniaturas de los episodios que se ven (si el sitio las da aparte). */
+    fun loadThumbnails(episodes: List<com.animehub.tv.domain.model.Episode>) {
+        val missing = episodes.filter { it.imageUrl == null && requestedThumbs.add(it.number) }.map { it.number }
+        if (missing.isEmpty()) return
+        viewModelScope.launch {
+            val provider = registry.provider(route.siteId) ?: return@launch
+            val found = runCatching { provider.episodeThumbnails(route.url, missing) }.getOrDefault(emptyMap())
+            if (found.isNotEmpty()) thumbnails.value = thumbnails.value + found
+        }
+    }
 
     init {
         reload()

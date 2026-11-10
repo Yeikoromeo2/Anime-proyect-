@@ -16,6 +16,9 @@ import com.animehub.tv.domain.model.VideoServer
 import com.animehub.tv.providers.SiteProvider
 import com.animehub.tv.providers.common.ShowcaseParser
 import com.animehub.tv.providers.common.SiteSupport
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.net.URLEncoder
@@ -80,6 +83,22 @@ class JkanimeProvider(site: EffectiveSite, private val fetcher: HtmlFetcher) : S
 
     override suspend fun servers(episodeUrl: String): List<VideoServer> = parser.servers(document(s.rebase(episodeUrl)))
 
+    override suspend fun episodeThumbnails(animeUrl: String, numbers: List<Float>): Map<Float, String> {
+        val url = s.rebase(animeUrl)
+        val api = parser.episodesApi(document(url, DETAIL_CACHE)) ?: return emptyMap()
+        // 16 episodios por página: solo las páginas de los episodios que se ven (como mucho 4 a la vez).
+        val pages = numbers.filter { it >= 1f }.map { ((it.toInt() - 1) / EPISODES_PER_PAGE) + 1 }.distinct().take(MAX_THUMB_PAGES)
+        return coroutineScope {
+            pages.map { page ->
+                async {
+                    runCatching {
+                        parser.thumbnails(fetcher.postForm(id, s.url("/ajax/episodes/${api.animeId}/$page"), mapOf("_token" to api.token), referer = url), api.thumbBase)
+                    }.getOrDefault(emptyMap())
+                }
+            }.awaitAll().fold(emptyMap()) { all, page -> all + page }
+        }
+    }
+
     private suspend fun document(url: String, cacheMs: Long = 0): Document = Jsoup.parse(fetcher.get(id, url, cacheMs = cacheMs), url)
 
     private companion object {
@@ -87,5 +106,7 @@ class JkanimeProvider(site: EffectiveSite, private val fetcher: HtmlFetcher) : S
         const val SEARCH_CACHE = 2 * 60_000L
         const val DETAIL_CACHE = 10 * 60_000L
         const val FILTERS_CACHE = 60 * 60_000L
+        const val EPISODES_PER_PAGE = 16
+        const val MAX_THUMB_PAGES = 4
     }
 }

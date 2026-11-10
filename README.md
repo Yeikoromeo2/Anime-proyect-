@@ -100,6 +100,10 @@ La app aparece en la fila de apps de la TV con su banner.
 |---|---|---|
 | ![Ficha](docs/capturas/ficha/17_temporada_21_tramos.png) | ![Búsqueda](docs/capturas/busqueda/12_busqueda_voz.png) | ![Voz](docs/capturas/busqueda/35_voz_en_la_app.png) |
 
+| Visto y a medias | | |
+|---|---|---|
+| ![Vistos](docs/capturas/ficha/47_ficha_vistos.png) | | |
+
 | Inicio viendo solo JKAnime | Explorar empieza en ese sitio | |
 |---|---|---|
 | ![Solo JKAnime](docs/capturas/explorar/29_inicio_solo_jkanime.png) | ![Explorar JKAnime](docs/capturas/explorar/30_explorar_jkanime.png) | |
@@ -165,7 +169,14 @@ En "Todos los sitios" se usan los géneros comunes, traducidos a cada sitio. Ani
 
 ## Ficha: series con muchos episodios
 
-La ficha tiene de fondo la **portada difuminada**. Si el sitio trae **miniaturas de los episodios** (Anime Ninja y Latanime), los episodios se ven como miniaturas y el fondo cambia con un fundido a la del episodio por el que pasas. La portada y el texto entran con una animación corta.
+La ficha tiene de fondo la **portada difuminada**. En los cuatro sitios los episodios se ven como **tarjetas de imagen**:
+- **Anime Ninja y JKAnime:** la miniatura real de cada episodio. JKAnime las da aparte y se piden solo las del tramo que se ve. El fondo cambia con un fundido a la del episodio por el que pasas.
+- **Latanime y AnimeFLV:** no tienen imagen por episodio, así que se usa la del anime.
+
+Además:
+- **Visto:** la tarjeta se oscurece con una lámina negra semitransparente y un sello grande **"✓ VISTO"**.
+- **A medias:** sin sello; una barra donde quedó y **"Ibas en 12:34"**.
+- La portada y el texto entran con una animación corta.
 
 - **Temporada**: el botón "Temporada N · X episodios ▾" abre la lista de todas las temporadas (por ejemplo, las 21 de One Piece) y salta a la elegida.
 - **Tramos**: si la temporada tiene más de 50 episodios, aparecen chips "1–50", "51–100"… para ir directo a ese bloque.
@@ -240,6 +251,10 @@ Como en cualquier reproductor, cada tecla tiene su respuesta visual (en el nativ
 | En pausa | Avanzar dos veces |
 |---|---|
 | ![Pausa](docs/capturas/fase5/33_en_pausa.png) | ![Avanzar](docs/capturas/fase5/34_avanzar.png) |
+
+## Otras plataformas
+
+Análisis de Windows, iPhone/iPad y Samsung Tizen (sin desarrollar) en [docs/otras-plataformas.md](docs/otras-plataformas.md).
 
 ## Configuración remota (cuando un sitio cambia)
 

@@ -133,4 +133,19 @@ class JkanimeParserTest {
         assertEquals(1988, new.first().card.year)
         assertNull(new.first().synopsis)
     }
+
+    @Test
+    fun `miniaturas de episodios - clave, id y carpeta del CDN como hace la web`() {
+        val doc = Jsoup.parse(Fixtures.read("jkanime/anime_tank_chair.html"), "https://jkanime.org/tank-chair/")
+        val api = parser.episodesApi(doc)!!
+        assertEquals("4988", api.animeId)
+        assertTrue(api.token.length > 20)
+        assertEquals("https://cdn.jkdesa.com/assets/images/animes/video/image_thumb/", api.thumbBase)
+
+        // Respuesta real de /ajax/episodes/4988/1 (16 por página).
+        val thumbs = parser.thumbnails(Fixtures.read("jkanime/ajax_episodios_tank_chair.json"), api.thumbBase)
+        assertEquals(6, thumbs.size)
+        assertEquals("https://cdn.jkdesa.com/assets/images/animes/video/image_thumb/jkvideo_4505b39c84cd467f9b4717a3d62d6a4e.jpg", thumbs[1f])
+        assertTrue(parser.thumbnails("no es json", api.thumbBase).isEmpty())
+    }
 }

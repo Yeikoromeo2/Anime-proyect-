@@ -26,6 +26,34 @@ import java.util.Base64
 /** Lectura del HTML de JKAnime (selectores en la configuración; ver docs/sites/jkanime.md). */
 class JkanimeParser(private val s: SiteSupport) {
 
+    /** Lo necesario para pedir las miniaturas de los episodios: id del anime, clave de la sesión y carpeta del CDN. */
+    data class EpisodesApi(val animeId: String, val token: String, val thumbBase: String)
+
+    /**
+     * La ficha carga los episodios aparte (POST `/ajax/episodes/{id}/{página}` con la clave
+     * `csrf-token`). Las miniaturas están en el CDN, en la carpeta de la portada con
+     * `/animes/video/image_thumb/` en lugar de `/animes/image/`, como hace la web.
+     */
+    fun episodesApi(doc: Document): EpisodesApi? {
+        val html = doc.html()
+        val id = Regex("""ajax/episodes/(\d+)/""").find(html)?.groupValues?.get(1) ?: return null
+        val token = doc.selectFirst("meta[name=csrf-token]")?.attr("content")?.takeIf { it.isNotBlank() } ?: return null
+        val cover = doc.selectFirst(".anime_pic img")?.attr("abs:src")?.takeIf { "/animes/image/" in it } ?: return null
+        val base = cover.replace("/animes/image/", "/animes/video/image_thumb/").substringBeforeLast('/') + "/"
+        return EpisodesApi(id, token, base)
+    }
+
+    /** Respuesta de `/ajax/episodes`: número de episodio → miniatura. */
+    fun thumbnails(json: String, thumbBase: String): Map<Float, String> =
+        runCatching {
+            Json.parseToJsonElement(json).jsonObject["data"]?.jsonArray.orEmpty().mapNotNull { item ->
+                val obj = item.jsonObject
+                val number = obj["number"]?.jsonPrimitive?.content?.toFloatOrNull() ?: return@mapNotNull null
+                val image = obj["image"]?.jsonPrimitive?.content?.takeIf { it.length > 10 } ?: return@mapNotNull null
+                number to (if (image.startsWith("http")) image else thumbBase + image)
+            }.toMap()
+        }.getOrDefault(emptyMap())
+
     private val siteId get() = s.site.id
     private val config get() = s.site.config
 

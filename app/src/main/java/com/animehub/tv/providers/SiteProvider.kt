@@ -33,4 +33,10 @@ interface SiteProvider {
     suspend fun animeDetail(url: String): AnimeDetail
 
     suspend fun servers(episodeUrl: String): List<VideoServer>
+
+    /**
+     * Miniaturas de episodios que la ficha no trae (JKAnime las da aparte, por páginas). Se piden
+     * solo las de los episodios que se ven. Vacío = el sitio no tiene miniaturas propias.
+     */
+    suspend fun episodeThumbnails(animeUrl: String, numbers: List<Float>): Map<Float, String> = emptyMap()
 }

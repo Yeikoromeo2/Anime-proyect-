@@ -1,5 +1,20 @@
 package com.animehub.tv.ui
 
+import com.animehub.tv.data.library.LibraryRepository
+import com.animehub.tv.data.settings.SettingsRepository
+import com.animehub.tv.domain.model.WatchProgress
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performScrollToNode
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import javax.inject.Inject
+
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -77,5 +92,38 @@ class NavegacionFichaTest : TvUiTest() {
         // La lista salta a la temporada 21, tramo 992–1041, y el foco queda en el episodio 1015.
         waitForFocus("Ep. 1015")
         capture("19_ir_al_episodio_1015")
+    }
+
+    @Inject lateinit var library: LibraryRepository
+    @Inject lateinit var settings: SettingsRepository
+
+    /** Visto: tarjeta oscurecida con un sello grande. A medias: solo la barra y el minuto. */
+    @Test
+    fun episodios_vistos_con_sello_y_a_medias_con_barra() {
+        val anime = "https://veranime.ninja/anime/tank-chair/"
+        val now = System.currentTimeMillis()
+        runBlocking {
+            // Tank Chair también está en JKAnime y AnimeFLV: aquí, el de Anime Ninja.
+            listOf("jkanime", "animeflv").forEach { settings.setSiteEnabled(it, false) }
+            library.saveProgress(WatchProgress("animeninja", anime, "Tank Chair", null, 5f, "https://veranime.ninja/ver/tank-chair-episodio-5/", "HLS", 1_440_000, 1_440_000, now - 5_000, true))
+            library.saveProgress(WatchProgress("animeninja", anime, "Tank Chair", null, 4f, "https://veranime.ninja/ver/tank-chair-episodio-4/", "HLS", 720_000, 1_440_000, now, false))
+        }
+        try {
+            waitForFocusedDescription(LATEST_FIRST)
+            compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasContentDescription(LATEST_FIRST)) and hasAnyDescendant(hasText("Últimos capítulos")).not())
+                .onFirst().performScrollToNode(hasContentDescription("Tank Chair"))
+            activateDescription("Tank Chair")
+            waitForText("Ver episodio 6 · nuevo")
+            compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasText("Ver episodio 6 · nuevo")))
+                .onFirst().performScrollToNode(hasText("Ep. 6"))
+            waitForText("✓  VISTO")
+            waitForText("Ibas en 12:00")
+            capture("47_ficha_vistos")
+            // Un solo sello (el del episodio 5) y sin "✓" en el número del episodio a medias.
+            assertEquals(1, compose.onAllNodesWithText("✓  VISTO").fetchSemanticsNodes().size)
+            compose.onAllNodesWithText("✓ Ep. 4").assertCountEquals(0)
+        } finally {
+            runBlocking { listOf("jkanime", "animeflv").forEach { settings.setSiteEnabled(it, true) } }
+        }
     }
 }

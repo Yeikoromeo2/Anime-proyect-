@@ -129,6 +129,7 @@ object TestAppModule {
         val path = url.encodedPath
         return when {
             path == "/" -> "jkanime/inicio.html"
+            path.startsWith("/ajax/episodes/") -> "jkanime/ajax_episodios_tank_chair.json"
             path.startsWith("/jkplayer/umv") -> "servidores/jkplayer_magi.html"
             path.startsWith("/jkplayer/") -> "servidores/jkplayer_desu.html"
             path.startsWith("/buscar/one") -> "jkanime/busqueda_one_piece.html"

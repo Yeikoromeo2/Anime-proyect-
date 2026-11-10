@@ -76,6 +76,9 @@ import com.animehub.tv.ui.focus.initialFocus
 import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.ui.navigation.PlayerRoute
+import com.animehub.tv.ui.navigation.RemoteRoute
+import com.animehub.tv.remote.RemoteTv
+import com.animehub.tv.ui.rememberIsTv
 import com.animehub.tv.util.Format
 
 /**
@@ -85,18 +88,39 @@ import com.animehub.tv.util.Format
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: AnimeViewModel = hiltViewModel()) {
+fun AnimeScreen(
+    onBack: () -> Unit,
+    onPlay: (PlayerRoute) -> Unit,
+    onPlayOnTv: (RemoteRoute) -> Unit = {},
+    viewModel: AnimeViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // Elegir un episodio lo reproduce: servidores que funcionan y reproducción directa.
+    // "Enviar a mi TV" (en la tablet): TVs con AnimeHub en la red y dónde reproducir.
+    val tvs by viewModel.tvs.collectAsStateWithLifecycle()
+    val target by viewModel.target.collectAsStateWithLifecycle()
+    val isTv = rememberIsTv()
+    // Elegir un episodio lo reproduce aquí o, si se eligió una TV, lo envía a la TV.
     val play: (Episode) -> Unit = { ep ->
-        onPlay(
-            PlayerRoute(
-                siteId = state.route.siteId, animeUrl = state.route.url,
-                animeTitle = state.detail?.title?.ifBlank { null } ?: state.route.title,
-                coverUrl = state.detail?.coverUrl ?: state.route.coverUrl,
-                episodeUrl = ep.url, episodeNumber = ep.number,
-            ),
-        )
+        val title = state.detail?.title?.ifBlank { null } ?: state.route.title
+        val cover = state.detail?.coverUrl ?: state.route.coverUrl
+        val tv = target?.takeIf { !isTv && it in tvs }
+        if (tv != null) {
+            val progress = state.progress[ep.url]?.takeIf { !it.completed }
+            onPlayOnTv(
+                RemoteRoute(
+                    tvId = tv.id, tvName = tv.name, tvHost = tv.host, tvPort = tv.port,
+                    siteId = state.route.siteId, animeUrl = state.route.url, animeTitle = title, coverUrl = cover,
+                    episodeUrl = ep.url, episodeNumber = ep.number, startMs = progress?.positionMs ?: 0,
+                ),
+            )
+        } else {
+            onPlay(
+                PlayerRoute(
+                    siteId = state.route.siteId, animeUrl = state.route.url, animeTitle = title, coverUrl = cover,
+                    episodeUrl = ep.url, episodeNumber = ep.number,
+                ),
+            )
+        }
     }
     val focus = rememberInitialFocusState()
     val detail = state.detail
@@ -196,6 +220,7 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
                         state.loading -> Text("Cargando ficha…", color = AppColors.TextoSecundario)
                         state.error != null -> Text(state.error!!, color = AppColors.Error)
                     }
+                    if (!isTv && tvs.isNotEmpty()) PlayTarget(tvs, target, viewModel::selectTarget)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         val last = state.lastWatched
                         val firstEpisode = episodes.firstOrNull()
@@ -300,6 +325,19 @@ fun AnimeScreen(onBack: () -> Unit, onPlay: (PlayerRoute) -> Unit, viewModel: An
 }
 
 private enum class EpisodePicker { Season, GoTo }
+
+/** "Ver en: Este dispositivo · TV de la sala": con una TV elegida, los episodios se envían a la TV. */
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun PlayTarget(tvs: List<RemoteTv>, target: RemoteTv?, onSelect: (RemoteTv?) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Ver en:", color = AppColors.TextoSecundario)
+        FilterChip(selected = target == null || target !in tvs, onClick = { onSelect(null) }) { Text("📱 Este dispositivo") }
+        tvs.forEach { tv ->
+            FilterChip(selected = target == tv, onClick = { onSelect(tv) }) { Text("📺 ${tv.name}") }
+        }
+    }
+}
 
 private fun seasonLabel(season: Int?) = season?.let { "Temporada $it" } ?: "Episodios"
 

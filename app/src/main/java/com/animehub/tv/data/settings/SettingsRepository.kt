@@ -50,6 +50,8 @@ data class AppSettings(
     val lastConfigUpdate: Long = 0L,
     /** Sitio que se está viendo en Inicio (null = todos mezclados); también es el de Buscar y Explorar al entrar. */
     val homeSite: String? = null,
+    /** "Enviar a mi TV": dispositivos (tablets) que esta TV ya aceptó, por su identificador. */
+    val allowedRemotes: Set<String> = emptySet(),
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "ajustes")
@@ -70,6 +72,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             seekSeconds = p[SEEK] ?: 10,
             lastConfigUpdate = p[LAST_UPDATE] ?: 0L,
             homeSite = p[HOME_SITE]?.takeIf { it.isNotBlank() },
+            allowedRemotes = p[ALLOWED_REMOTES].orEmpty(),
         )
     }
 
@@ -95,6 +98,18 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun setHomeSite(siteId: String?) = store.edit { if (siteId == null) it.remove(HOME_SITE) else it[HOME_SITE] = siteId }
 
+    /** Identificador de este aparato para "Enviar a mi TV" (se crea una vez, al azar). */
+    suspend fun deviceId(): String {
+        store.data.first()[DEVICE_ID]?.let { return it }
+        val id = java.util.UUID.randomUUID().toString()
+        store.edit { if (it[DEVICE_ID] == null) it[DEVICE_ID] = id }
+        return store.data.first()[DEVICE_ID] ?: id
+    }
+
+    suspend fun allowRemote(deviceId: String) = store.edit { it[ALLOWED_REMOTES] = it[ALLOWED_REMOTES].orEmpty() + deviceId }
+
+    suspend fun forgetRemotes() = store.edit { it.remove(ALLOWED_REMOTES) }
+
     private suspend fun updateMap(key: Preferences.Key<Set<String>>, id: String, value: String?) {
         store.edit { prefs ->
             val map = decodeMap(prefs[key]).toMutableMap()
@@ -118,6 +133,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         private val SERVERS = stringSetPreferencesKey("preferred_servers")
         private val QUALITY = stringPreferencesKey("preferred_quality")
         private val SEEK = intPreferencesKey("seek_seconds")
+        private val DEVICE_ID = stringPreferencesKey("device_id")
+        private val ALLOWED_REMOTES = stringSetPreferencesKey("allowed_remotes")
         private val LAST_UPDATE = longPreferencesKey("last_config_update")
         private val HOME_SITE = stringPreferencesKey("home_site")
 

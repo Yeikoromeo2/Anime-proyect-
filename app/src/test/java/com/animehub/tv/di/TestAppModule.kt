@@ -170,6 +170,19 @@ object TestAppModule {
     @Singleton
     fun provideVoiceEngine(): com.animehub.tv.voice.VoiceEngine = FakeVoice
 
+    /** "Enviar a mi TV" simulado (sin red local ni NSD en las pruebas). */
+    @Provides
+    @Singleton
+    fun provideTvFinder(): com.animehub.tv.remote.TvFinder = FakeRemote
+
+    @Provides
+    @Singleton
+    fun provideRemoteClient(): com.animehub.tv.remote.RemoteClient = FakeRemote
+
+    @Provides
+    @Singleton
+    fun provideServiceAdvertiser(): com.animehub.tv.remote.ServiceAdvertiser = FakeRemote.advertiser
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =

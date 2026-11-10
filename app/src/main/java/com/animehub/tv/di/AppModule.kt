@@ -63,4 +63,17 @@ object AppModule {
     @Provides
     @Singleton
     fun provideVoiceEngine(): com.animehub.tv.voice.VoiceEngine = com.animehub.tv.voice.AndroidVoiceEngine()
+
+    /** "Enviar a mi TV": búsqueda de TVs en la red (tablet), órdenes y anuncio de la TV. */
+    @Provides
+    @Singleton
+    fun provideTvFinder(finder: com.animehub.tv.remote.NsdTvFinder): com.animehub.tv.remote.TvFinder = finder
+
+    @Provides
+    @Singleton
+    fun provideRemoteClient(client: com.animehub.tv.remote.OkHttpRemoteClient): com.animehub.tv.remote.RemoteClient = client
+
+    @Provides
+    @Singleton
+    fun provideServiceAdvertiser(advertiser: com.animehub.tv.remote.NsdAdvertiser): com.animehub.tv.remote.ServiceAdvertiser = advertiser
 }

@@ -14,6 +14,7 @@ import com.animehub.tv.domain.model.EpisodePager
 import com.animehub.tv.domain.model.WatchProgress
 import com.animehub.tv.nativeplayer.NativePlaybackFactory
 import com.animehub.tv.playback.NativeFailures
+import com.animehub.tv.remote.ActivePlayback
 import com.animehub.tv.playback.PlaybackController
 import com.animehub.tv.playback.ServerRepository
 import com.animehub.tv.providers.ProviderRegistry
@@ -50,6 +51,8 @@ class PlayerViewModel @Inject constructor(
     private val errorLog: ErrorLogRepository,
     private val nativeFactory: NativePlaybackFactory,
     private val nativeFailures: NativeFailures,
+    /** "Enviar a mi TV": la tablet maneja el reproductor abierto en la TV. */
+    private val active: ActivePlayback,
 ) : ViewModel() {
 
     val route: PlayerRoute = savedStateHandle.toRoute()
@@ -86,7 +89,18 @@ class PlayerViewModel @Inject constructor(
                 episodes = list,
                 startIndex = index ?: 0,
                 loadServers = { ep -> servers.serversFor(provider, ep.url) },
-                savedProgress = { ep -> library.progressFor(route.siteId, ep.url) },
+                // Enviado desde la tablet con su minuto: se empieza ahí (solo el primer episodio).
+                savedProgress = { ep ->
+                    if (route.startMs > 0 && EpisodePager.sameUrl(ep.url, route.episodeUrl)) {
+                        WatchProgress(
+                            siteId = route.siteId, animeUrl = route.animeUrl, animeTitle = title, coverUrl = cover,
+                            episodeNumber = ep.number, episodeUrl = ep.url, serverName = null,
+                            positionMs = route.startMs, durationMs = 0, updatedAt = System.currentTimeMillis(), completed = false,
+                        )
+                    } else {
+                        library.progressFor(route.siteId, ep.url)
+                    }
+                },
                 saveProgress = { ep, option, pos, dur, completed ->
                     library.saveProgress(
                         WatchProgress(
@@ -109,7 +123,16 @@ class PlayerViewModel @Inject constructor(
                 nativeFactory = nativeFactory,
                 quality = settingsRepository.current().preferredQuality,
             )
+            active.controller = controller
+            active.animeTitle = title
             controller.start()
+        }
+    }
+
+    override fun onCleared() {
+        if (active.controller === _session.value?.controller) {
+            active.controller = null
+            active.animeTitle = null
         }
     }
 }

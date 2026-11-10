@@ -94,5 +94,8 @@ class SettingsViewModel @Inject constructor(
 
     fun clearPreferredServers() = viewModelScope.launch { settingsRepository.clearPreferredServers() }
 
+    /** "Enviar a mi TV": las tablets aceptadas vuelven a necesitar permiso. */
+    fun forgetRemotes() = viewModelScope.launch { settingsRepository.forgetRemotes() }
+
     fun clearErrors() = errorLog.clear()
 }

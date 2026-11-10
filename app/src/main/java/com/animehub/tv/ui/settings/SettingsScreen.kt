@@ -133,6 +133,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             )
         }
 
+        item { Section("Enviar a la TV") }
+        item {
+            val allowed = state.settings.allowedRemotes.size
+            SettingItem(
+                title = "Dispositivos permitidos",
+                subtitle = when (allowed) {
+                    0 -> "Ninguno. La primera vez que una tablet envíe algo, esta TV preguntará."
+                    1 -> "1 dispositivo puede enviar episodios a esta TV (pulsa para olvidarlo)"
+                    else -> "$allowed dispositivos pueden enviar episodios a esta TV (pulsa para olvidarlos)"
+                },
+                onClick = viewModel::forgetRemotes,
+            )
+        }
         item { Section("Diagnóstico") }
         item {
             SettingItem(

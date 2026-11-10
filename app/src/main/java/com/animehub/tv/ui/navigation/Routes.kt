@@ -35,4 +35,25 @@ data class PlayerRoute(
     val coverUrl: String? = null,
     val episodeUrl: String,
     val episodeNumber: Float = 1f,
+    /** Minuto donde empezar (lo envía la tablet con "Enviar a mi TV"); 0 = el guardado. */
+    val startMs: Long = 0,
+)
+
+/**
+ * Control remoto de la TV desde la tablet ("Enviar a mi TV"): envía el episodio a la TV y lo
+ * maneja desde aquí (pausa, saltos, siguiente).
+ */
+@Serializable
+data class RemoteRoute(
+    val tvId: String,
+    val tvName: String,
+    val tvHost: String,
+    val tvPort: Int,
+    val siteId: String,
+    val animeUrl: String,
+    val animeTitle: String,
+    val coverUrl: String? = null,
+    val episodeUrl: String,
+    val episodeNumber: Float = 1f,
+    val startMs: Long = 0,
 )

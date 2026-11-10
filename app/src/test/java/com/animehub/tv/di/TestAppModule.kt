@@ -183,6 +183,22 @@ object TestAppModule {
     @Singleton
     fun provideServiceAdvertiser(): com.animehub.tv.remote.ServiceAdvertiser = FakeRemote.advertiser
 
+    /** Chromecast y DLNA simulados: la prueba pone los dispositivos y ve lo que se les envía. */
+    @Provides
+    @dagger.multibindings.IntoSet
+    fun provideFakeDiscovery(): com.animehub.tv.remote.DeviceDiscovery = FakeRemote.devices
+
+    @Provides
+    @Singleton
+    fun provideRendererFactory(): com.animehub.tv.remote.RendererFactory =
+        com.animehub.tv.remote.RendererFactory { FakeRemote.renderer }
+
+    /** Intermediario en localhost con la red simulada (las páginas guardadas). */
+    @Provides
+    @Singleton
+    fun provideStreamProxy(client: OkHttpClient): com.animehub.tv.stream.StreamProxy =
+        com.animehub.tv.stream.StreamProxy(hostAddress = { "127.0.0.1" }, http = client)
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =

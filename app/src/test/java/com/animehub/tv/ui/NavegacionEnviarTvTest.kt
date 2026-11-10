@@ -18,7 +18,10 @@ import com.animehub.tv.remote.HttpRequest
 import com.animehub.tv.remote.HttpResponse
 import com.animehub.tv.remote.PlayRequest
 import com.animehub.tv.remote.RemoteProtocol
+import com.animehub.tv.remote.DlnaDevice
 import com.animehub.tv.remote.RemoteTv
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import com.animehub.tv.remote.TvReceiver
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
@@ -166,5 +169,33 @@ class NavegacionEnviarTvTest : TvUiTest() {
         // "Detener en la TV": se cierra el reproductor y vuelve a Inicio.
         assertEquals(200, fromTablet("POST", "/command", """{"type":"stop"}""").awaitHere().code)
         waitFor(hasContentDescription(LATEST_FIRST))
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-land-xhdpi")
+    fun la_tablet_envia_a_una_tv_dlna_el_video_directo_por_el_intermediario() {
+        FakeRemote.extra.value = listOf(DlnaDevice("uuid:samsung", "[TV] Samsung Q60", "http://192.168.1.30:9197/upnp/control/AVTransport1"))
+        openTankChair()
+        tap(hasContentDescription("Tank Chair"))
+        tap(hasText("🖥 [TV] Samsung Q60"))
+        tap(hasText("Ver episodio 6 · nuevo"))
+        waitFor(hasText("🖥  En [TV] Samsung Q60"))
+        // La tablet buscó el video directo del episodio (HLS) y lo publicó con su intermediario.
+        compose.waitUntil(10_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            FakeRemote.loaded.isNotEmpty()
+        }
+        val loaded = FakeRemote.loaded.single()
+        assertTrue(loaded.url, loaded.url.startsWith("http://127.0.0.1:") && "/p/" in loaded.url)
+        assertEquals("application/x-mpegURL", loaded.mime)
+        // Lo que pedirá la TV: la lista del servidor, reescrita para que los trozos pasen por la tablet.
+        val playlist = OkHttpClient().newCall(Request.Builder().url(loaded.url).build()).execute().use { it.body.string() }
+        assertTrue(playlist.take(200), playlist.startsWith("#EXTM3U") && playlist.lines().filter { it.startsWith("http") }.all { "/p/" in it })
+        waitFor(hasText("Reproduciendo en la TV"))
+        capture("46_tablet_dlna")
+
+        tap(hasText("⏸  Pausa"))
+        compose.waitUntil(5_000) { FakeRemote.toggles == 1 }
+        waitFor(hasText("En pausa"))
     }
 }

@@ -16,7 +16,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Una TV con AnimeHub encontrada en la red de casa. */
-data class RemoteTv(val id: String, val name: String, val host: String, val port: Int)
+data class RemoteTv(override val id: String, override val name: String, val host: String, val port: Int) : PlayTarget {
+    override val kind get() = PlayTarget.KIND_ANIMEHUB
+    override val label get() = "📺 $name"
+}
 
 sealed interface RemoteResult {
     data object Ok : RemoteResult

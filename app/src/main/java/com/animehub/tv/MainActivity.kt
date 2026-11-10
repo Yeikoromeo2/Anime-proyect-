@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.animehub.tv.remote.TvFinder
+import com.animehub.tv.remote.TargetDirectory
 import com.animehub.tv.remote.TvReceiver
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.isTv
@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
 
     /** "Enviar a mi TV": la TV escucha a la tablet; la tablet busca las TVs de la red. */
     @Inject lateinit var receiver: TvReceiver
-    @Inject lateinit var finder: TvFinder
+    /** En la tablet: TVs con AnimeHub, Chromecast y TVs DLNA de la red. */
+    @Inject lateinit var targets: TargetDirectory
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,12 +57,12 @@ class MainActivity : ComponentActivity() {
     // Solo mientras la app está a la vista (en segundo plano no se puede abrir el reproductor).
     override fun onStart() {
         super.onStart()
-        if (isTv(this)) receiver.start() else finder.start()
+        if (isTv(this)) receiver.start() else targets.start()
     }
 
     override fun onStop() {
         receiver.stop()
-        finder.stop()
+        targets.stop()
         super.onStop()
     }
 }

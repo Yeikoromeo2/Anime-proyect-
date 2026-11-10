@@ -1,6 +1,39 @@
-# Enviar a la TV desde la tablet (Chromecast, duplicar pantalla): análisis
+# Enviar a la TV desde la tablet (AnimeHub, Chromecast, DLNA)
 
-Estado: **solo análisis, sin desarrollar.** Este documento compara las cuatro formas de ver en la TV lo que eliges en la tablet.
+Estado: **desarrollado en la 0.9.0**: "Enviar a mi TV", Chromecast y DLNA. Más abajo, el análisis original con las ventajas y límites de cada opción.
+
+## Cómo se usa
+
+1. **En la TV:** abre AnimeHub (solo hace falta en las TV con AnimeHub; Chromecast y DLNA no la necesitan).
+2. **En la tablet:** abre la ficha de un anime. Si hay destinos en la red, aparece **"Ver en:"**:
+   - **📱 Este dispositivo**;
+   - **📺 TV con AnimeHub**;
+   - **📡 Chromecast**;
+   - **🖥 TV DLNA** (Samsung, LG…).
+3. **Elige el destino** y luego el episodio. En la tablet queda el control remoto: pausa, ±10 s, anterior, siguiente, detener y el minuto en que va.
+4. **La primera vez**, una TV con AnimeHub pregunta **"¿Permitir…?"**. Se acepta con el control y no vuelve a preguntar. En **Ajustes → Enviar a la TV** de la TV se pueden olvidar los dispositivos permitidos.
+
+| Control remoto (TV con AnimeHub) | Permiso en la TV | TV DLNA |
+|---|---|---|
+| ![Control](capturas/enviar/44_tablet_control_tv.png) | ![Permitir](capturas/enviar/45_tv_permitir.png) | ![DLNA](capturas/enviar/46_tablet_dlna.png) |
+
+## Cómo funciona
+
+- **TV con AnimeHub:**
+  - mientras la app está abierta, la TV escucha en la red de casa (`remote/MiniHttpServer.kt`, `remote/TvReceiver.kt`) y se anuncia por NSD como `_animehub._tcp`;
+  - la tablet le manda el episodio (`/play`), las órdenes (`/command`) y pregunta el estado (`/status`);
+  - la TV hace todo como si lo hubieras elegido en ella: servidor, bloqueo de anuncios, minuto guardado y siguiente episodio.
+- **Chromecast y DLNA:**
+  - la tablet busca el **video directo** del episodio, como el reproductor nativo;
+  - lo publica con un **intermediario** (`stream/StreamProxy.kt`), que pide el video al servidor con sus cabeceras (`Referer`, `Origin`) y reescribe las listas HLS para que los trozos también pasen por la tablet;
+  - **Chromecast** usa el receptor estándar de Google (`cast/Cast.kt`);
+  - **DLNA** se descubre con SSDP y se maneja con SOAP/AVTransport (`dlna/Dlna.kt`).
+- **Límites de Chromecast y DLNA:**
+  - solo sirven los episodios con un servidor de video directo (Desu y Magi de JKAnime, MP4Upload…); si no hay, la app lo avisa;
+  - la tablet debe quedar **encendida y con AnimeHub abierta**, porque hace de intermediaria;
+  - algunas TV DLNA no reproducen HLS: con MP4 funcionan casi todas.
+
+## Análisis original
 
 ## El problema de fondo
 

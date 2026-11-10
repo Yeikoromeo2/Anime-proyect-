@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Para instalar las actualizaciones descargadas desde la app (Ajustes → Actualizaciones). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Buscar TVs DLNA (Samsung, LG…) en la red de casa: los avisos llegan por multidifusión. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <!-- App pensada para TV: no exige pantalla táctil ni micrófono. -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -44,6 +46,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Chromecast: receptor estándar de Google (sin registrar una app propia). -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.animehub.tv.cast.CastOptionsProvider" />
 
         <!-- Comparte el APK descargado con el instalador de Android. -->
         <provider

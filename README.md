@@ -18,6 +18,7 @@ App para Android TV / Google TV (y también tablets, con la pantalla táctil) qu
 | 5 · Reproductor nativo (Media3/ExoPlayer) para los servidores con video directo: HLS de zilla, Desu/Magi de JKAnime y MP4Upload ([detalle](docs/reproductor-nativo.md)) | ✅ |
 | Actualizaciones encima (firma fija) + "Buscar actualización" desde la app | ✅ |
 | Tablets (táctil) + icono estilo anime + calidad Automática/Alta + servidores en cuadros (arranca solo el mejor) + logos de los sitios + ficha animada + voz dentro de la app | ✅ |
+| Ver en otra pantalla desde la tablet: TV con AnimeHub ("Enviar a mi TV"), Chromecast y TVs DLNA (Samsung, LG) | ✅ |
 
 ## Requisitos
 
@@ -120,6 +121,14 @@ La misma app se instala en una tablet y se maneja tocando:
 | Tablet: Inicio | Tablet: controles del reproductor | Tablet en vertical |
 |---|---|---|
 | ![Inicio](docs/capturas/tablet/40_tablet_inicio.png) | ![Controles](docs/capturas/tablet/41_tablet_controles.png) | ![Vertical](docs/capturas/tablet/42_tablet_vertical_inicio.png) |
+
+## Ver en otra pantalla (desde la tablet)
+
+En la ficha de un anime, **"Ver en:"** muestra los destinos encontrados en la red de casa:
+- **📺 TV con AnimeHub** (Android TV / Google TV con la app abierta): la TV reproduce el episodio con todo (bloqueo de anuncios, servidor más viable, minuto guardado). Funciona con **todos** los servidores. La primera vez la TV pregunta si permite la tablet.
+- **📡 Chromecast** y **🖥 TVs DLNA** (Samsung, LG…): solo episodios con video directo. La tablet hace de intermediaria, así que debe quedar encendida.
+
+En la tablet queda el control remoto: pausa, ±10 s, anterior/siguiente, detener y el minuto. Detalle y límites en [docs/enviar-a-la-tv.md](docs/enviar-a-la-tv.md).
 
 ## Icono
 

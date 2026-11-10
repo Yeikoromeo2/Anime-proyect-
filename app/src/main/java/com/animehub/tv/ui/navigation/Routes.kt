@@ -45,6 +45,10 @@ data class PlayerRoute(
  */
 @Serializable
 data class RemoteRoute(
+    /** "animehub" (TV con AnimeHub), "cast" (Chromecast) o "dlna" (Samsung, LG…). */
+    val kind: String = "animehub",
+    /** Solo DLNA: dirección de control del reproductor de la TV. */
+    val controlUrl: String? = null,
     val tvId: String,
     val tvName: String,
     val tvHost: String,

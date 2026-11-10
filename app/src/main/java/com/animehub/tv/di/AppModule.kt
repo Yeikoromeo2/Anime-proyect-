@@ -15,6 +15,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 import okhttp3.Cache
 import com.animehub.tv.nativeplayer.ExoNativePlaybackFactory
 import com.animehub.tv.nativeplayer.NativePlaybackFactory
@@ -76,4 +77,35 @@ object AppModule {
     @Provides
     @Singleton
     fun provideServiceAdvertiser(advertiser: com.animehub.tv.remote.NsdAdvertiser): com.animehub.tv.remote.ServiceAdvertiser = advertiser
+
+    /** Chromecast y TVs DLNA (Samsung, LG…): búsqueda en la red desde la tablet. */
+    @Provides
+    @IntoSet
+    fun provideCastDiscovery(discovery: com.animehub.tv.cast.CastDiscovery): com.animehub.tv.remote.DeviceDiscovery = discovery
+
+    @Provides
+    @IntoSet
+    fun provideDlnaDiscovery(discovery: com.animehub.tv.dlna.DlnaDiscovery): com.animehub.tv.remote.DeviceDiscovery = discovery
+
+    /** Reproductor de cada tipo de dispositivo: Chromecast (Google Cast) o DLNA (SOAP). */
+    @Provides
+    @Singleton
+    fun provideRendererFactory(
+        @ApplicationContext context: Context,
+        cast: com.animehub.tv.cast.CastDiscovery,
+    ): com.animehub.tv.remote.RendererFactory = com.animehub.tv.remote.RendererFactory { route ->
+        when (route.kind) {
+            com.animehub.tv.remote.PlayTarget.KIND_CAST -> com.animehub.tv.cast.CastRenderer(context, route.tvId, cast)
+            com.animehub.tv.remote.PlayTarget.KIND_DLNA -> route.controlUrl?.let { com.animehub.tv.dlna.DlnaRenderer(it) }
+            else -> null
+        }
+    }
+
+    /** Intermediario de video en la tablet, con el mismo cliente de la app (User-Agent y cookies) sin caché. */
+    @Provides
+    @Singleton
+    fun provideStreamProxy(client: OkHttpClient): com.animehub.tv.stream.StreamProxy = com.animehub.tv.stream.StreamProxy(
+        http = client.newBuilder().cache(null).callTimeout(0, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS).build(),
+    )
 }

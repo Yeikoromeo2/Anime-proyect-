@@ -1,6 +1,10 @@
 package com.animehub.tv.di
 
+import com.animehub.tv.remote.DeviceDiscovery
+import com.animehub.tv.remote.MediaRenderer
 import com.animehub.tv.remote.PlayRequest
+import com.animehub.tv.remote.PlayTarget
+import com.animehub.tv.remote.RendererStatus
 import com.animehub.tv.remote.RemoteClient
 import com.animehub.tv.remote.RemoteCommand
 import com.animehub.tv.remote.RemoteResult
@@ -44,6 +48,40 @@ object FakeRemote : TvFinder, RemoteClient {
         played.clear()
         commands.clear()
         status = RemoteStatus()
+        extra.value = emptyList()
+        loaded.clear()
+        toggles = 0
+        rendererState = "idle"
+    }
+
+    /** Chromecast o TVs DLNA "encontrados" en la red. */
+    val extra = MutableStateFlow<List<PlayTarget>>(emptyList())
+    val devices = object : DeviceDiscovery {
+        override val devices: StateFlow<List<PlayTarget>> = extra
+        override fun start() = Unit
+        override fun stop() = Unit
+    }
+
+    /** Lo que se le pidió reproducir al Chromecast/TV DLNA: (dirección, tipo, minuto). */
+    data class Loaded(val url: String, val mime: String, val title: String, val startMs: Long)
+    val loaded = mutableListOf<Loaded>()
+    var toggles = 0
+    private var rendererState = "idle"
+
+    val renderer = object : MediaRenderer {
+        override suspend fun load(url: String, mime: String, title: String, subtitle: String, imageUrl: String?, startMs: Long, fragmentedMp4: Boolean): RemoteResult {
+            loaded += Loaded(url, mime, title, startMs)
+            rendererState = "playing"
+            return RemoteResult.Ok
+        }
+        override suspend fun toggle(): Boolean {
+            toggles++
+            rendererState = if (rendererState == "playing") "paused" else "playing"
+            return true
+        }
+        override suspend fun seekBy(seconds: Int) = true
+        override suspend fun stop() { rendererState = "idle" }
+        override suspend fun status() = RendererStatus(rendererState, 90_000, 1_440_000)
     }
 
     /** Anuncio en la red que no hace nada (en Robolectric no hay NSD). */

@@ -9,10 +9,10 @@ import javax.inject.Singleton
 /** Dónde se reproduce desde la tablet: aquí (null) o en una TV de la red. Se recuerda mientras la app está abierta. */
 @Singleton
 class CastTarget @Inject constructor() {
-    private val _selected = MutableStateFlow<RemoteTv?>(null)
-    val selected: StateFlow<RemoteTv?> = _selected.asStateFlow()
+    private val _selected = MutableStateFlow<PlayTarget?>(null)
+    val selected: StateFlow<PlayTarget?> = _selected.asStateFlow()
 
-    fun select(tv: RemoteTv?) {
+    fun select(tv: PlayTarget?) {
         _selected.value = tv
     }
 }

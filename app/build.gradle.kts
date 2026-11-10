@@ -123,6 +123,9 @@ dependencies {
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.media3.ui)
+    // Chromecast desde la tablet (Google Cast con el receptor estándar) y la lista de dispositivos.
+    implementation(libs.cast.framework)
+    implementation(libs.androidx.mediarouter)
     implementation(libs.jsoup)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

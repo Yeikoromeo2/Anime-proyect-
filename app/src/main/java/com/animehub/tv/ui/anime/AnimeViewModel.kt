@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.animehub.tv.remote.CastTarget
-import com.animehub.tv.remote.RemoteTv
-import com.animehub.tv.remote.TvFinder
+import com.animehub.tv.remote.PlayTarget
+import com.animehub.tv.remote.TargetDirectory
 import javax.inject.Inject
 
 data class AnimeUiState(
@@ -43,15 +43,15 @@ class AnimeViewModel @Inject constructor(
     private val registry: ProviderRegistry,
     private val library: LibraryRepository,
     private val errorLog: ErrorLogRepository,
-    finder: TvFinder,
+    directory: TargetDirectory,
     private val castTarget: CastTarget,
 ) : ViewModel() {
 
-    /** "Enviar a mi TV": TVs con AnimeHub en la red y dónde se reproduce ahora. */
-    val tvs: StateFlow<List<RemoteTv>> = finder.tvs
-    val target: StateFlow<RemoteTv?> = castTarget.selected
+    /** Ver en otra pantalla: TVs con AnimeHub, Chromecast y TVs DLNA de la red, y dónde se reproduce ahora. */
+    val tvs: StateFlow<List<PlayTarget>> = directory.targets
+    val target: StateFlow<PlayTarget?> = castTarget.selected
 
-    fun selectTarget(tv: RemoteTv?) = castTarget.select(tv)
+    fun selectTarget(tv: PlayTarget?) = castTarget.select(tv)
 
     private val route: AnimeRoute = savedStateHandle.toRoute()
     private val load = MutableStateFlow(LoadState())

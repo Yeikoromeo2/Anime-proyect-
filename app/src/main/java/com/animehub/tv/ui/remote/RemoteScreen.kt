@@ -27,6 +27,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import com.animehub.tv.remote.PlayTarget
 import com.animehub.tv.remote.RemoteStatus
 import com.animehub.tv.ui.components.Button
 import com.animehub.tv.ui.components.OutlinedButton
@@ -64,7 +65,7 @@ fun RemoteScreen(onBack: () -> Unit, viewModel: RemoteViewModel = hiltViewModel(
                 modifier = Modifier.size(width = 200.dp, height = 290.dp).clip(RoundedCornerShape(14.dp)).background(AppColors.Superficie),
             )
             Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.widthIn(max = 720.dp)) {
-                Text("📺  En ${route.tvName}", style = MaterialTheme.typography.titleMedium, color = AppColors.Acento2)
+                Text("${iconOf(route.kind)}  En ${route.tvName}", style = MaterialTheme.typography.titleMedium, color = AppColors.Acento2)
                 Text(status?.title ?: route.animeTitle, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
                     listOfNotNull(
@@ -73,7 +74,7 @@ fun RemoteScreen(onBack: () -> Unit, viewModel: RemoteViewModel = hiltViewModel(
                     ).joinToString(" · "),
                     color = AppColors.TextoSecundario,
                 )
-                Text(phaseText(state, route.tvName), color = if (state.phase is SendPhase.Failed || state.phase == SendPhase.Rejected) AppColors.Error else AppColors.Foco)
+                Text(phaseText(state, route.tvName, route.kind), color = if (state.phase is SendPhase.Failed || state.phase == SendPhase.Rejected) AppColors.Error else AppColors.Foco)
                 state.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.Error) }
                 if (status != null && status.durationMs > 0) SeekBar(status.positionMs, status.durationMs)
                 when (state.phase) {
@@ -112,13 +113,19 @@ private fun Controls(status: RemoteStatus?, seek: Int, command: (String, Int) ->
     }
 }
 
-private fun phaseText(state: RemoteUiState, tvName: String): String = when (val phase = state.phase) {
+private fun iconOf(kind: String) = when (kind) {
+    PlayTarget.KIND_CAST -> "📡"
+    PlayTarget.KIND_DLNA -> "🖥"
+    else -> "📺"
+}
+
+private fun phaseText(state: RemoteUiState, tvName: String, kind: String): String = when (val phase = state.phase) {
     SendPhase.Sending -> "Enviando a $tvName…"
     SendPhase.WaitingApproval -> "Si es la primera vez, acepta este dispositivo en la TV (con el control)."
     SendPhase.Rejected -> "La TV no permitió este dispositivo. Ábrela y vuelve a intentarlo."
-    is SendPhase.Failed -> "${phase.message}. ¿Está AnimeHub abierta en la TV?"
+    is SendPhase.Failed -> if (kind == PlayTarget.KIND_ANIMEHUB) "${phase.message}. ¿Está AnimeHub abierta en la TV?" else "${phase.message}."
     SendPhase.Connected -> when (state.status?.state) {
-        null, "loading" -> "La TV está buscando un servidor que funcione…"
+        null, "loading" -> if (kind == PlayTarget.KIND_ANIMEHUB) "La TV está buscando un servidor que funcione…" else "Cargando el video en $tvName…"
         "playing" -> "Reproduciendo en la TV"
         "paused" -> "En pausa"
         "finished" -> "Terminó el episodio"

@@ -77,6 +77,8 @@ import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.ui.navigation.PlayerRoute
 import com.animehub.tv.ui.navigation.RemoteRoute
+import com.animehub.tv.remote.DlnaDevice
+import com.animehub.tv.remote.PlayTarget
 import com.animehub.tv.remote.RemoteTv
 import com.animehub.tv.ui.rememberIsTv
 import com.animehub.tv.util.Format
@@ -108,7 +110,10 @@ fun AnimeScreen(
             val progress = state.progress[ep.url]?.takeIf { !it.completed }
             onPlayOnTv(
                 RemoteRoute(
-                    tvId = tv.id, tvName = tv.name, tvHost = tv.host, tvPort = tv.port,
+                    kind = tv.kind,
+                    controlUrl = (tv as? DlnaDevice)?.controlUrl,
+                    tvId = tv.id, tvName = tv.name,
+                    tvHost = (tv as? RemoteTv)?.host.orEmpty(), tvPort = (tv as? RemoteTv)?.port ?: 0,
                     siteId = state.route.siteId, animeUrl = state.route.url, animeTitle = title, coverUrl = cover,
                     episodeUrl = ep.url, episodeNumber = ep.number, startMs = progress?.positionMs ?: 0,
                 ),
@@ -329,12 +334,12 @@ private enum class EpisodePicker { Season, GoTo }
 /** "Ver en: Este dispositivo · TV de la sala": con una TV elegida, los episodios se envían a la TV. */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun PlayTarget(tvs: List<RemoteTv>, target: RemoteTv?, onSelect: (RemoteTv?) -> Unit) {
+private fun PlayTarget(tvs: List<PlayTarget>, target: PlayTarget?, onSelect: (PlayTarget?) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Ver en:", color = AppColors.TextoSecundario)
         FilterChip(selected = target == null || target !in tvs, onClick = { onSelect(null) }) { Text("📱 Este dispositivo") }
         tvs.forEach { tv ->
-            FilterChip(selected = target == tv, onClick = { onSelect(tv) }) { Text("📺 ${tv.name}") }
+            FilterChip(selected = target == tv, onClick = { onSelect(tv) }) { Text(tv.label) }
         }
     }
 }

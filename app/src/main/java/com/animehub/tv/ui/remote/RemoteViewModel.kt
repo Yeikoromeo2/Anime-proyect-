@@ -6,11 +6,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.animehub.tv.data.settings.SettingsRepository
 import com.animehub.tv.remote.PlayRequest
-import com.animehub.tv.remote.RemoteClient
+import com.animehub.tv.remote.TargetSession
+import com.animehub.tv.remote.TargetSessionFactory
 import com.animehub.tv.remote.RemoteCommand
 import com.animehub.tv.remote.RemoteResult
 import com.animehub.tv.remote.RemoteStatus
-import com.animehub.tv.remote.RemoteTv
 import com.animehub.tv.ui.navigation.RemoteRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -46,12 +46,13 @@ data class RemoteUiState(
 @HiltViewModel
 class RemoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val client: RemoteClient,
+    sessions: TargetSessionFactory,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
     val route: RemoteRoute = savedStateHandle.toRoute()
-    val tv = RemoteTv(route.tvId, route.tvName, route.tvHost, route.tvPort)
+    /** TV con AnimeHub, Chromecast o TV DLNA. */
+    private val session: TargetSession? = sessions.create(route)
     private val _state = MutableStateFlow(RemoteUiState())
     val state: StateFlow<RemoteUiState> = _state.asStateFlow()
     private var polling: Job? = null
@@ -70,13 +71,12 @@ class RemoteViewModel @Inject constructor(
                 delay(APPROVAL_HINT_MS)
                 _state.update { if (it.phase == SendPhase.Sending) it.copy(phase = SendPhase.WaitingApproval) else it }
             }
-            val result = client.play(
-                tv,
+            val result = session?.play(
                 PlayRequest(
                     siteId = route.siteId, animeUrl = route.animeUrl, animeTitle = route.animeTitle, coverUrl = route.coverUrl,
                     episodeUrl = route.episodeUrl, episodeNumber = route.episodeNumber, startMs = route.startMs,
                 ),
-            )
+            ) ?: RemoteResult.Failed("Este dispositivo no está disponible")
             hint.cancel()
             _state.update {
                 it.copy(
@@ -93,7 +93,7 @@ class RemoteViewModel @Inject constructor(
 
     fun command(type: String, seconds: Int = 0) {
         viewModelScope.launch {
-            when (val result = client.command(tv, RemoteCommand(type, seconds))) {
+            when (val result = session?.command(RemoteCommand(type, seconds)) ?: RemoteResult.NothingPlaying) {
                 RemoteResult.Ok -> refresh()
                 RemoteResult.NothingPlaying -> _state.update { it.copy(notice = "La TV no está reproduciendo nada") }
                 RemoteResult.Rejected -> _state.update { it.copy(phase = SendPhase.Rejected) }
@@ -113,8 +113,8 @@ class RemoteViewModel @Inject constructor(
     }
 
     private suspend fun refresh() {
-        val status = client.status(tv)
-        _state.update { it.copy(status = status ?: it.status, notice = if (status == null) "Sin respuesta de ${tv.name}" else null) }
+        val status = session?.status()
+        _state.update { it.copy(status = status ?: it.status, notice = if (status == null) "Sin respuesta de ${route.tvName}" else null) }
     }
 
     private companion object {

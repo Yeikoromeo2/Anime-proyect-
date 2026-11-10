@@ -51,3 +51,11 @@ Funciona como Cast pero llega a más marcas. Cada TV acepta formatos distintos: 
 1. **Ahora:** para probar sin esperar, la opción 1 (duplicar pantalla).
 2. **Desarrollar la opción 2,** "Enviar a mi TV". Cubre todos los servidores con la TV que ya tiene AnimeHub.
 3. **Más adelante, si se quiere llegar a TVs sin AnimeHub:** sumar Google Cast (opción 3) solo para los servidores con video directo.
+
+## Decisión (2026-11-10)
+
+- **Elegido:** desarrollar las dos: **"Enviar a mi TV"** (opción 2) y **Google Cast** (opción 3).
+- **Televisores:** Android TV / Google TV, Samsung y LG.
+- **Qué cubre cada una:**
+  - **Android TV / Google TV:** "Enviar a mi TV", con todos los servidores. Google Cast también funciona si la TV trae Chromecast integrado.
+  - **Samsung y LG:** no admiten ninguna de las dos. Samsung y LG no instalan AnimeHub y no traen Chromecast. Para ellas solo quedan duplicar la pantalla (Smart View en Samsung, Screen Share en LG) o DLNA (opción 4), con sus límites.

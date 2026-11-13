@@ -65,6 +65,11 @@ data class SiteConfig(
     val logoAlign: Float = 0f,
     /** Color del sitio ("#RRGGBB"): fondo del círculo si el logo no carga (se ven las iniciales). */
     val color: String? = null,
+    /**
+     * Cuando el mismo anime está en varios sitios se usa la versión del sitio con más prioridad
+     * (más episodios, miniaturas y video directo). Más alto = antes.
+     */
+    val priority: Int = 0,
 ) {
     val isPending: Boolean get() = status != STATUS_OK
     val isClosed: Boolean get() = status == STATUS_CLOSED

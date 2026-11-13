@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -31,6 +32,11 @@ import com.animehub.tv.ui.components.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.animehub.tv.domain.model.FilterGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.tv.material3.OutlinedButtonDefaults
+import com.animehub.tv.ui.LocalAdmin
+import com.animehub.tv.ui.components.OutlinedButton
+import com.animehub.tv.ui.components.TvTextField
 import com.animehub.tv.ui.components.ChoiceDialog
 import com.animehub.tv.ui.components.PosterCard
 import com.animehub.tv.ui.components.SecondaryText
@@ -52,17 +58,31 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun ExploreScreen(
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
     initialGenre: String? = null,
+    startVoice: Boolean = false,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val admin = LocalAdmin.current
     LaunchedEffect(Unit) { viewModel.startExplore(initialGenre) }
+
+    // Búsqueda integrada: lo escrito o dicho se busca de inmediato con los filtros elegidos.
+    var text by rememberSaveable { mutableStateOf("") }
+    val search: (String) -> Unit = { q -> if (q.isBlank()) viewModel.browse() else viewModel.search(q) }
+    val voice = rememberVoiceUi(viewModel.voice) { spoken -> text = spoken; viewModel.search(spoken) }
+    var voiceStarted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (startVoice && voice.available && !voiceStarted) {
+            voiceStarted = true
+            voice.start()
+        }
+    }
 
     /** Menú abierto: "sitio" o el id de un grupo de filtros. */
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
     // Desde un género de Inicio el foco va directo a las portadas; si no, al menú.
     val resultsFocus = remember(state.version) { InitialFocusState() }
-    val focusResults = initialGenre != null && state.version <= 1
+    val focusResults = initialGenre != null && state.version <= 1 || (state.query.isNotEmpty() && state.version > 1)
 
     // Desplazamiento infinito: al acercarse al final se pide la página siguiente.
     LaunchedEffect(gridState, state.version) {
@@ -72,7 +92,7 @@ fun ExploreScreen(
     }
 
     val groups = state.filterGroups.sortedBy { MENU_ORDER.indexOf(it.id).let { i -> if (i < 0) 99 else i } }
-    val siteName = state.sites.firstOrNull { it.id == state.selectedSite }?.name ?: "Todos los sitios"
+    val siteName = if (admin) state.sites.firstOrNull { it.id == state.selectedSite }?.name ?: "Todos los sitios" else null
 
     Row(
         modifier = Modifier.fillMaxSize().padding(start = 40.dp, end = 24.dp, top = 28.dp),
@@ -89,7 +109,7 @@ fun ExploreScreen(
                     Text("Todo el catálogo, por categoría", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
                 }
             }
-            if (state.sites.size > 2) {
+            if (admin && state.sites.size > 2) {
                 item(key = "sitio") {
                     MenuEntry(
                         title = "Sitio",
@@ -108,7 +128,7 @@ fun ExploreScreen(
                         viewModel.clearFilters()
                         viewModel.browse()
                     },
-                    modifier = if (!focusResults && state.sites.size <= 2) Modifier.initialFocus() else Modifier,
+                    modifier = if (!focusResults && !(admin && state.sites.size > 2)) Modifier.initialFocus() else Modifier,
                 )
             }
             items(groups, key = { it.id }) { group ->
@@ -135,8 +155,23 @@ fun ExploreScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "cabecera") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 6.dp, bottom = 4.dp)) {
+                    // Barra de búsqueda: escribir, o el micrófono (pequeño) que escucha al pulsarlo.
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TvTextField(
+                            value = text,
+                            onValueChange = { text = it },
+                            placeholder = "Buscar un anime",
+                            onDone = { search(text) },
+                            pill = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (voice.available) {
+                            OutlinedButton(onClick = voice.start, shape = OutlinedButtonDefaults.shape(RoundedCornerShape(28.dp))) { Text("🎤") }
+                        }
+                    }
                     Text(
-                        state.filterSummary.ifEmpty { "Todo el catálogo" } + " · " + siteName,
+                        (if (state.query.isNotEmpty()) "“${state.query}”" else state.filterSummary.ifEmpty { "Todo el catálogo" }) +
+                            (siteName?.let { " · $it" } ?: ""),
                         style = MaterialTheme.typography.titleLarge,
                     )
                     ExploreStatus(state)
@@ -149,7 +184,7 @@ fun ExploreScreen(
                     onClick = { onOpenAnime(card.siteId, card.url, card.title, card.coverUrl) },
                     cardModifier = if (index == 0 && focusResults) Modifier.initialFocus(resultsFocus) else Modifier,
                     subtitle = listOfNotNull(card.type?.etiqueta, card.year?.toString(), card.language).joinToString(" · ").ifEmpty { null },
-                    badge = if (state.selectedSite == null) state.siteNames[card.siteId] else null,
+                    badge = if (admin && state.selectedSite == null) state.siteNames[card.siteId] else null,
                     width = null,
                 )
             }
@@ -187,6 +222,7 @@ fun ExploreScreen(
             )
         }
     }
+    voice.panel()
     // Si se cambió de sitio y esa categoría ya no existe, se cierra el menú pendiente.
     LaunchedEffect(groups) {
         if (picking != null && picking != SITE && groups.none { it.id == picking } && !state.filtersLoading) picking = null

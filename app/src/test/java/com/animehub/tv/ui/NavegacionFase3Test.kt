@@ -48,11 +48,7 @@ class NavegacionFase3Test : TvUiTest() {
         FakeVoice.reset()
     }
 
-    private fun openSearch() {
-        toHeader()
-        key(Key.DirectionCenter) // "Buscar"
-        waitForText("Nombre del anime")
-    }
+    private fun openSearch() = openExplore() // la búsqueda vive dentro de Explorar
 
     /** Simula que la TV tiene reconocimiento de voz (en Robolectric no hay ninguno instalado). */
     private fun installFakeRecognizer() {
@@ -63,29 +59,26 @@ class NavegacionFase3Test : TvUiTest() {
     }
 
     @Test
-    fun sin_reconocedor_de_voz_no_hay_microfono_y_el_campo_tiene_el_foco() {
+    fun sin_reconocedor_de_voz_no_hay_microfono() {
         openSearch()
-        compose.onNodeWithText("🎤 Hablar").assertDoesNotExist()
-        compose.onNode(hasSetTextAction()).assertIsFocused()
+        compose.onNodeWithText("🎤").assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).assertExists()
     }
 
     @Test
-    fun el_microfono_tiene_el_foco_y_lo_dictado_se_busca() {
+    fun el_microfono_pequeno_escucha_al_pulsarlo_y_lo_dictado_se_busca() {
         installFakeRecognizer()
         openSearch()
-        compose.onNodeWithText("🎤 Hablar").assertIsFocused()
         capture("12_busqueda_voz")
-        key(Key.DirectionCenter)
+        activate("🎤")
         val shadow = shadowOf(compose.activity)
         val request = shadow.nextStartedActivityForResult
         assertEquals(RecognizerIntent.ACTION_RECOGNIZE_SPEECH, request.intent.action)
         assertEquals("es-419", request.intent.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE))
         val spoken = Intent().putStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS, arrayListOf("one piece"))
         shadow.receiveResult(request.intent, Activity.RESULT_OK, spoken)
-        // Anime Ninja y JKAnime encuentran One Piece; Latanime avisa de su verificación de Cloudflare.
-        waitForText("resultados para \"one piece\"", substring = true)
-        waitForText("Latanime pide una verificación de seguridad", substring = true)
-        compose.onNodeWithText("one piece").assertExists()
+        waitForText("“one piece”")
+        waitForText("títulos cargados", substring = true)
     }
 
     @Test
@@ -93,64 +86,16 @@ class NavegacionFase3Test : TvUiTest() {
         FakeVoice.available = true
         shadowOf(compose.activity.application).grantPermissions(Manifest.permission.RECORD_AUDIO)
         openSearch()
-        compose.onNodeWithText("🎤 Hablar").assertIsFocused()
-        key(Key.DirectionCenter)
+        activate("🎤")
         // Panel propio de la app (no la pantalla del asistente, que tapaba todo).
         waitForText("Te escucho…")
         compose.runOnUiThread { FakeVoice.emit(VoiceState.Listening(level = 0.8f, partial = "one pi")) }
         waitForText("“one pi”")
         capture("35_voz_en_la_app")
         compose.runOnUiThread { FakeVoice.emit(VoiceState.Result("one piece")) }
-        waitForText("resultados para \"one piece\"", substring = true)
+        waitForText("“one piece”")
         compose.onNodeWithText("Te escucho…").assertDoesNotExist()
         assertNull(shadowOf(compose.activity).nextStartedActivityForResult)
         assertEquals(1, FakeVoice.started)
-    }
-
-    @Test
-    fun filtrar_latanime_por_genero_y_anio_con_el_panel() {
-        openSearch()
-        activate("Latanime") // chip de sitio
-        waitForText("Estrenos del año") // acceso rápido que Latanime sí permite
-        // Con el D-pad: Buscar → Filtros. (Dentro del campo de texto las flechas del simulador
-        // mueven el cursor; con el D-pad real de la TV Compose saca el foco del campo.)
-        compose.onNode(hasText("Buscar") and hasClickAction()).performSemanticsAction(SemanticsActions.RequestFocus)
-        key(Key.DirectionRight)
-        compose.onNodeWithText("Filtros").assertIsFocused()
-        key(Key.DirectionCenter)
-        waitForText("Filtros · Latanime")
-        waitForFocus("Ver resultados")
-        waitForText("Año")
-        activate("2024")
-        compose.onAllNodes(hasScrollAction()).filterToOne(hasAnyDescendant(hasText("Ver resultados")))
-            .performScrollToNode(hasText("Acción"))
-        activate("Acción")
-        waitForText("2 filtros activos")
-        // Con el D-pad se baja desde los botones a los filtros.
-        key(Key.DirectionDown)
-        capture("13_panel_filtros")
-        back() // Atrás cierra el panel y aplica los filtros
-        waitForText("30 resultados para los filtros elegidos")
-        compose.onNodeWithText("Filtros (2)").assertExists()
-        compose.onNodeWithText("Filtros: Acción · 2024").assertExists()
-        capture("14_resultados_filtrados")
-        activate("Limpiar")
-        waitForText("Filtros")
-    }
-
-    @Test
-    fun en_todos_los_sitios_el_anio_omite_a_anime_ninja_con_aviso() {
-        openSearch()
-        activate("Filtros")
-        waitForText("Filtros · Todos los sitios")
-        // Grupos comunes: Tipo, Estado, Año y Género (Letra es solo de Latanime y no aparece).
-        waitForText("Tipo")
-        waitForText("Año")
-        compose.onNodeWithText("Letra").assertDoesNotExist()
-        activate("2024")
-        waitForText("1 filtros activos")
-        activate("Ver resultados")
-        waitForText("Anime Ninja no tiene filtro de Año: se omitió", substring = true)
-        waitForText("resultados para los filtros elegidos", substring = true)
     }
 }

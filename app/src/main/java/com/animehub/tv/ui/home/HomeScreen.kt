@@ -62,6 +62,14 @@ import com.animehub.tv.data.update.UpdateState
 import com.animehub.tv.domain.model.EpisodeCard
 import com.animehub.tv.domain.model.ShowcaseItem
 import com.animehub.tv.domain.model.WatchProgress
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import com.animehub.tv.ui.LocalAdmin
 import com.animehub.tv.ui.components.ConfirmDialog
 import com.animehub.tv.ui.components.PosterCard
 import com.animehub.tv.ui.components.ReviewCard
@@ -77,7 +85,6 @@ import com.animehub.tv.voice.VoiceSearch
 
 @Composable
 fun HomeScreen(
-    onSearch: () -> Unit,
     onExplore: (genre: String?) -> Unit,
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
@@ -89,6 +96,9 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val admin = LocalAdmin.current
+    // Sin modo administrador no se ve de qué sitio viene nada.
+    val names = if (admin) state.siteNames else emptyMap()
     val update by viewModel.updates.state.collectAsStateWithLifecycle()
     var updateDialog by remember { mutableStateOf(false) }
     val onRetryLatest: (String) -> Unit = { viewModel.reloadLatest(it) }
@@ -105,20 +115,35 @@ fun HomeScreen(
         onOpenEpisode(ep.siteId, ep.animeUrl ?: ep.episodeUrl, ep.episodeUrl, ep.animeTitle, ep.imageUrl)
     }
 
+    // Animación de entrada (una vez por apertura): después el perfil aparece subiendo con un fundido.
+    var showIntro by remember { mutableStateOf(Intro.enabled && !Intro.shown) }
+    LaunchedEffect(showIntro) { if (showIntro) Intro.shown = true }
+    val reveal by animateFloatAsState(if (showIntro) 0f else 1f, tween(650), label = "entrada")
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                // Cualquier tecla salta la animación (y no actúa sobre lo que hay debajo).
+                if (showIntro && event.type == KeyEventType.KeyDown) { showIntro = false; true } else false
+            },
+    ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().graphicsLayer {
+            alpha = if (reveal >= 1f) 1f else reveal
+            translationY = (1f - reveal) * 48f
+        },
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
         item {
-            HomeHeader(onSearch, { onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) {
+            HomeHeader({ onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) {
                 // Versión nueva en Releases: botón al final de la cabecera.
                 if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel(), maxLines = 1, softWrap = false) }
             }
         }
 
         // Qué sitio se está viendo: todos mezclados o uno solo (se recuerda).
-        if (state.siteChoices.size > 1) {
+        if (admin && state.siteChoices.size > 1) {
             item(key = "elegir-sitio") { SiteChooser(state, viewModel::selectSite) }
         }
 
@@ -129,7 +154,7 @@ fun HomeScreen(
             item(key = "ultimos-capitulos") {
                 ContentRow(
                     title = "Últimos capítulos",
-                    subtitle = "Lo que se acaba de publicar en " + (state.currentSite?.name ?: "tus sitios"),
+                    subtitle = "Lo que se acaba de publicar" + state.currentSite?.name?.let { " en $it" }.orEmpty(),
                     items = combined,
                     key = { it.siteId + it.episodeUrl },
                     firstItemModifier = if (!movedToLatest && searchHasFocus) Modifier.initialFocus(latestFocus) else Modifier,
@@ -141,7 +166,7 @@ fun HomeScreen(
                         cardModifier = cardModifier,
                         width = 300.dp,
                         subtitle = listOfNotNull(
-                            state.siteNames[ep.siteId],
+                            names[ep.siteId],
                             ep.episodeNumber?.let { "Episodio ${Format.episode(it)}" },
                             ep.dateLabel,
                         ).joinToString(" · "),
@@ -164,7 +189,7 @@ fun HomeScreen(
                         imageUrl = p.coverUrl,
                         cardModifier = cardModifier,
                         subtitle = "Ep. ${Format.episode(p.episodeNumber)} – ${Format.time(p.positionMs)}",
-                        badge = state.siteNames[p.siteId],
+                        badge = names[p.siteId],
                         progress = p.fraction,
                         // Continuar viendo: reproduce directo desde el minuto guardado.
                         onClick = { onResume(p) },
@@ -180,7 +205,7 @@ fun HomeScreen(
                         title = f.title,
                         imageUrl = f.coverUrl,
                         cardModifier = cardModifier,
-                        badge = state.siteNames[f.siteId],
+                        badge = names[f.siteId],
                         onClick = { onOpenAnime(f.siteId, f.animeUrl, f.title, f.coverUrl) },
                     )
                 }
@@ -196,7 +221,7 @@ fun HomeScreen(
             item(key = "recomendados") {
                 ContentRow(
                     title = "Recomendados",
-                    subtitle = "Lo que destaca " + (state.currentSite?.name ?: "cada sitio") + ", con una pequeña reseña",
+                    subtitle = "Lo que destaca hoy, con una pequeña reseña",
                     items = state.recommended,
                     key = { it.card.siteId + it.card.url },
                 ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
@@ -206,7 +231,7 @@ fun HomeScreen(
             item(key = "series-nuevas") {
                 ContentRow(
                     title = "Series nuevas",
-                    subtitle = "Estrenos recién agregados a " + (state.currentSite?.name ?: "tus sitios"),
+                    subtitle = "Estrenos recién agregados",
                     items = state.newSeries,
                     key = { it.card.siteId + it.card.url },
                 ) { item, cardModifier -> ShowcaseCard(item, state, cardModifier, viewModel::requestReview, onOpenAnime) }
@@ -219,7 +244,7 @@ fun HomeScreen(
                 val entries = listOf(GenreEntry("Todo el catálogo", null)) + state.genres.map { GenreEntry(it.label, it.value) }
                 ContentRow(
                     title = "Explorar por género",
-                    subtitle = "Todo el catálogo de " + (state.currentSite?.name ?: "tus sitios") + ", por categoría",
+                    subtitle = "Todo el catálogo, por categoría",
                     items = entries,
                     key = { it.canonical ?: "todo" },
                 ) { entry, cardModifier ->
@@ -227,6 +252,8 @@ fun HomeScreen(
                 }
             }
         }
+    }
+    if (showIntro) IntroSplash { showIntro = false }
     }
 
     if (updateDialog && update != UpdateState.Idle) {
@@ -246,7 +273,6 @@ fun HomeScreen(
 
 @Composable
 private fun HomeHeader(
-    onSearch: () -> Unit,
     onExplore: () -> Unit,
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
@@ -274,10 +300,9 @@ private fun HomeHeader(
     }
     val buttons: @Composable () -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onSearch, modifier = Modifier.initialFocus(focus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Buscar") }
-            OutlinedButton(onClick = onExplore) { Text("Explorar") }
-            // Atajo de voz: solo si el dispositivo tiene reconocimiento de voz.
-            if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤 Voz") }
+            // Explorar incluye la búsqueda; el micrófono (si hay voz) abre Explorar escuchando.
+            Button(onClick = onExplore, modifier = Modifier.initialFocus(focus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Explorar") }
+            if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
             extra()
@@ -412,15 +437,24 @@ private fun initials(name: String) =
 private fun LatestStatus(state: HomeUiState, onRetry: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (state.combinedLatest.isEmpty()) Text("Últimos capítulos", style = MaterialTheme.typography.titleLarge)
+        val admin = LocalAdmin.current
         when {
-            state.activeSites.isEmpty() -> InfoText("No hay sitios activos. Actívalos en Ajustes.")
+            state.activeSites.isEmpty() -> if (admin) InfoText("No hay sitios activos. Actívalos en Ajustes.")
             state.combinedLatest.isEmpty() && state.loadingLatest -> InfoText("Cargando capítulos nuevos…")
             state.combinedLatest.isEmpty() && state.failedSites.isEmpty() -> InfoText("No hay capítulos nuevos.")
         }
-        state.failedSites.forEach { (site, error) ->
+        if (admin) {
+            state.failedSites.forEach { (site, error) ->
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${site.name}: $error", color = AppColors.Error)
+                    OutlinedButton(onClick = { onRetry(site.id) }) { Text("Reintentar") }
+                }
+            }
+        } else if (state.combinedLatest.isEmpty() && state.failedSites.isNotEmpty()) {
+            // Sin detalles técnicos: algo tarda y ya se está reintentando solo.
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${site.name}: $error", color = AppColors.Error)
-                OutlinedButton(onClick = { onRetry(site.id) }) { Text("Reintentar") }
+                Text("Estamos preparando las novedades…", color = AppColors.TextoSecundario)
+                OutlinedButton(onClick = { state.failedSites.forEach { onRetry(it.first.id) } }) { Text("Reintentar") }
             }
         }
     }
@@ -443,7 +477,7 @@ private fun ShowcaseCard(
         synopsis = review?.let { it.synopsis.orEmpty() },
         cardModifier = cardModifier,
         meta = listOfNotNull(
-            state.siteNames[item.card.siteId],
+            if (LocalAdmin.current) state.siteNames[item.card.siteId] else null,
             item.dateLabel?.let { "Agregado el ${Format.siteDate(it)}" } ?: item.card.year?.toString(),
             item.rating?.let { "★ $it" },
         ).joinToString(" · "),

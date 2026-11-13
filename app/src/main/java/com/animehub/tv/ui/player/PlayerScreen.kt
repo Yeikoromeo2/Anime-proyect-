@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.CardDefaults
 import com.animehub.tv.ui.components.Card
 import com.animehub.tv.ui.components.focusBorder
+import com.animehub.tv.ui.LocalAdmin
 import com.animehub.tv.ui.rememberIsTv
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -140,6 +141,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
 
     val playing = state.phase is PlayerPhase.Playing
     val isTv = rememberIsTv()
+    val admin = LocalAdmin.current
     val rootFocus = remember { FocusRequester() }
     var infoTick by remember { mutableIntStateOf(0) }
     var infoVisible by remember { mutableStateOf(true) }
@@ -224,7 +226,9 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         }
         when (val phase = state.phase) {
             PlayerPhase.LoadingServers -> CenterMessage("Buscando servidores que funcionen…\n${episodeTitle(session, state)}", null, onExit)
-            is PlayerPhase.ChoosingServer -> ServerGrid(session, state, phase.options, onChoose = controller::choose)
+            is PlayerPhase.ChoosingServer ->
+                if (admin) ServerGrid(session, state, phase.options, onChoose = controller::choose)
+                else CenterMessage("No pudimos reproducir este episodio por ahora.", "Reintentar" to controller::start, onExit)
             is PlayerPhase.Playing -> {
                 if (!isTv) {
                     // Capa táctil sobre el video (también evita tocar los anuncios de la página):
@@ -247,7 +251,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     exit = fadeOut(tween(300)) + slideOutVertically(tween(300)) { it / 3 },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
-                    InfoBar(session, state, phase.option, isTv)
+                    InfoBar(session, state, phase.option, isTv, admin)
                 }
                 AnimatedVisibility(
                     visible = touchControls,
@@ -266,7 +270,9 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                             seek(seconds)
                             infoTick++
                         },
-                        onServers = { controller.showServers() },
+                        // Sin modo administrador no se ven servidores: solo "otra opción".
+                        onServers = { if (admin) controller.showServers() else controller.tryAnother() },
+                        serversLabel = if (admin) "Servidores" else "Otra opción",
                         onOptions = { menuOpen = true },
                         onBack = {
                             controller.onExit()
@@ -298,9 +304,10 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     if (menuOpen) {
         ActionsDialog(
             title = episodeTitle(session, state),
-            message = (state.phase as? PlayerPhase.Playing)?.option?.server?.name?.let { "Servidor: $it" },
+            message = if (admin) (state.phase as? PlayerPhase.Playing)?.option?.server?.name?.let { "Servidor: $it" } else null,
             actions = listOf(
-                DialogAction("Cambiar servidor") { menuOpen = false; controller.showServers() },
+                if (admin) DialogAction("Cambiar servidor") { menuOpen = false; controller.showServers() }
+                else DialogAction("Probar otra opción", enabled = state.options.count { it.health != ServerHealth.NO_DISPONIBLE } > 1) { menuOpen = false; controller.tryAnother() },
                 // Para avisos o capas del servidor que tapan el video y no se pueden tocar con el control.
                 DialogAction("Quitar recuadros") { menuOpen = false; controller.cleanupOverlays() },
                 DialogAction("Siguiente episodio", enabled = state.hasNext) { menuOpen = false; controller.nextEpisode() },
@@ -411,7 +418,7 @@ private fun Tag(text: String, color: Color) {
 }
 
 @Composable
-private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOption, isTv: Boolean) {
+private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOption, isTv: Boolean, admin: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -422,9 +429,10 @@ private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOp
         Text(episodeTitle(session, state), style = MaterialTheme.typography.titleLarge)
         Text(
             listOfNotNull(
-                option.server.name,
-                session.siteName,
-                if (state.nativePlayback) "Reproductor nativo" else "Reproductor web",
+                // Solo en modo administrador se ve de dónde sale el video.
+                option.server.name.takeIf { admin },
+                session.siteName.takeIf { admin },
+                (if (state.nativePlayback) "Reproductor nativo" else "Reproductor web").takeIf { admin },
                 "En pausa".takeIf { state.paused },
             ).joinToString(" · "),
             color = AppColors.TextoSecundario,

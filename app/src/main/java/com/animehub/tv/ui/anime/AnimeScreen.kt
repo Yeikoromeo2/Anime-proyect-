@@ -78,6 +78,7 @@ import com.animehub.tv.ui.focus.rememberInitialFocusState
 import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.ui.navigation.PlayerRoute
 import com.animehub.tv.ui.navigation.RemoteRoute
+import com.animehub.tv.ui.LocalAdmin
 import com.animehub.tv.remote.DlnaDevice
 import com.animehub.tv.remote.PlayTarget
 import com.animehub.tv.remote.RemoteTv
@@ -115,14 +116,14 @@ fun AnimeScreen(
                     controlUrl = (tv as? DlnaDevice)?.controlUrl,
                     tvId = tv.id, tvName = tv.name,
                     tvHost = (tv as? RemoteTv)?.host.orEmpty(), tvPort = (tv as? RemoteTv)?.port ?: 0,
-                    siteId = state.route.siteId, animeUrl = state.route.url, animeTitle = title, coverUrl = cover,
+                    siteId = ep.siteId ?: state.route.siteId, animeUrl = ep.animeUrl ?: state.route.url, animeTitle = title, coverUrl = cover,
                     episodeUrl = ep.url, episodeNumber = ep.number, startMs = progress?.positionMs ?: 0,
                 ),
             )
         } else {
             onPlay(
                 PlayerRoute(
-                    siteId = state.route.siteId, animeUrl = state.route.url, animeTitle = title, coverUrl = cover,
+                    siteId = ep.siteId ?: state.route.siteId, animeUrl = ep.animeUrl ?: state.route.url, animeTitle = title, coverUrl = cover,
                     episodeUrl = ep.url, episodeNumber = ep.number,
                 ),
             )
@@ -220,7 +221,7 @@ fun AnimeScreen(
                     val meta = listOfNotNull(
                         detail?.type?.etiqueta, detail?.year?.toString(),
                         detail?.status?.takeIf { it != AnimeStatus.DESCONOCIDO }?.etiqueta,
-                        state.siteName, detail?.episodes?.size?.takeIf { it > 1 }?.let { "$it episodios" },
+                        state.siteName.takeIf { LocalAdmin.current }, detail?.episodes?.size?.takeIf { it > 1 }?.let { "$it episodios" },
                     )
                     if (meta.isNotEmpty()) Text(meta.joinToString(" · "), color = AppColors.Acento2)
                     if (!detail?.genres.isNullOrEmpty()) Text(detail!!.genres.joinToString(" · "), color = AppColors.TextoSecundario)

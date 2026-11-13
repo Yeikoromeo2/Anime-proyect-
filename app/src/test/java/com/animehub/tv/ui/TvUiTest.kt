@@ -37,7 +37,13 @@ abstract class TvUiTest {
 
     companion object {
         /** Primer capítulo de "Últimos capítulos" con los HTML de prueba (el primero de Latanime). */
-        const val LATEST_FIRST = "Tensei Kizoku, Kantei Skill de Nariagaru S1 Latino"
+        const val LATEST_FIRST = "Tensei Kizoku, Kantei Skill de Nariagaru"
+        const val NEW_SERIES_FIRST = "Tensei Kizoku, Kantei Skill de Nariagaru S1 Latino"
+    }
+
+    init {
+        // La animación de entrada tarda ~2 s: las pruebas de navegación no la esperan.
+        com.animehub.tv.ui.home.Intro.enabled = false
     }
 
     @get:Rule(order = 0)
@@ -101,15 +107,22 @@ abstract class TvUiTest {
 
     /**
      * Al abrir la app el foco pasa al capítulo más reciente; desde ahí se sube con la flecha
-     * arriba hasta "Buscar" en la cabecera.
+     * arriba hasta "Explorar" (el primer botón de la cabecera).
      */
     protected fun toHeader() {
         waitForFocusedDescription(LATEST_FIRST)
         repeat(4) {
-            if (compose.onAllNodes(hasText("Buscar") and isFocused()).fetchSemanticsNodes().isNotEmpty()) return
+            if (compose.onAllNodes(hasText("Explorar") and isFocused()).fetchSemanticsNodes().isNotEmpty()) return
             key(Key.DirectionUp)
         }
-        compose.onNode(hasText("Buscar") and isFocused()).assertExists()
+        compose.onNode(hasText("Explorar") and isFocused()).assertExists()
+    }
+
+    /** Abre Explorar (que incluye la búsqueda) desde Inicio. */
+    protected fun openExplore() {
+        toHeader()
+        key(Key.DirectionCenter)
+        waitForText("Buscar un anime")
     }
 
     /** Activa una tarjeta por su descripción (portada) como lo haría OK sobre ella. */

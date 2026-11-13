@@ -12,7 +12,7 @@ import com.animehub.tv.domain.model.FilterTranslator
 import com.animehub.tv.domain.model.QuickFilter
 import com.animehub.tv.providers.ProviderRegistry
 import com.animehub.tv.providers.SiteProvider
-import com.animehub.tv.util.UserMessages
+import com.animehub.tv.ui.AdminMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
+import com.animehub.tv.util.unifyCards
 import java.util.Calendar
 import com.animehub.tv.voice.VoiceEngine
 import javax.inject.Inject
@@ -68,6 +69,7 @@ class SearchViewModel @Inject constructor(
     private val registry: ProviderRegistry,
     private val errorLog: ErrorLogRepository,
     private val settings: SettingsRepository,
+    val admin: AdminMode,
     /** Reconocimiento de voz dentro de la app. */
     val voice: VoiceEngine,
 ) : ViewModel() {
@@ -93,7 +95,7 @@ class SearchViewModel @Inject constructor(
         ready = viewModelScope.launch {
             providers = registry.activeProviders.first()
             // Empieza en el sitio que se está viendo en Inicio (si se eligió uno).
-            val homeSite = settings.current().homeSite?.takeIf { id -> providers.any { it.id == id } }
+            val homeSite = settings.current().homeSite?.takeIf { id -> admin.enabled.value && providers.any { it.id == id } }
             _state.update {
                 it.copy(
                     sites = listOf(SiteChip(null, "Todos los sitios")) + providers.map { p -> SiteChip(p.id, p.name) },
@@ -174,7 +176,7 @@ class SearchViewModel @Inject constructor(
             }.toMap()
             val pages = fetch(requests, clean)
             _state.update {
-                it.copy(loading = false, results = interleave(pages.values.map { r -> r.first }), notices = notices + pages.values.flatMap { r -> r.second })
+                it.copy(loading = false, results = unifyCards(interleave(pages.values.map { r -> r.first })), notices = notices + pages.values.flatMap { r -> r.second })
             }
         }
     }
@@ -192,7 +194,8 @@ class SearchViewModel @Inject constructor(
             _state.update { s ->
                 val known = s.results.map { it.siteId + it.url }.toSet()
                 val more = interleave(pages.values.map { it.first }).filter { (it.siteId + it.url) !in known }
-                s.copy(loadingMore = false, results = s.results + more, notices = (s.notices + pages.values.flatMap { it.second }).distinct())
+                // Lo nuevo se une con lo que ya está (el mismo anime de otro sitio no se repite).
+                s.copy(loadingMore = false, results = unifyCards(s.results + more), notices = (s.notices + pages.values.flatMap { it.second }).distinct())
             }
         }
     }
@@ -204,7 +207,7 @@ class SearchViewModel @Inject constructor(
         if (filters.isEmpty || _state.value.selectedSite != null) return filters
         val translated = FilterTranslator.toSite(filters, groupsOf(provider) ?: emptyList())
         if (translated.unsupported.isNotEmpty()) {
-            notices += "${provider.name} no tiene filtro de ${translated.unsupported.joinToString(" ni ")}: se omitió"
+            // El filtro que un sitio no tiene se omite sin avisar.
             return null
         }
         return translated.selection
@@ -229,7 +232,7 @@ class SearchViewModel @Inject constructor(
     /** Filtros reales de un sitio (con caché); null si el sitio no responde. */
     private suspend fun groupsOf(provider: SiteProvider): List<FilterGroup>? =
         filtersCache[provider.id] ?: runCatching { withTimeout(SITE_TIMEOUT_MS) { provider.availableFilters() } }
-            .onFailure { errorLog.log(provider.name, "Filtros: ${UserMessages.forError(provider.name, it)}") }
+            .onFailure { errorLog.logIssue(provider.name, "Filtros", it) }
             .getOrNull()?.also { filtersCache[provider.id] = it }
 
     /** Devuelve por sitio: resultados y avisos (error o filtro no aplicado). */
@@ -245,12 +248,13 @@ class SearchViewModel @Inject constructor(
                 }.fold(
                     onSuccess = { result ->
                         if (result.hasNextPage) nextPages[provider.id] = page + 1
-                        result.items to listOfNotNull(result.note)
+                        result.items to emptyList<String>()
                     },
+                    // Un sitio que falla simplemente no aporta resultados: sin avisos (solo se
+                    // guarda en el registro lo que hay que arreglar).
                     onFailure = { e ->
-                        val message = UserMessages.forError(provider.name, e)
-                        errorLog.log(provider.name, "Búsqueda \"$query\": $message")
-                        emptyList<AnimeCard>() to listOf(message)
+                        errorLog.logIssue(provider.name, "Búsqueda", e)
+                        emptyList<AnimeCard>() to emptyList<String>()
                     },
                 )
             }

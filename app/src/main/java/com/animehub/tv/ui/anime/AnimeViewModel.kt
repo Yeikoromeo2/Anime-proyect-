@@ -21,6 +21,9 @@ import kotlinx.coroutines.launch
 import com.animehub.tv.remote.CastTarget
 import com.animehub.tv.remote.PlayTarget
 import com.animehub.tv.remote.TargetDirectory
+import com.animehub.tv.util.SameAnimeIndex
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import javax.inject.Inject
 
 data class AnimeUiState(
@@ -63,10 +66,14 @@ class AnimeViewModel @Inject constructor(
     private val thumbnails = MutableStateFlow<Map<Float, String>>(emptyMap())
     private val requestedThumbs = mutableSetOf<Float>()
 
+    /** Las otras versiones del mismo anime (otro sitio u otro idioma). */
+    private val alternates = SameAnimeIndex.alternatesOf(route.siteId, route.url)
+
     val state: StateFlow<AnimeUiState> = combine(
         load,
         library.isFavorite(route.siteId, route.url),
-        library.progressForAnime(route.siteId, route.url),
+        // El progreso de todas las versiones: un episodio visto en otro sitio también cuenta.
+        combine((listOf(route.siteId to route.url) + alternates).map { (site, url) -> library.progressForAnime(site, url) }) { lists -> lists.flatMap { it } },
         thumbnails,
     ) { l, fav, progress, thumbs ->
         AnimeUiState(route, l.loading, l.detail, l.error, fav, progress.associateBy { it.episodeUrl }, l.siteName, thumbs)
@@ -90,20 +97,51 @@ class AnimeViewModel @Inject constructor(
     fun reload() {
         load.value = load.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            val provider = registry.provider(route.siteId)
-            if (provider == null) {
-                load.value = LoadState(loading = false, error = "Este sitio todavía no tiene proveedor.")
+            val main = fetch(route.siteId, route.url)
+            val others = alternates.map { (site, url) -> async { fetch(site, url) } }.awaitAll().filterNotNull()
+            // Si la principal no cargó, se usa otra versión sin avisar de nada.
+            val base = main ?: others.firstOrNull()
+            if (base == null) {
+                load.value = LoadState(loading = false, error = "No pudimos cargar esta ficha por ahora.")
                 return@launch
             }
-            load.value = runCatching { provider.animeDetail(route.url) }.fold(
-                onSuccess = { LoadState(loading = false, detail = it, siteName = provider.name) },
-                onFailure = { e ->
-                    val message = UserMessages.forError(provider.name, e)
-                    errorLog.log(provider.name, "Ficha ${route.url}: $message")
-                    LoadState(loading = false, error = message, siteName = provider.name)
-                },
-            )
+            val rest = if (main != null) others else others.drop(1)
+            load.value = LoadState(loading = false, detail = mergeVersions(base, rest))
         }
+    }
+
+    /** null si el sitio no responde o no se pudo leer (lo accionable queda en el registro de errores). */
+    private suspend fun fetch(siteId: String, url: String): AnimeDetail? {
+        val provider = registry.provider(siteId) ?: return null
+        return runCatching { provider.animeDetail(url) }
+            .onFailure { errorLog.logIssue(provider.name, "Ficha", it) }
+            .getOrNull()
+    }
+
+    /**
+     * Junta los episodios: los de la versión principal y, de las otras, los números que a la
+     * principal le faltan (cada uno recuerda de qué sitio se reproduce).
+     */
+    private fun mergeVersions(base: AnimeDetail, others: List<AnimeDetail>): AnimeDetail {
+        if (others.isEmpty()) return base
+        val have = base.episodes.map { it.number }.toMutableSet()
+        val bySeason = base.episodes.sortedBy { it.number }
+        val extra = others.flatMap { other ->
+            other.episodes.filter { have.add(it.number) }.map { e ->
+                val season = e.season ?: bySeason.lastOrNull { it.number <= e.number }?.season ?: bySeason.firstOrNull()?.season
+                e.copy(season = season, siteId = other.siteId, animeUrl = other.url)
+            }
+        }
+        if (extra.isEmpty()) return base
+        return base.copy(
+            episodes = (base.episodes + extra).sortedWith(compareBy({ it.season ?: 0 }, { it.number })).let { merged ->
+                // El orden original de la principal se conserva si ya venía por temporada y número.
+                if (base.episodes.map { it.number } == base.episodes.map { it.number }.sorted()) merged else base.episodes + extra
+            },
+            synopsis = base.synopsis ?: others.firstNotNullOfOrNull { it.synopsis },
+            coverUrl = base.coverUrl ?: others.firstNotNullOfOrNull { it.coverUrl },
+            genres = base.genres.ifEmpty { others.firstOrNull { it.genres.isNotEmpty() }?.genres.orEmpty() },
+        )
     }
 
     fun toggleFavorite() = viewModelScope.launch {

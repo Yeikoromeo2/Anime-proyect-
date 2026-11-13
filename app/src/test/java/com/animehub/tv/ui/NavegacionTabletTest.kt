@@ -41,9 +41,12 @@ class NavegacionTabletTest : TvUiTest() {
 
     @Inject lateinit var settings: SettingsRepository
 
+    @Inject lateinit var admin: AdminMode
+
     @Before
     fun setUp() {
         hilt.inject()
+        admin.unlock(AdminMode.PIN) // servidores y avisos del reproductor son del modo administrador
         setUpImages()
         FakeNative.reset()
         runBlocking {

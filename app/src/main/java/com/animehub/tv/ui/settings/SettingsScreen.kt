@@ -21,6 +21,8 @@ import androidx.tv.material3.Text
 import com.animehub.tv.BuildConfig
 import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.update.UpdateState
+import com.animehub.tv.ui.LocalAdmin
+import com.animehub.tv.ui.components.NumberPadDialog
 import com.animehub.tv.ui.components.ActionsDialog
 import com.animehub.tv.ui.update.UpdateDialog
 import com.animehub.tv.ui.components.ConfirmDialog
@@ -40,6 +42,7 @@ private sealed interface SettingsDialog {
     data class SiteOptions(val site: EffectiveSite) : SettingsDialog
     data class EditDomain(val site: EffectiveSite) : SettingsDialog
     data object EditRemoteUrl : SettingsDialog
+    data object Pin : SettingsDialog
     data object ClearServers : SettingsDialog
     data object Errors : SettingsDialog
 }
@@ -53,6 +56,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     var updateDialog by remember { mutableStateOf(false) }
     var dialogError by remember { mutableStateOf<String?>(null) }
     val firstFocus = rememberInitialFocusState()
+    val admin = LocalAdmin.current
+    var pinError by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -61,8 +66,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     ) {
         item { Text("Ajustes", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 12.dp)) }
 
-        item { Section("Sitios") }
-        state.sites.forEachIndexed { index, site ->
+        if (admin) item { Section("Sitios") }
+        if (admin) state.sites.forEachIndexed { index, site ->
             item(key = "site-${site.id}") {
                 val detail = buildString {
                     append(site.baseUrl)
@@ -80,15 +85,15 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
         }
 
-        item { Section("Configuración remota") }
-        item {
+        if (admin) item { Section("Configuración remota") }
+        if (admin) item {
             SettingItem(
                 title = "URL de la configuración",
                 subtitle = state.settings.remoteConfigUrl,
                 onClick = { dialogError = null; dialog = SettingsDialog.EditRemoteUrl },
             )
         }
-        item {
+        if (admin) item {
             val config = state.config
             val base = if (config == null) "Cargando…" else buildString {
                 append("Versión ${config.config.version} (${config.source.etiqueta})")
@@ -112,6 +117,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SettingItem(
                 title = "Saltar con las flechas",
                 subtitle = "${state.settings.seekSeconds} segundos (pulsa para cambiar)",
+                modifier = if (!admin) Modifier.initialFocus(firstFocus) else Modifier,
                 onClick = { viewModel.toggleSeek() },
             )
         }
@@ -122,7 +128,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 onClick = { viewModel.nextQuality() },
             )
         }
-        item {
+        if (admin) item {
             val names = state.sites.associate { it.id to it.name }
             val servers = state.settings.preferredServers
             SettingItem(
@@ -146,8 +152,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 onClick = viewModel::forgetRemotes,
             )
         }
-        item { Section("Diagnóstico") }
-        item {
+        if (admin) item { Section("Diagnóstico") }
+        if (admin) item {
             SettingItem(
                 title = "Registro de errores",
                 subtitle = if (state.errors.isEmpty()) "Sin errores" else "${state.errors.size} errores (últimos 50)",
@@ -174,7 +180,14 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         item { Section("Acerca de") }
-        item { SettingItem(title = "Versión de la app", subtitle = BuildConfig.VERSION_NAME, onClick = {}) }
+        // Pulsar la versión abre el PIN del modo administrador (y en ese modo lo cierra).
+        item {
+            SettingItem(
+                title = "Versión de la app",
+                subtitle = BuildConfig.VERSION_NAME + if (admin) " · modo administrador (pulsa para salir)" else "",
+                onClick = { if (admin) viewModel.admin.lock() else { pinError = null; dialog = SettingsDialog.Pin } },
+            )
+        }
     }
 
     if (updateDialog && appUpdate != UpdateState.Idle) {
@@ -182,6 +195,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     }
 
     when (val d = dialog) {
+        SettingsDialog.Pin -> NumberPadDialog(
+            title = "Modo administrador",
+            message = "Escribe el PIN",
+            error = pinError,
+            onSubmit = { value -> if (viewModel.admin.unlock(value)) dialog = null else pinError = "PIN incorrecto" },
+            onDismiss = { dialog = null },
+        )
         is SettingsDialog.SiteOptions -> {
             val site = state.sites.firstOrNull { it.id == d.site.id } ?: d.site
             ActionsDialog(

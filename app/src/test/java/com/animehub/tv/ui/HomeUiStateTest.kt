@@ -47,7 +47,7 @@ class HomeUiStateTest {
         )
         assertEquals(listOf("Black Clover Latino", "Jigokuraku"), state.recommended.map { it.card.title })
         // Devils' Crest queda una vez (en latino, en el lugar del primero); Black Clover ya está en Recomendados.
-        assertEquals(listOf("Devils' Crest Latino", "Demons' Crest"), state.newSeries.map { it.card.title })
+        assertEquals(listOf("Devils' Crest", "Demons' Crest"), state.newSeries.map { it.card.title })
         assertEquals("Asta y Yuno…", state.reviewOf(state.recommended[0])?.synopsis)
         assertEquals(listOf("Acción"), state.reviewOf(state.recommended[1])?.genres)
         assertNull(state.reviewOf(state.newSeries[1]))

@@ -46,13 +46,11 @@ class NavegacionFichaTest : TvUiTest() {
     }
 
     private fun openOnePiece() {
-        toHeader()
-        key(Key.DirectionCenter)
-        waitForText("Nombre del anime")
+        openExplore()
         compose.onNode(hasSetTextAction()).performTextInput("one piece")
         compose.onNode(hasSetTextAction()).performImeAction()
-        // Anime Ninja y JKAnime lo encuentran; el primero (alternando sitios) es el de Anime Ninja.
-        waitForText("resultados para \"one piece\"", substring = true)
+        // Anime Ninja y JKAnime lo encuentran y se unen en un solo "One Piece" (manda Anime Ninja).
+        waitForText("“one piece”")
         key(Key.DirectionCenter)
         waitForText("Temporada 1 · 61 episodios  ▾")
     }

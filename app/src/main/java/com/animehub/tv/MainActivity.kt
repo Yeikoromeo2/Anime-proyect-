@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.CompositionLocalProvider
 import com.animehub.tv.remote.TargetDirectory
 import com.animehub.tv.remote.TvReceiver
 import com.animehub.tv.ui.components.ConfirmDialog
+import com.animehub.tv.ui.AdminMode
+import com.animehub.tv.ui.LocalAdmin
 import com.animehub.tv.ui.isTv
 import com.animehub.tv.ui.navigation.AppNavHost
 import com.animehub.tv.ui.theme.AnimeHubTheme
@@ -29,11 +32,14 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var receiver: TvReceiver
     /** En la tablet: TVs con AnimeHub, Chromecast y TVs DLNA de la red. */
     @Inject lateinit var targets: TargetDirectory
+    @Inject lateinit var adminMode: AdminMode
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainViewModel // Inicia la carga de la configuración.
         setContent {
+            val admin by adminMode.enabled.collectAsStateWithLifecycle()
+            CompositionLocalProvider(LocalAdmin provides admin) {
             AnimeHubTheme {
                 Box(Modifier.fillMaxSize().background(AppColors.Fondo)) {
                     AppNavHost(onExit = { finish() }, remoteEvents = receiver.bridge.events)
@@ -50,6 +56,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }

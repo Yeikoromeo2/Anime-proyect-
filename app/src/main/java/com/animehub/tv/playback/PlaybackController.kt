@@ -120,7 +120,7 @@ class PlaybackController(
             val saved = runCatching { savedProgress(ep) }.getOrNull()
             resumeAtMs = saved?.takeIf { !it.completed && it.positionMs > RESUME_MIN_MS }?.let { (it.positionMs - RESUME_BACK_MS).coerceAtLeast(0) }
             val options = runCatching { loadServers(ep) }.getOrElse { e ->
-                _state.update { it.copy(phase = PlayerPhase.Failed(e.message ?: "No se pudieron leer los servidores")) }
+                _state.update { it.copy(phase = PlayerPhase.Failed("No pudimos preparar este episodio. Inténtalo de nuevo en un momento.")) }
                 return@launch
             }
             _state.update { it.copy(options = options) }
@@ -131,9 +131,9 @@ class PlaybackController(
             val preferred = usable.firstOrNull { it.preferred }
             val best = preferred ?: usable.firstOrNull()
             when {
-                options.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.Failed("No se encontraron servidores para este episodio")) }
-                preferred != null -> play(preferred, notice = "Servidor preferido: ${preferred.server.name} · ↑ para cambiar")
-                best != null -> play(best, notice = "Servidor: ${best.server.name} · ↑ para cambiar")
+                options.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.Failed("Este episodio todavía no está disponible.")) }
+                preferred != null -> play(preferred)
+                best != null -> play(best)
                 else -> _state.update { it.copy(phase = PlayerPhase.ChoosingServer(options)) }
             }
         }
@@ -143,6 +143,14 @@ class PlaybackController(
     fun choose(option: ServerOption) {
         scope.launch { runCatching { rememberPreferred(option.server.name) } }
         play(option)
+    }
+
+    /** "Probar otra opción": pasa al siguiente servidor que funcione, sin mostrar cuál es. */
+    fun tryAnother() {
+        val usable = _state.value.options.filter { it.health != ServerHealth.NO_DISPONIBLE }
+        if (usable.size < 2) return
+        val i = usable.indexOfFirst { it.server.embedUrl == current?.server?.embedUrl }
+        play(usable[(i + 1) % usable.size])
     }
 
     fun showServers() {
@@ -179,7 +187,8 @@ class PlaybackController(
         nativeBroken += option.server.embedUrl
         option.stream?.let { nativeFailures.record(it.url) }
         if (started && _state.value.positionMs > RESUME_MIN_MS) resumeAtMs = _state.value.positionMs
-        play(option, notice = "El reproductor nativo $reason con ${option.server.name}; usando el reproductor web")
+        // Sin avisos: el mismo servidor sigue en el reproductor web.
+        play(option)
     }
 
     /** Si el video no arranca o da error, se prueba el siguiente servidor que no esté caído. */
@@ -188,10 +197,10 @@ class PlaybackController(
         watchdog?.cancel()
         val next = _state.value.options.firstOrNull { it.health != ServerHealth.NO_DISPONIBLE && it.server.embedUrl !in tried }
         if (next != null) {
-            play(next, notice = "${failed.server.name} $reason; probando ${next.server.name}…")
+            play(next)
         } else {
             _commands.tryEmit(PlayerCommand.Stop)
-            _state.update { it.copy(phase = PlayerPhase.ChoosingServer(it.options), notice = "Ningún servidor respondió. Elige otro o vuelve más tarde.") }
+            _state.update { it.copy(phase = PlayerPhase.ChoosingServer(it.options), notice = null) }
         }
     }
 
@@ -222,7 +231,8 @@ class PlaybackController(
                 !started -> serverFailed("dio un error")
             }
             // El servidor preguntó si continuar donde se dejó: el script ya respondió por el usuario.
-            "prompt" -> _state.update { it.copy(notice = "Se cerró el aviso del servidor") }
+            // El servidor preguntó si continuar donde se dejó: el script ya respondió por el usuario.
+            "prompt" -> Unit
             "cleanup" -> if ((obj["hidden"]?.jsonPrimitive?.intOrNull ?: 0) > 0) {
                 _state.update { it.copy(notice = "Se quitaron los recuadros que tapaban el video") }
             }

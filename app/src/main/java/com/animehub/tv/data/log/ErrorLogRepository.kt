@@ -27,8 +27,20 @@ class ErrorLogRepository @Inject constructor(@ApplicationContext context: Contex
     val entries: StateFlow<List<ErrorEntry>> = _entries.asStateFlow()
 
     fun log(source: String, message: String) {
-        _entries.update { (listOf(ErrorEntry(System.currentTimeMillis(), source, message)) + it).take(MAX) }
+        // El mismo error no se repite: solo se cuenta una vez cada 12 horas.
+        val now = System.currentTimeMillis()
+        if (_entries.value.any { it.source == source && it.message == message && now - it.timestamp < REPEAT_MS }) return
+        _entries.update { (listOf(ErrorEntry(now, source, message)) + it).take(MAX) }
         save()
+    }
+
+    /**
+     * Guarda solo lo que hay que arreglar en el código (el sitio cambió su página, un dato dejó de
+     * leerse…). Nada de red caída, sitio lento, verificación de Cloudflare o "no cargó, se probó otro".
+     */
+    fun logIssue(source: String, what: String, error: Throwable) {
+        if (!isActionable(error)) return
+        log(source, "$what: ${error::class.simpleName}: ${error.message?.take(160)}")
     }
 
     fun clear() {
@@ -44,7 +56,15 @@ class ErrorLogRepository @Inject constructor(@ApplicationContext context: Contex
         runCatching { file.writeText(json.encodeToString(serializer, _entries.value)) }
     }
 
-    private companion object {
-        const val MAX = 50
+    companion object {
+        private const val MAX = 50
+        private const val REPEAT_MS = 12 * 60 * 60_000L
+
+        /** Un fallo de lectura o de código sí; un fallo de red, tiempo o protección no. */
+        fun isActionable(error: Throwable): Boolean = when (error) {
+            is java.io.IOException, is kotlinx.coroutines.TimeoutCancellationException,
+            is kotlinx.coroutines.CancellationException, is com.animehub.tv.data.net.SiteProtectedException -> false
+            else -> true
+        }
     }
 }

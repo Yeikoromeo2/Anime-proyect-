@@ -4,6 +4,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -45,11 +46,7 @@ class NavegacionTvTest : TvUiTest() {
         waitForText("Últimos capítulos")
         waitForFocusedDescription(LATEST_FIRST)
         capture("01_inicio")
-        key(Key.DirectionUp) // fila para elegir el sitio
-        waitForFocus("Todos los sitios")
-        key(Key.DirectionUp)
-        compose.onNodeWithText("Buscar").assertIsFocused()
-        key(Key.DirectionRight)
+        key(Key.DirectionUp) // sin elegir sitio (modo normal): directo a la cabecera
         compose.onNodeWithText("Explorar").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithText("Historial").assertIsFocused()
@@ -84,7 +81,7 @@ class NavegacionTvTest : TvUiTest() {
         key(Key.DirectionDown) // Recomendados
         waitForFocusedDescription("Black Clover Latino")
         key(Key.DirectionDown) // Series nuevas
-        waitForFocusedDescription(LATEST_FIRST)
+        waitForFocusedDescription(NEW_SERIES_FIRST)
         key(Key.DirectionDown) // Explorar por género
         waitForFocus("Todo el catálogo")
     }
@@ -92,21 +89,13 @@ class NavegacionTvTest : TvUiTest() {
     @Test
     fun ajustes_se_abren_y_se_vuelve_con_atras() {
         toHeader()
-        key(Key.DirectionRight) // Explorar
         key(Key.DirectionRight) // Historial
         key(Key.DirectionRight) // Ajustes
         key(Key.DirectionCenter)
-        waitForText("Latanime")
-        // Foco inicial en el primer sitio.
-        compose.onNodeWithText("Latanime").assertIsFocused()
-        key(Key.DirectionDown)
-        compose.onNodeWithText("Anime Ninja").assertIsFocused()
+        waitForText("Buscar actualización")
         capture("03_ajustes")
-        key(Key.DirectionCenter)
-        compose.onNodeWithText("Desactivar sitio").assertIsFocused()
-        capture("04_ajustes_opciones_sitio")
-        back() // cierra el diálogo
-        compose.onNodeWithText("Anime Ninja").assertIsFocused()
+        // En modo normal no se ve ningún sitio ni servidor.
+        compose.onAllNodes(hasText("Latanime")).assertCountEquals(0)
         back() // vuelve a Inicio
         compose.onNodeWithText("Tus sitios de anime en un solo lugar").assertExists()
     }
@@ -126,13 +115,12 @@ class NavegacionTvTest : TvUiTest() {
     @Test
     fun busqueda_e_historial_tienen_foco_inicial() {
         toHeader()
-        key(Key.DirectionCenter) // Buscar
-        compose.onNodeWithText("Nombre del anime").assertExists()
+        key(Key.DirectionCenter) // Explorar (con la barra de búsqueda)
+        compose.onNodeWithText("Buscar un anime").assertExists()
         capture("06_busqueda")
         back()
-        // Al volver, el foco se queda en "Buscar" (no salta otra vez a los capítulos).
-        waitForFocus("Buscar")
-        key(Key.DirectionRight) // Explorar
+        // Al volver, el foco se queda en "Explorar" (no salta otra vez a los capítulos).
+        waitForFocus("Explorar")
         key(Key.DirectionRight) // Historial
         waitForFocus("Historial")
         key(Key.DirectionCenter)

@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "updated": "2026-11-09",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -102,6 +102,7 @@
     },
     {
       "id": "animeninja",
+      "priority": 30,
       "name": "Anime Ninja",
       "logo": "https://veranime.ninja/wp-content/uploads/2026/03/cropped-cropped-485dd3a5-d9ff-4223-a66c-26688335c706-scaled-1-1-192x192.png",
       "color": "#C0392B",
@@ -180,6 +181,7 @@
     },
     {
       "id": "animeflv",
+      "priority": 10,
       "name": "AnimeFLV",
       "logo": "https://animeflv.or.at/wp-content/uploads/2026/06/cropped-animeflv-logo-new-192x192.jpg",
       "color": "#F39C12",
@@ -239,6 +241,7 @@
     },
     {
       "id": "jkanime",
+      "priority": 20,
       "name": "JKAnime",
       "logo": "https://cdn.jkdesa.com/assets3/css/img/favicon.ico",
       "color": "#1E88E5",

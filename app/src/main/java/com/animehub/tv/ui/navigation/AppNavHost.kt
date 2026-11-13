@@ -16,7 +16,6 @@ import com.animehub.tv.ui.history.HistoryScreen
 import com.animehub.tv.ui.home.HomeScreen
 import com.animehub.tv.ui.player.PlayerScreen
 import com.animehub.tv.ui.search.ExploreScreen
-import com.animehub.tv.ui.search.SearchScreen
 import com.animehub.tv.ui.settings.SettingsScreen
 
 /**
@@ -45,9 +44,8 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
     NavHost(navController = nav, startDestination = HomeRoute) {
         composable<HomeRoute> {
             HomeScreen(
-                onSearch = { nav.navigate(SearchRoute()) },
                 onExplore = { genre -> nav.navigate(ExploreRoute(genre)) },
-                onVoiceSearch = { nav.navigate(SearchRoute(voice = true)) },
+                onVoiceSearch = { nav.navigate(ExploreRoute(voice = true)) },
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
                 onOpenAnime = openAnime,
@@ -58,8 +56,10 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onExit = onExit,
             )
         }
-        composable<SearchRoute> { entry -> SearchScreen(onOpenAnime = openAnime, startVoice = entry.toRoute<SearchRoute>().voice) }
-        composable<ExploreRoute> { entry -> ExploreScreen(onOpenAnime = openAnime, initialGenre = entry.toRoute<ExploreRoute>().genre) }
+        composable<ExploreRoute> { entry ->
+            val route = entry.toRoute<ExploreRoute>()
+            ExploreScreen(onOpenAnime = openAnime, initialGenre = route.genre, startVoice = route.voice)
+        }
         composable<HistoryRoute> {
             HistoryScreen(
                 onOpenAnime = openAnime,

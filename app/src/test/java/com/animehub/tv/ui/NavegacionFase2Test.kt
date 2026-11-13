@@ -45,12 +45,10 @@ class NavegacionFase2Test : TvUiTest() {
     }
 
     private fun searchFor(text: String) {
-        toHeader()
-        key(Key.DirectionCenter) // "Buscar"
-        waitForText("Nombre del anime")
+        openExplore()
         compose.onNode(hasSetTextAction()).performTextInput(text)
         compose.onNode(hasSetTextAction()).performImeAction()
-        waitForText("resultados para", substring = true)
+        waitForText("títulos cargados", substring = true)
     }
 
     @Test
@@ -77,6 +75,8 @@ class NavegacionFase2Test : TvUiTest() {
         activateDescription("Tank Chair")
         waitForText("Ver episodio 6 · nuevo")
         waitForFocus("Ver episodio 6 · nuevo")
+        waitForText("Ep. 1")
+        compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasText("Ep. 1"))).onFirst().performScrollToNode(hasText("NUEVO"))
         waitForText("NUEVO")
         capture("15_ficha_capitulo_nuevo")
     }
@@ -84,7 +84,8 @@ class NavegacionFase2Test : TvUiTest() {
     @Test
     fun busqueda_muestra_cuadricula_de_portadas_y_el_foco_va_al_primer_resultado() {
         searchFor("dragon")
-        waitForText("61 resultados para \"dragon\"") // 30 de Anime Ninja + 30 de JKAnime + 1 de AnimeFLV
+        // Los mismos títulos de Anime Ninja, JKAnime y AnimeFLV se unen en uno solo.
+        waitForText("títulos cargados", substring = true)
         // El foco pasa solo al primer resultado al terminar la búsqueda.
         compose.waitUntil(5_000) {
             runCatching { compose.onNodeWithContentDescription("Dragon Ball Daima").assertIsFocused(); true }.getOrDefault(false) ||
@@ -99,7 +100,7 @@ class NavegacionFase2Test : TvUiTest() {
     @Test
     fun ficha_con_favorito_y_episodios() {
         searchFor("one piece")
-        waitForText("resultados para \"one piece\"", substring = true)
+        waitForText("“one piece”")
         // El primero (Anime Ninja) tiene el foco; JKAnime también lo encuentra.
         compose.onAllNodes(hasContentDescription("One Piece") and isFocused()).assertCountEquals(1)
         key(Key.DirectionCenter)

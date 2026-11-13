@@ -59,6 +59,7 @@ fun TouchControls(
     onToggle: () -> Unit,
     onSeek: (Int) -> Unit,
     onServers: () -> Unit,
+    serversLabel: String = "Servidores",
     onOptions: () -> Unit,
     onBack: () -> Unit,
 ) = Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))) {
@@ -69,7 +70,7 @@ fun TouchControls(
     ) {
         PillButton("← Volver", onBack)
         Box(Modifier.weight(1f))
-        PillButton("Servidores", onServers)
+        PillButton(serversLabel, onServers)
         PillButton("Opciones", onOptions)
     }
     Row(

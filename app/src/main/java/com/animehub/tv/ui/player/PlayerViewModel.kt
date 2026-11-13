@@ -88,7 +88,11 @@ class PlayerViewModel @Inject constructor(
                 scope = viewModelScope,
                 episodes = list,
                 startIndex = index ?: 0,
-                loadServers = { ep -> servers.serversFor(provider, ep.url) },
+                loadServers = { ep ->
+                    runCatching { servers.serversFor(provider, ep.url) }
+                        .onFailure { errorLog.logIssue(provider.name, "Servidores", it) }
+                        .getOrThrow()
+                },
                 // Enviado desde la tablet con su minuto: se empieza ahí (solo el primer episodio).
                 savedProgress = { ep ->
                     if (route.startMs > 0 && EpisodePager.sameUrl(ep.url, route.episodeUrl)) {

@@ -19,9 +19,13 @@ import com.animehub.tv.providers.ProviderRegistry
 import com.animehub.tv.providers.SiteProvider
 import com.animehub.tv.util.UserMessages
 import com.animehub.tv.util.interleave
-import com.animehub.tv.util.oneVersionPerTitle
+import com.animehub.tv.util.TitleMatcher
+import com.animehub.tv.util.unifyEpisodes
+import com.animehub.tv.util.unifyShowcase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.animehub.tv.ui.AdminMode
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -87,7 +91,7 @@ data class HomeUiState(
 
     /** "Últimos capítulos": lo publicado por los sitios mostrados, alternando para que ninguno tape a los demás. */
     val combinedLatest: List<EpisodeCard>
-        get() = interleave(shownSites.mapNotNull { latest[it.id]?.items?.takeIf { items -> items.isNotEmpty() } })
+        get() = unifyEpisodes(interleave(shownSites.mapNotNull { latest[it.id]?.items?.takeIf { items -> items.isNotEmpty() } }))
 
     /**
      * Accesos a Explorar por género: los del sitio elegido o los comunes. El valor es siempre el
@@ -105,8 +109,8 @@ data class HomeUiState(
     /** Series recién agregadas que no estén ya en "Recomendados". */
     val newSeries: List<ShowcaseItem>
         get() {
-            val shown = recommended.map { it.card.siteId + it.card.url }.toSet()
-            return showcaseOf(ShowcaseKind.NUEVO).filter { (it.card.siteId + it.card.url) !in shown }
+            val shown = recommended
+            return showcaseOf(ShowcaseKind.NUEVO).filter { n -> shown.none { TitleMatcher.same(it.card.title, n.card.title) } }
         }
 
     /** Sitios cuyas novedades fallaron (para el aviso con "Reintentar"). */
@@ -122,8 +126,8 @@ data class HomeUiState(
     fun reviewOf(item: ShowcaseItem): Review? =
         item.synopsis?.let { Review(it) } ?: reviews[reviewKey(item)]
 
-    private fun showcaseOf(kind: ShowcaseKind): List<ShowcaseItem> = interleave(
-        shownSites.map { site -> oneVersionPerTitle(showcase[site.id].orEmpty().filter { it.kind == kind }) { it.card.title } },
+    private fun showcaseOf(kind: ShowcaseKind): List<ShowcaseItem> = unifyShowcase(
+        interleave(shownSites.map { site -> showcase[site.id].orEmpty().filter { it.kind == kind } }),
     )
 
     companion object {
@@ -140,16 +144,20 @@ class HomeViewModel @Inject constructor(
     private val settings: SettingsRepository,
     /** Actualización de la app desde Releases (se busca una vez al abrir). */
     val updates: UpdateManager,
+    private val admin: AdminMode,
 ) : ViewModel() {
 
     private val content = MutableStateFlow(HomeContent())
     private val providers = mutableMapOf<String, SiteProvider>()
     private val requestedReviews = mutableSetOf<String>()
+    private val retried = mutableSetOf<String>()
     /** Pocas fichas a la vez: las reseñas se piden solo de las tarjetas que se ven. */
     private val reviewLimiter = Semaphore(REVIEWS_IN_PARALLEL)
 
     val state: StateFlow<HomeUiState> = combine(
-        library.continueWatching, library.favorites, config.sites, content, settings.settings,
+        library.continueWatching, library.favorites, config.sites, content,
+        // El sitio elegido solo cuenta en modo administrador: sin él siempre se ve todo junto.
+        settings.settings.combine(admin.enabled) { prefs, on -> prefs.copy(homeSite = prefs.homeSite.takeIf { on }) },
     ) { cw, fav, sites, content, prefs ->
         val active = sites.filter { it.enabled }
         HomeUiState(
@@ -197,17 +205,22 @@ class HomeViewModel @Inject constructor(
                     val row = runCatching { withTimeout(SITE_TIMEOUT_MS) { provider.latestEpisodes() } }.fold(
                         onSuccess = { LatestRow(loading = false, items = it) },
                         onFailure = { e ->
-                            val message = UserMessages.forError(site.name, e)
-                            errorLog.log(site.name, "Novedades: $message")
-                            LatestRow(loading = false, error = message)
+                            errorLog.logIssue(site.name, "Novedades", e)
+                            LatestRow(loading = false, error = UserMessages.forError(site.name, e))
                         },
                     )
                     setLatest(site.id, row)
+                    // Si falló, un solo reintento en silencio un poco después.
+                    if (row.error != null && !retried.add(site.id)) return@launch
+                    if (row.error != null) {
+                        delay(RETRY_AFTER_MS)
+                        reloadLatest(site.id)
+                    }
                 }
                 launch {
                     // Usa la misma portada que las novedades (queda en caché): no cuesta otra descarga.
                     val items = runCatching { withTimeout(SITE_TIMEOUT_MS) { provider.showcase() } }
-                        .onFailure { errorLog.log(site.name, "Destacados: ${UserMessages.forError(site.name, it)}") }
+                        .onFailure { errorLog.logIssue(site.name, "Destacados", it) }
                         .getOrDefault(emptyList())
                     content.update { it.copy(showcase = it.showcase + (site.id to items)) }
                 }
@@ -253,5 +266,6 @@ class HomeViewModel @Inject constructor(
     private companion object {
         const val SITE_TIMEOUT_MS = 20_000L
         const val REVIEWS_IN_PARALLEL = 3
+        const val RETRY_AFTER_MS = 15_000L
     }
 }

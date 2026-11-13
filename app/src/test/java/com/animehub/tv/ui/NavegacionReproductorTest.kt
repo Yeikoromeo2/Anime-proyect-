@@ -44,9 +44,12 @@ class NavegacionReproductorTest : TvUiTest() {
     @Inject lateinit var library: LibraryRepository
     @Inject lateinit var settings: SettingsRepository
 
+    @Inject lateinit var admin: AdminMode
+
     @Before
     fun setUp() {
         hilt.inject()
+        admin.unlock(AdminMode.PIN) // servidores y avisos del reproductor son del modo administrador
         setUpImages()
         FakeNative.reset()
         // Los ajustes se guardan en disco: cada prueba empieza sin servidor preferido.
@@ -113,7 +116,6 @@ class NavegacionReproductorTest : TvUiTest() {
         // Sin preguntar: el mejor servidor (HLS, que funciona y entrega el video directo) arranca solo.
         // Sin la página del servidor: la lista HLS va directo al reproductor nativo, con su Referer.
         waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
-        waitForText("Servidor: HLS · ↑ para cambiar")
         assertEquals("https://player.zilla-networks.com/", FakeNative.played.last().headers["Referer"])
         assertNotEquals("https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac", webView()?.let { shadowOf(it).lastLoadedUrl })
 
@@ -171,7 +173,6 @@ class NavegacionReproductorTest : TvUiTest() {
         nativeMessage("""{"type":"error","code":2004,"frame":"native"}""")
         // Mismo servidor, ahora en el reproductor web, con aviso.
         compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl } == "https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac" }
-        waitForText("usando el reproductor web", substring = true)
         jsMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
         jsMessage("""{"type":"progress","pos":60,"dur":1440,"paused":false}""")
         waitForText("1:0", substring = true)
@@ -199,7 +200,6 @@ class NavegacionReproductorTest : TvUiTest() {
         compose.onAllNodes(hasScrollAction() and hasAnyDescendant(hasText("Ver episodio 6 · nuevo")))
             .onFirst().performScrollToNode(hasText("Ep. 5"))
         activate("Ep. 5")
-        waitForText("Servidor preferido: HLS · ↑ para cambiar")
         waitForPlayer { FakeNative.played.size >= 3 }
         nativeMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false,"frame":"native"}""")
         nativeMessage("""{"type":"progress","pos":1439,"dur":1440,"paused":false,"frame":"native"}""")

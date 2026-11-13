@@ -60,6 +60,7 @@ class ConfigRepository @Inject constructor(
             else ConfigState(bundled, ConfigSource.INCLUIDA)
         }
         _state.value = loaded
+        publishPriorities(loaded.config)
         loaded
     }
 
@@ -81,7 +82,7 @@ class ConfigRepository @Inject constructor(
                 cacheFile.writeText(text)
             }
             settingsRepository.setLastConfigUpdate(System.currentTimeMillis())
-            ConfigState(config, ConfigSource.REMOTA).also { _state.value = it }
+            ConfigState(config, ConfigSource.REMOTA).also { _state.value = it; publishPriorities(config) }
         }.onFailure { errorLog.log("Configuración", it.message ?: it.javaClass.simpleName) }
     }
 
@@ -99,5 +100,10 @@ class ConfigRepository @Inject constructor(
                     domainEdited = override != null,
                 )
             }
+    }
+
+    /** El orden de preferencia entre sitios, para elegir la versión principal de un anime repetido. */
+    private fun publishPriorities(config: RemoteConfig) {
+        com.animehub.tv.util.SameAnimeIndex.priorities = config.sites.associate { it.id to it.priority }
     }
 }

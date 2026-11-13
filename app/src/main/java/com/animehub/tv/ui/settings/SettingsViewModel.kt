@@ -42,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val errorLog: ErrorLogRepository,
     /** Actualización de la app desde Releases. */
     val appUpdates: UpdateManager,
+    val admin: com.animehub.tv.ui.AdminMode,
 ) : ViewModel() {
 
     val state: StateFlow<SettingsUiState> = combine(

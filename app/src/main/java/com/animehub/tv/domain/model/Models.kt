@@ -41,6 +41,9 @@ data class Episode(
     val url: String,
     val imageUrl: String? = null,
     val season: Int? = null,
+    /** Solo si el episodio viene de otra versión del mismo anime (otro sitio): de dónde se reproduce. */
+    val siteId: String? = null,
+    val animeUrl: String? = null,
 )
 
 data class AnimeDetail(

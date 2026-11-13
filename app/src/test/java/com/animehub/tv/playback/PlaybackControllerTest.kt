@@ -18,6 +18,7 @@ import org.junit.Assert.assertTrue
 import com.animehub.tv.domain.model.DirectStream
 import com.animehub.tv.domain.model.StreamType
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,7 +74,6 @@ class PlaybackControllerTest {
         runCurrent()
         // Sin preguntar: el primero que no está caído (la lista ya viene ordenada por el repositorio).
         assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
-        assertEquals("Servidor: voe · ↑ para cambiar", c.state.value.notice)
         assertTrue(preferred.isEmpty()) // arrancar solo no lo marca como preferido
         // La lista se abre cuando se quiere; elegir uno sí lo recuerda.
         c.showServers()
@@ -102,10 +102,11 @@ class PlaybackControllerTest {
         advanceTimeBy(25_001)
         val playing = c.state.value.phase as PlayerPhase.Playing
         assertEquals("b", playing.option.server.name)
-        assertTrue(c.state.value.notice!!.contains("a no respondió; probando b"))
+        // Sin avisos técnicos: pasa solo al siguiente servidor.
+        assertNull(c.state.value.notice)
         advanceTimeBy(25_001)
         assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
-        assertTrue(c.state.value.notice!!.startsWith("Ningún servidor respondió"))
+        assertNull(c.state.value.notice) // la pantalla decide qué mostrar (sin detalles técnicos)
     }
 
     @Test
@@ -179,7 +180,7 @@ class PlaybackControllerTest {
         c.start()
         runCurrent()
         c.onMessage("""{"type":"prompt","accepted":true,"text":"¿Continuar viendo desde 05:12?"}""")
-        assertEquals("Se cerró el aviso del servidor", c.state.value.notice)
+        assertNull(c.state.value.notice) // el aviso del servidor se responde sin mostrar nada
         c.cleanupOverlays()
         assertEquals(PlayerCommand.Script("""{"type":"cleanup"}"""), commands.last())
         c.onMessage("""{"type":"cleanup","hidden":1}""")
@@ -206,7 +207,7 @@ class PlaybackControllerTest {
         c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
         assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
         assertFalse(c.state.value.nativePlayback)
-        assertTrue(c.state.value.notice!!.contains("usando el reproductor web"))
+        assertNull(c.state.value.notice) // sin avisos: el mismo servidor sigue en el reproductor web
         // Si la página tampoco arranca, entonces sí pasa al siguiente servidor.
         advanceTimeBy(25_001)
         assertEquals(PlayerCommand.Load("https://voe.example/e/1"), commands.last())

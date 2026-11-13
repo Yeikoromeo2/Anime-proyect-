@@ -90,7 +90,7 @@ fun HistoryScreen(
                 supportingContent = {
                     val status = if (item.completed) "visto" else "${Format.time(item.positionMs)} de ${Format.time(item.durationMs)}"
                     SecondaryText(
-                        "Episodio ${Format.episode(item.episodeNumber)} · $status · ${state.siteNames[item.siteId] ?: item.siteId} · ${Format.date(item.updatedAt)}",
+                        "Episodio ${Format.episode(item.episodeNumber)} · $status · ${Format.date(item.updatedAt)}",
                     )
                 },
             )

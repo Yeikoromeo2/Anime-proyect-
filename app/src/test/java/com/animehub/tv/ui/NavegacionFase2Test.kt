@@ -101,6 +101,8 @@ class NavegacionFase2Test : TvUiTest() {
     fun ficha_con_favorito_y_episodios() {
         searchFor("one piece")
         waitForText("“one piece”")
+        waitForText("títulos cargados", substring = true) // los resultados se unen en segundo plano
+        waitForFocusedDescription("One Piece")
         // El primero (Anime Ninja) tiene el foco; JKAnime también lo encuentra.
         compose.onAllNodes(hasContentDescription("One Piece") and isFocused()).assertCountEquals(1)
         key(Key.DirectionCenter)

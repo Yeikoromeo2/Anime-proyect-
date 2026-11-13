@@ -51,6 +51,8 @@ class NavegacionFichaTest : TvUiTest() {
         compose.onNode(hasSetTextAction()).performImeAction()
         // Anime Ninja y JKAnime lo encuentran y se unen en un solo "One Piece" (manda Anime Ninja).
         waitForText("“one piece”")
+        waitForText("títulos cargados", substring = true) // los resultados se unen en segundo plano
+        waitForFocusedDescription("One Piece")
         key(Key.DirectionCenter)
         waitForText("Temporada 1 · 61 episodios  ▾")
     }

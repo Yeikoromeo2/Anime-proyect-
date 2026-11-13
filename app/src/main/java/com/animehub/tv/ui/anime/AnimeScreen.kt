@@ -332,16 +332,24 @@ fun AnimeScreen(
 
 private enum class EpisodePicker { Season, GoTo }
 
-/** "Ver en: Este dispositivo · TV de la sala": con una TV elegida, los episodios se envían a la TV. */
+/**
+ * "Ver en": un botón con el destino actual; al pulsarlo, un popup pequeño con solo los NOMBRES de
+ * lo que está encendido en la misma red (TV con AnimeHub, Chromecast, TV DLNA).
+ */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun PlayTarget(tvs: List<PlayTarget>, target: PlayTarget?, onSelect: (PlayTarget?) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Ver en:", color = AppColors.TextoSecundario)
-        FilterChip(selected = target == null || target !in tvs, onClick = { onSelect(null) }) { Text("📱 Este dispositivo") }
-        tvs.forEach { tv ->
-            FilterChip(selected = target == tv, onClick = { onSelect(tv) }) { Text(tv.label) }
-        }
+    var open by remember { mutableStateOf(false) }
+    val current = target?.takeIf { it in tvs }
+    OutlinedButton(onClick = { open = true }) { Text("📺 Ver en: ${current?.name ?: "Este dispositivo"}  ▾") }
+    if (open) {
+        ChoiceDialog(
+            title = "Ver en…",
+            options = listOf("Este dispositivo") + tvs.map { it.name },
+            selectedIndex = current?.let { tvs.indexOf(it) + 1 } ?: 0,
+            onChoose = { i -> onSelect(if (i == 0) null else tvs[i - 1]); open = false },
+            onDismiss = { open = false },
+        )
     }
 }
 

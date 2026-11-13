@@ -5,7 +5,7 @@ Estado: **desarrollado en la 0.9.0**: "Enviar a mi TV", Chromecast y DLNA. Más 
 ## Cómo se usa
 
 1. **En la TV:** abre AnimeHub (solo hace falta en las TV con AnimeHub; Chromecast y DLNA no la necesitan).
-2. **En la tablet:** abre la ficha de un anime. Si hay destinos en la red, aparece **"Ver en:"**:
+2. **En la tablet:** abre la ficha de un anime. Si hay destinos en la red, aparece el botón **"📺 Ver en: …"**; al pulsarlo, un popup con solo los nombres:
    - **📱 Este dispositivo**;
    - **📺 TV con AnimeHub**;
    - **📡 Chromecast**;

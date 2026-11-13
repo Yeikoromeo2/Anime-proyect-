@@ -128,7 +128,7 @@ La misma app se instala en una tablet y se maneja tocando:
 
 ## Ver en otra pantalla (desde la tablet)
 
-En la ficha de un anime, **"Ver en:"** muestra los destinos encontrados en la red de casa:
+En la ficha de un anime, el botón **"📺 Ver en: …"** abre un popup pequeño con solo los **nombres** de lo que está encendido en la red de casa (más "Este dispositivo"):
 - **📺 TV con AnimeHub** (Android TV / Google TV con la app abierta): la TV reproduce el episodio con todo (bloqueo de anuncios, servidor más viable, minuto guardado). Funciona con **todos** los servidores. La primera vez la TV pregunta si permite la tablet.
 - **📡 Chromecast** y **🖥 TVs DLNA** (Samsung, LG…): solo episodios con video directo. La tablet hace de intermediaria, así que debe quedar encendida.
 
@@ -193,6 +193,13 @@ Además:
 Algunos servidores recuerdan el minuto y muestran un recuadro de **"¿continuar viendo desde…?"** que no se puede tocar con el control. El reproductor lo responde solo (pulsa "Continuar") o, si no tiene botones, lo oculta. Si aparece otra capa que tapa el video, en el menú **↑** está **"Quitar recuadros"**.
 
 Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, quitar recuadros, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
+
+## Fuentes ocultas, modo administrador y errores
+
+- **Todo es "AnimeHub TV"**: en el uso normal no se ve de qué sitio viene un anime, ni nombres de servidores, ni direcciones. El mismo anime de los 4 sitios (latino, castellano, subtitulado, con o sin tildes/macrones, "Temporada 2" = "Season 2" = "II") se une en **una sola tarjeta y una sola ficha**; el sitio principal de cada uno lo decide `priority` en `config/sites.json`.
+- **Modo administrador**: Ajustes → pulsar 'Versión de la app' → PIN `041992`. Muestra sitios, servidores, avisos y el **Registro de errores**; se cierra al volver a pulsar la versión.
+- **Errores**: nunca se muestran al usuario. Solo se guardan (en el aparato, visibles en modo administrador) los que hay que arreglar; "este servidor falló, probando otro" no se registra. La app no puede subirlos al repositorio sin credenciales.
+- **Inicio** abre con una animación de entrada. **Explorar** incluye la barra de búsqueda y un 🎤 pequeño: al tocarlo ya escucha, sin pantalla grande.
 
 ## Búsqueda, filtros y voz
 

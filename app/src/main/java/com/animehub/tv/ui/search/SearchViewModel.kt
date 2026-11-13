@@ -175,8 +175,10 @@ class SearchViewModel @Inject constructor(
                 provider to (1 to selection)
             }.toMap()
             val pages = fetch(requests, clean)
+            // Unir títulos se hace fuera del hilo principal (no congela la pantalla).
+            val unified = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { unifyCards(interleave(pages.values.map { r -> r.first })) }
             _state.update {
-                it.copy(loading = false, results = unifyCards(interleave(pages.values.map { r -> r.first })), notices = notices + pages.values.flatMap { r -> r.second })
+                it.copy(loading = false, results = unified, notices = notices + pages.values.flatMap { r -> r.second })
             }
         }
     }
@@ -191,11 +193,13 @@ class SearchViewModel @Inject constructor(
         _state.update { it.copy(loadingMore = true) }
         searchJob = viewModelScope.launch {
             val pages = fetch(pending, current.query)
+            val before = _state.value.results
+            val known = before.map { it.siteId + it.url }.toSet()
+            val more = interleave(pages.values.map { it.first }).filter { (it.siteId + it.url) !in known }
+            // Lo nuevo se une con lo que ya está (el mismo anime de otro sitio no se repite), fuera del hilo principal.
+            val merged = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { unifyCards(before + more) }
             _state.update { s ->
-                val known = s.results.map { it.siteId + it.url }.toSet()
-                val more = interleave(pages.values.map { it.first }).filter { (it.siteId + it.url) !in known }
-                // Lo nuevo se une con lo que ya está (el mismo anime de otro sitio no se repite).
-                s.copy(loadingMore = false, results = unifyCards(s.results + more), notices = (s.notices + pages.values.flatMap { it.second }).distinct())
+                s.copy(loadingMore = false, results = merged, notices = (s.notices + pages.values.flatMap { it.second }).distinct())
             }
         }
     }

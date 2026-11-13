@@ -90,8 +90,11 @@ data class HomeUiState(
     val shownSites: List<EffectiveSite> get() = currentSite?.let { listOf(it) } ?: activeSites
 
     /** "Últimos capítulos": lo publicado por los sitios mostrados, alternando para que ninguno tape a los demás. */
-    val combinedLatest: List<EpisodeCard>
-        get() = unifyEpisodes(interleave(shownSites.mapNotNull { latest[it.id]?.items?.takeIf { items -> items.isNotEmpty() } }))
+    // Se calcula una sola vez por estado: antes se rehacía en cada recomposición (cada movimiento del
+    // foco), y unir títulos es lo más caro de la pantalla.
+    val combinedLatest: List<EpisodeCard> by lazy(LazyThreadSafetyMode.NONE) {
+        unifyEpisodes(interleave(shownSites.mapNotNull { latest[it.id]?.items?.takeIf { items -> items.isNotEmpty() } }))
+    }
 
     /**
      * Accesos a Explorar por género: los del sitio elegido o los comunes. El valor es siempre el
@@ -104,14 +107,13 @@ data class HomeUiState(
         } ?: commonGenres
 
     /** Lo que recomiendan o destacan los sitios (una versión por título). */
-    val recommended: List<ShowcaseItem> get() = showcaseOf(ShowcaseKind.RECOMENDADO)
+    val recommended: List<ShowcaseItem> by lazy(LazyThreadSafetyMode.NONE) { showcaseOf(ShowcaseKind.RECOMENDADO) }
 
     /** Series recién agregadas que no estén ya en "Recomendados". */
-    val newSeries: List<ShowcaseItem>
-        get() {
-            val shown = recommended
-            return showcaseOf(ShowcaseKind.NUEVO).filter { n -> shown.none { TitleMatcher.same(it.card.title, n.card.title) } }
-        }
+    val newSeries: List<ShowcaseItem> by lazy(LazyThreadSafetyMode.NONE) {
+        val shown = recommended
+        showcaseOf(ShowcaseKind.NUEVO).filter { n -> shown.none { TitleMatcher.same(it.card.title, n.card.title) } }
+    }
 
     /** Sitios cuyas novedades fallaron (para el aviso con "Reintentar"). */
     val failedSites: List<Pair<EffectiveSite, String>>

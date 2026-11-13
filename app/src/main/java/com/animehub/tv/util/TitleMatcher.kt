@@ -21,7 +21,25 @@ object TitleMatcher {
     private val ORDINAL = Regex("""^(\d+)(st|nd|rd|th|ra|da|era|a)$""")
 
     /** Palabras del título ya normalizadas, sin idioma ni relleno; la temporada queda como "s2". */
-    fun tokens(title: String): List<String> {
+    fun tokens(title: String): List<String> = parse(title).tokens
+
+    /** Todo lo que hace falta de un título, calculado una sola vez (comparar listas largas lo repite miles de veces). */
+    private class Parsed(val tokens: List<String>, val key: String, val numbers: Set<String>, val words: List<String>, val wordsJoined: String, val year: Int?)
+
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Parsed>()
+
+    private fun parse(title: String): Parsed {
+        cache[title]?.let { return it }
+        if (cache.size > 6_000) cache.clear()
+        val tokens = computeTokens(title)
+        val numbers = numbers(tokens)
+        val words = tokens.filterNot { it in numbers }
+        val parsed = Parsed(tokens, tokens.joinToString(""), numbers, words, words.joinToString(""), yearTag(title))
+        cache[title] = parsed
+        return parsed
+    }
+
+    private fun computeTokens(title: String): List<String> {
         val plain = Normalizer.normalize(title, Normalizer.Form.NFD).replace(MARKS, "").lowercase()
             .replace("&", " and ")
             .replace(BRACKETS, " ")
@@ -50,7 +68,7 @@ object TitleMatcher {
     }
 
     /** Clave estable de un título (palabras unidas): sirve para agrupar títulos idénticos. */
-    fun key(title: String): String = tokens(title).joinToString("")
+    fun key(title: String): String = parse(title).key
 
     /** Números y temporadas del título: tienen que coincidir para que sea el mismo anime. */
     private fun numbers(tokens: List<String>): Set<String> =
@@ -61,28 +79,29 @@ object TitleMatcher {
     /** Año escrito entre paréntesis en el título: "Ranma ½ (2024)" → 2024. */
     fun yearTag(title: String): Int? = YEAR_TAG.find(title)?.groupValues?.get(1)?.toIntOrNull()
 
-    fun same(a: String, b: String): Boolean {
+    fun same(a: String, b: String): Boolean = same(parse(a), parse(b))
+
+    private fun same(pa: Parsed, pb: Parsed): Boolean {
         // Dos versiones del mismo nombre con año distinto (o solo una lo trae) son series distintas:
         // "Ranma ½ (2024)" no es el "Ranma ½" de 1989. Preferimos no unir antes que esconder una.
-        if (yearTag(a) != yearTag(b)) return false
-        val ta = tokens(a)
-        val tb = tokens(b)
-        if (ta.isEmpty() || tb.isEmpty()) return false
-        val ka = ta.joinToString("")
-        val kb = tb.joinToString("")
-        if (ka == kb) return true
-        if (numbers(ta) != numbers(tb)) return false
-        val wa = ta.filterNot { it in numbers(ta) }
-        val wb = tb.filterNot { it in numbers(tb) }
+        if (pa.year != pb.year) return false
+        if (pa.tokens.isEmpty() || pb.tokens.isEmpty()) return false
+        if (pa.key == pb.key) return true
+        if (pa.numbers != pb.numbers) return false
+        val wa = pa.words
+        val wb = pb.words
         if (wa.isEmpty() || wb.isEmpty()) return false
-        // Muy parecidos letra por letra ("Shingeki" / "Shingeki" con una errata, "Boku no Hero" / "Bokuno Hero").
-        val sa = wa.joinToString("")
-        val sb = wb.joinToString("")
-        if (similarity(sa, sb) >= 0.88) return true
+        // Muy parecidos letra por letra ("Shingeki" con una errata, "Boku no Hero" / "Bokuno Hero").
+        val sa = pa.wordsJoined
+        val sb = pb.wordsJoined
+        // Con más de 12 % de diferencia de largo no pueden parecerse tanto: se evita el cálculo caro.
+        val longer = maxOf(sa.length, sb.length)
+        if ((longer - minOf(sa.length, sb.length)) * 100 <= longer * 12 && similarity(sa, sb) >= 0.88) return true
         // Uno es el otro con palabras de más ("Frieren" / "Sousou no Frieren Beyond Journey's End").
         val (small, big) = if (wa.size <= wb.size) wa to wb else wb to wa
-        val contained = small.all { it in big }
-        return contained && small.joinToString("").length >= 6 && small.joinToString("").length.toDouble() / big.joinToString("").length >= 0.35
+        if (!small.all { it in big }) return false
+        val smallLen = small.sumOf { it.length }
+        return smallLen >= 6 && smallLen.toDouble() / big.sumOf { it.length } >= 0.35
     }
 
     /** 1.0 = iguales, 0.0 = nada en común (distancia de Levenshtein normalizada). */
@@ -114,10 +133,27 @@ object TitleMatcher {
         merge: (main: T, others: List<T>) -> T,
     ): List<T> {
         val groups = mutableListOf<MutableList<T>>()
+        // Índice: solo se compara con los grupos que comparten alguna palabra (o el mismo comienzo),
+        // en vez de con todos (con el catálogo entero eran cientos de miles de comparaciones).
+        val index = HashMap<String, MutableList<Int>>()
+        fun keysOf(p: Parsed) = p.words.map { "w:$it" } + "p:" + p.key.take(4)
         for (item in items) {
             val t = title(item)
-            val home = groups.firstOrNull { g -> g.any { same(title(it), t) && compatible(it, item) } }
-            if (home != null) home += item else groups += mutableListOf(item)
+            val parsed = parse(t)
+            val keys = keysOf(parsed)
+            var home: Int? = null
+            val seen = HashSet<Int>()
+            search@ for (k in keys) {
+                for (gi in index[k].orEmpty()) {
+                    if (!seen.add(gi)) continue
+                    if (groups[gi].any { same(parse(title(it)), parsed) && compatible(it, item) }) { home = gi; break@search }
+                }
+            }
+            if (home != null) groups[home] += item else {
+                groups += mutableListOf(item)
+                val gi = groups.lastIndex
+                keys.forEach { index.getOrPut(it) { mutableListOf() }.add(gi) }
+            }
         }
         return groups.map { g -> if (g.size == 1) g.first() else merge(g.first(), g.drop(1)) }
     }

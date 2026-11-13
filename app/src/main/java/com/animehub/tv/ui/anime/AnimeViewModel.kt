@@ -97,16 +97,27 @@ class AnimeViewModel @Inject constructor(
     fun reload() {
         load.value = load.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            val main = fetch(route.siteId, route.url)
-            val others = alternates.map { (site, url) -> async { fetch(site, url) } }.awaitAll().filterNotNull()
+            // Todo se pide a la vez, pero la ficha se muestra en cuanto llega la principal: antes
+            // esperaba al sitio más lento (Latanime a veces tarda 15 s) para enseñar algo.
+            val mainJob = async { fetch(route.siteId, route.url) }
+            val otherJobs = alternates.map { (site, url) -> async { fetch(site, url) } }
+            val main = mainJob.await()
+            if (main != null) {
+                load.value = LoadState(loading = false, detail = main)
+                if (otherJobs.isNotEmpty()) {
+                    val others = otherJobs.awaitAll().filterNotNull()
+                    load.value = LoadState(loading = false, detail = mergeVersions(main, others))
+                }
+                return@launch
+            }
             // Si la principal no cargó, se usa otra versión sin avisar de nada.
-            val base = main ?: others.firstOrNull()
+            val others = otherJobs.awaitAll().filterNotNull()
+            val base = others.firstOrNull()
             if (base == null) {
                 load.value = LoadState(loading = false, error = "No pudimos cargar esta ficha por ahora.")
                 return@launch
             }
-            val rest = if (main != null) others else others.drop(1)
-            load.value = LoadState(loading = false, detail = mergeVersions(base, rest))
+            load.value = LoadState(loading = false, detail = mergeVersions(base, others.drop(1)))
         }
     }
 

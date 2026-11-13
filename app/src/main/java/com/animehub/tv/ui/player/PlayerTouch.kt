@@ -51,16 +51,19 @@ fun TouchLayer(onTap: () -> Unit, onDoubleTap: (forward: Boolean) -> Unit) {
     )
 }
 
-/** Controles en pantalla para tablet: retroceder, pausa/reproducir, avanzar, servidores y opciones. */
+/** Controles en pantalla para tablet: volver, idioma/versión, quitar recuadros y la fila de botones. */
 @Composable
 fun TouchControls(
     paused: Boolean,
     seekSeconds: Int,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
     onToggle: () -> Unit,
     onSeek: (Int) -> Unit,
-    onServers: () -> Unit,
-    serversLabel: String = "Servidores",
-    onOptions: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onVersions: () -> Unit,
+    onClean: () -> Unit,
     onBack: () -> Unit,
 ) = Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))) {
     Row(
@@ -70,19 +73,21 @@ fun TouchControls(
     ) {
         PillButton("← Volver", onBack)
         Box(Modifier.weight(1f))
-        PillButton(serversLabel, onServers)
-        PillButton("Opciones", onOptions)
+        IconControl("Idioma y versión", onVersions) { drawVersions() }
+        IconControl("Quitar recuadros", onClean) { drawClear() }
     }
     Row(
         Modifier.align(Alignment.Center),
-        horizontalArrangement = Arrangement.spacedBy(56.dp),
+        horizontalArrangement = Arrangement.spacedBy(28.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconControl("Episodio anterior", onPrevious, size = 64.dp, enabled = hasPrevious) { drawSkip(forward = false) }
         SeekButton("−$seekSeconds s", forward = false) { onSeek(-seekSeconds) }
         TouchButton(if (paused) "Reproducir" else "Pausa", size = 112.dp, onClick = onToggle) {
             if (paused) drawPlay() else drawPause()
         }
         SeekButton("+$seekSeconds s", forward = true) { onSeek(seekSeconds) }
+        IconControl("Episodio siguiente", onNext, size = 64.dp, enabled = hasNext) { drawSkip(forward = true) }
     }
 }
 

@@ -198,6 +198,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         SettingsDialog.Pin -> NumberPadDialog(
             title = "Modo administrador",
             message = "Escribe el PIN",
+            maxDigits = 6,
             error = pinError,
             onSubmit = { value -> if (viewModel.admin.unlock(value)) dialog = null else pinError = "PIN incorrecto" },
             onDismiss = { dialog = null },

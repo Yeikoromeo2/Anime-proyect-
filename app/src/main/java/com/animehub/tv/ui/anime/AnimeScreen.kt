@@ -79,6 +79,9 @@ import com.animehub.tv.ui.theme.AppColors
 import com.animehub.tv.ui.navigation.PlayerRoute
 import com.animehub.tv.ui.navigation.RemoteRoute
 import com.animehub.tv.ui.LocalAdmin
+import com.animehub.tv.ui.player.drawCast
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.animehub.tv.remote.DlnaDevice
 import com.animehub.tv.remote.PlayTarget
 import com.animehub.tv.remote.RemoteTv
@@ -341,7 +344,12 @@ private enum class EpisodePicker { Season, GoTo }
 private fun PlayTarget(tvs: List<PlayTarget>, target: PlayTarget?, onSelect: (PlayTarget?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val current = target?.takeIf { it in tvs }
-    OutlinedButton(onClick = { open = true }) { Text("📺 Ver en: ${current?.name ?: "Este dispositivo"}  ▾") }
+    // Solo el icono de "enviar a la pantalla" (resaltado si hay una pantalla elegida).
+    OutlinedButton(onClick = { open = true }, modifier = Modifier.semantics { contentDescription = "Ver en otra pantalla" }) {
+        androidx.compose.foundation.Canvas(Modifier.size(22.dp)) {
+            with(this) { drawCast(if (current != null) androidx.compose.ui.graphics.Color(0xFF7BD88F) else androidx.compose.ui.graphics.Color.White) }
+        }
+    }
     if (open) {
         ChoiceDialog(
             title = "Ver en…",

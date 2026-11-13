@@ -145,15 +145,23 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     val rootFocus = remember { FocusRequester() }
     var infoTick by remember { mutableIntStateOf(0) }
     var infoVisible by remember { mutableStateOf(true) }
-    var menuOpen by remember { mutableStateOf(false) }
+    // Barra de avance: punto elegido con las flechas o el dedo que todavía no se aplicó.
+    var pending by remember { mutableStateOf<Long?>(null) }
+    var scrubStreak by remember { mutableIntStateOf(0) }
+    val liveHolder = remember { longArrayOf(0L) }
+    // TV: con ↓ el foco pasa a la fila de botones (anterior, ±, pausa, siguiente, idioma…).
+    var controlsMode by remember { mutableStateOf(false) }
+    val firstControl = remember { FocusRequester() }
     // Iconos de pausa/reproducir y de los saltos, como en cualquier reproductor.
     val osd = remember(controller) { OsdState() }
     // En pausa la barra queda a la vista; reproduciendo se oculta a los 4 s de la última tecla.
-    LaunchedEffect(infoTick, playing, state.paused) {
+    LaunchedEffect(infoTick, playing, state.paused, controlsMode) {
         infoVisible = true
         delay(INFO_VISIBLE_MS)
-        if (playing && !state.paused) infoVisible = false
+        if (playing && !state.paused && !controlsMode) infoVisible = false
     }
+    LaunchedEffect(controlsMode) { if (controlsMode) infoVisible = true }
+    BackHandler(enabled = controlsMode && playing) { controlsMode = false }
     // Tablet: tocar la pantalla muestra u oculta los controles (se ocultan solos como la barra).
     var touchControls by remember { mutableStateOf(false) }
     LaunchedEffect(infoVisible) { if (!infoVisible) touchControls = false }
@@ -164,6 +172,24 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     fun seek(seconds: Int) {
         osd.seek(seconds)
         controller.seekBy(seconds)
+    }
+    fun commitScrub(target: Long) {
+        val delta = ((target - liveHolder[0]) / 1000).toInt()
+        pending = null
+        scrubStreak = 0
+        if (delta != 0) seek(delta)
+    }
+    // Con las flechas el punto se mueve (cada vez más rápido si se mantiene) y se aplica al soltar.
+    fun scrub(direction: Int) {
+        if (state.durationMs <= 0) { seek(direction * session.seekSeconds); return }
+        scrubStreak++
+        val step = session.seekSeconds * 1000L * (1 + scrubStreak / 4).coerceAtMost(6)
+        pending = ((pending ?: liveHolder[0]) + direction * step).coerceIn(0L, state.durationMs)
+    }
+    LaunchedEffect(pending) {
+        val target = pending ?: return@LaunchedEffect
+        delay(SCRUB_COMMIT_MS)
+        commitScrub(target)
     }
     // Los avisos ("Continuando en 32:00", "usando el reproductor web"…) se van solos.
     var noticeVisible by remember { mutableStateOf(false) }
@@ -180,8 +206,10 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         noticeVisible = false
     }
     // Mientras reproduce, el foco lo tiene la pantalla (la web no lo toma) para recibir las teclas.
-    LaunchedEffect(playing, menuOpen) {
-        if (playing && !menuOpen) runCatching { rootFocus.requestFocus() }
+    LaunchedEffect(playing, controlsMode) {
+        if (!playing) return@LaunchedEffect
+        if (controlsMode) { delay(80); runCatching { firstControl.requestFocus() } }
+        else runCatching { rootFocus.requestFocus() }
     }
 
     Box(
@@ -191,16 +219,21 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (!playing || menuOpen || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (!playing || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 infoTick++
+                if (controlsMode) {
+                    // En la fila de botones las flechas se mueven entre ellos; ↑ vuelve al video.
+                    if (event.key == Key.DirectionUp) { controlsMode = false; return@onPreviewKeyEvent true }
+                    return@onPreviewKeyEvent false
+                }
                 when (event.key) {
                     Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.MediaPlayPause, Key.Spacebar, Key.MediaPlay, Key.MediaPause -> togglePlay()
-                    Key.DirectionLeft, Key.MediaRewind -> seek(-session.seekSeconds)
-                    Key.DirectionRight, Key.MediaFastForward -> seek(session.seekSeconds)
-                    Key.DirectionUp, Key.Menu -> menuOpen = true
+                    Key.DirectionLeft, Key.MediaRewind -> scrub(-1)
+                    Key.DirectionRight, Key.MediaFastForward -> scrub(1)
+                    Key.DirectionUp, Key.Menu -> controller.showServers()
+                    Key.DirectionDown -> controlsMode = true
                     Key.MediaNext -> controller.nextEpisode()
                     Key.MediaPrevious -> controller.previousEpisode()
-                    Key.DirectionDown -> Unit
                     else -> return@onPreviewKeyEvent false
                 }
                 true
@@ -227,8 +260,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         when (val phase = state.phase) {
             PlayerPhase.LoadingServers -> CenterMessage("Buscando servidores que funcionen…\n${episodeTitle(session, state)}", null, onExit)
             is PlayerPhase.ChoosingServer ->
-                if (admin) ServerGrid(session, state, phase.options, onChoose = controller::choose)
-                else CenterMessage("No pudimos reproducir este episodio por ahora.", "Reintentar" to controller::start, onExit)
+                ServerGrid(session, state, phase.options, admin, onChoose = controller::choose)
             is PlayerPhase.Playing -> {
                 if (!isTv) {
                     // Capa táctil sobre el video (también evita tocar los anuncios de la página):
@@ -251,7 +283,16 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     exit = fadeOut(tween(300)) + slideOutVertically(tween(300)) { it / 3 },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
-                    InfoBar(session, state, phase.option, isTv, admin)
+                    InfoBar(session, state, phase.option, isTv, admin, pending, { pending = it }, ::commitScrub, liveHolder) {
+                        if (isTv) {
+                            ControlRow(
+                                paused = state.paused, hasPrevious = state.hasPrevious, hasNext = state.hasNext, seekSeconds = session.seekSeconds,
+                                onPrevious = controller::previousEpisode, onSeek = { seek(it) }, onToggle = { togglePlay() }, onNext = controller::nextEpisode,
+                                onVersions = controller::showServers, onClean = controller::cleanupOverlays,
+                                firstFocus = firstControl,
+                            )
+                        }
+                    }
                 }
                 AnimatedVisibility(
                     visible = touchControls,
@@ -262,6 +303,8 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     TouchControls(
                         paused = state.paused,
                         seekSeconds = session.seekSeconds,
+                        hasPrevious = state.hasPrevious,
+                        hasNext = state.hasNext,
                         onToggle = {
                             togglePlay()
                             infoTick++
@@ -270,10 +313,10 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                             seek(seconds)
                             infoTick++
                         },
-                        // Sin modo administrador no se ven servidores: solo "otra opción".
-                        onServers = { if (admin) controller.showServers() else controller.tryAnother() },
-                        serversLabel = if (admin) "Servidores" else "Otra opción",
-                        onOptions = { menuOpen = true },
+                        onPrevious = controller::previousEpisode,
+                        onNext = controller::nextEpisode,
+                        onVersions = controller::showServers,
+                        onClean = controller::cleanupOverlays,
                         onBack = {
                             controller.onExit()
                             onExit()
@@ -287,7 +330,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     modifier = Modifier.align(Alignment.TopCenter),
                 ) {
                     // En la tablet no hay flecha ↑: los servidores están en los controles en pantalla.
-                    Notice(if (isTv) lastNotice else lastNotice.replace("↑ para cambiar", "toca la pantalla → Servidores para cambiar"))
+                    Notice(lastNotice)
                 }
             }
             is PlayerPhase.NextCountdown -> NextPanel(
@@ -301,22 +344,6 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         }
     }
 
-    if (menuOpen) {
-        ActionsDialog(
-            title = episodeTitle(session, state),
-            message = if (admin) (state.phase as? PlayerPhase.Playing)?.option?.server?.name?.let { "Servidor: $it" } else null,
-            actions = listOf(
-                if (admin) DialogAction("Cambiar servidor") { menuOpen = false; controller.showServers() }
-                else DialogAction("Probar otra opción", enabled = state.options.count { it.health != ServerHealth.NO_DISPONIBLE } > 1) { menuOpen = false; controller.tryAnother() },
-                // Para avisos o capas del servidor que tapan el video y no se pueden tocar con el control.
-                DialogAction("Quitar recuadros") { menuOpen = false; controller.cleanupOverlays() },
-                DialogAction("Siguiente episodio", enabled = state.hasNext) { menuOpen = false; controller.nextEpisode() },
-                DialogAction("Episodio anterior", enabled = state.hasPrevious) { menuOpen = false; controller.previousEpisode() },
-                DialogAction("Salir del reproductor") { menuOpen = false; controller.onExit(); onExit() },
-            ),
-            onDismiss = { menuOpen = false },
-        )
-    }
 }
 
 private fun episodeTitle(session: PlayerSession, state: PlayerState) =
@@ -327,7 +354,7 @@ private fun episodeTitle(session: PlayerSession, state: PlayerState) =
  * final y atenuados. Al elegir uno se reproduce al instante y queda como preferido.
  */
 @Composable
-private fun ServerGrid(session: PlayerSession, state: PlayerState, options: List<ServerOption>, onChoose: (ServerOption) -> Unit) {
+private fun ServerGrid(session: PlayerSession, state: PlayerState, options: List<ServerOption>, admin: Boolean, onChoose: (ServerOption) -> Unit) {
     val working = options.filter { it.health != ServerHealth.NO_DISPONIBLE }
     val ordered = working + options.filter { it.health == ServerHealth.NO_DISPONIBLE }
     val focus = remember(options) { InitialFocusState() }
@@ -345,27 +372,36 @@ private fun ServerGrid(session: PlayerSession, state: PlayerState, options: List
                 Text(episodeTitle(session, state), style = MaterialTheme.typography.headlineSmall)
                 Text(
                     if (working.isEmpty()) "Ningún servidor respondió en la comprobación. Puedes probar igual alguno."
-                    else "Elige un servidor: se reproduce al instante y se recuerda como preferido.",
+                    else if (admin) "Elige un servidor: se reproduce al instante y se recuerda como preferido."
+                    else "Elige el idioma o la versión: se reproduce al instante y se recuerda.",
                     color = AppColors.TextoSecundario,
                 )
                 state.notice?.let { Text(it, color = AppColors.Error) }
             }
         }
+        // Sin modo administrador solo se ve el idioma ("Latino", "Subtitulado"…); si se repite, se numera.
+        val seen = mutableMapOf<String, Int>()
+        val labels = ordered.map { o ->
+            val base = o.server.language?.takeIf { it.isNotBlank() } ?: "Versión"
+            val n = (seen[base] ?: 0) + 1
+            seen[base] = n
+            if (n == 1) base else "$base $n"
+        }
         itemsIndexed(ordered, key = { _, o -> o.server.embedUrl }) { i, option ->
-            ServerTile(option, if (i == 0) Modifier.initialFocus(focus) else Modifier) { onChoose(option) }
+            ServerTile(option, labels[i], admin, if (i == 0) Modifier.initialFocus(focus) else Modifier) { onChoose(option) }
         }
     }
 }
 
 @Composable
-private fun ServerTile(option: ServerOption, modifier: Modifier, onClick: () -> Unit) {
+private fun ServerTile(option: ServerOption, label: String, admin: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val down = option.health == ServerHealth.NO_DISPONIBLE
     val statusColor = when (option.health) {
         ServerHealth.FUNCIONA -> AppColors.Acento2
         ServerHealth.NO_DISPONIBLE -> AppColors.Error
         else -> AppColors.Aviso
     }
-    val description = listOfNotNull(option.server.name, option.server.language).joinToString(" · ")
+    val description = if (admin) listOfNotNull(option.server.name, option.server.language).joinToString(" · ") else label
     Card(
         onClick = onClick,
         modifier = modifier
@@ -386,14 +422,14 @@ private fun ServerTile(option: ServerOption, modifier: Modifier, onClick: () -> 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.size(10.dp).background(statusColor, CircleShape))
                 Text(
-                    (if (option.preferred) "★ " else "") + option.server.name,
+                    (if (option.preferred) "★ " else "") + (if (admin) option.server.name else label),
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            option.server.language?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario, maxLines = 1) }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (admin) option.server.language?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario, maxLines = 1) }
+            if (admin) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Tag(option.kind.etiqueta.removePrefix("Reproductor ").replaceFirstChar { it.uppercase() }, if (option.stream != null) AppColors.Acento else AppColors.SuperficieFoco)
                 Text(
                     listOfNotNull(option.health.etiqueta, option.detail?.takeIf { option.health != ServerHealth.FUNCIONA }).joinToString(" · "),
@@ -418,7 +454,11 @@ private fun Tag(text: String, color: Color) {
 }
 
 @Composable
-private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOption, isTv: Boolean, admin: Boolean) {
+private fun InfoBar(
+    session: PlayerSession, state: PlayerState, option: ServerOption, isTv: Boolean, admin: Boolean,
+    pending: Long?, onPending: (Long) -> Unit, onCommit: (Long) -> Unit, liveHolder: LongArray,
+    controls: @Composable () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -438,13 +478,16 @@ private fun InfoBar(session: PlayerSession, state: PlayerState, option: ServerOp
             color = AppColors.TextoSecundario,
         )
         if (state.durationMs > 0) {
-            SeekBar(livePosition(state), state.durationMs, Modifier.padding(vertical = 4.dp))
+            val live = livePosition(state)
+            liveHolder[0] = live
+            ScrubBar(live, state.durationMs, pending, onPending, onCommit, Modifier.padding(vertical = 2.dp))
         } else {
             Text("Cargando el video…", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
         }
+        controls()
         Text(
-            if (isTv) "OK pausa · ←/→ ${session.seekSeconds} s · ↑ opciones (cambiar servidor, siguiente) · Atrás salir"
-            else "Toca la pantalla para ver los controles · doble toque a un lado para saltar ${session.seekSeconds} s",
+            if (isTv) "←/→ avanzar la barra · OK pausa · ↓ botones · ↑ idioma y versión · Atrás salir"
+            else "Toca la barra o arrástrala para avanzar · doble toque a un lado salta ${session.seekSeconds} s",
             style = MaterialTheme.typography.labelSmall,
             color = AppColors.TextoSecundario,
         )
@@ -533,6 +576,7 @@ private fun CenterMessage(text: String, action: Pair<String, () -> Unit>?, onExi
 }
 
 private const val INFO_VISIBLE_MS = 4_000L
+private const val SCRUB_COMMIT_MS = 700L
 private const val NOTICE_VISIBLE_MS = 4_000L
 private const val LIVE_POSITION_STEP_MS = 500L
 private const val LIVE_POSITION_MAX_MS = 6_000L

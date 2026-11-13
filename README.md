@@ -194,6 +194,11 @@ Algunos servidores recuerdan el minuto y muestran un recuadro de **"¿continuar 
 
 Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, quitar recuadros, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
 
+## Reproductor: controles
+- **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
+- **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.
+- **Idioma/versión**: lista con "Latino", "Subtitulado", "Castellano"… sin nombres de servidor (esos solo en modo administrador).
+
 ## Fuentes ocultas, modo administrador y errores
 
 - **Todo es "AnimeHub TV"**: en el uso normal no se ve de qué sitio viene un anime, ni nombres de servidores, ni direcciones. El mismo anime de los 4 sitios (latino, castellano, subtitulado, con o sin tildes/macrones, "Temporada 2" = "Season 2" = "II") se une en **una sola tarjeta y una sola ficha**; el sitio principal de cada uno lo decide `priority` en `config/sites.json`.

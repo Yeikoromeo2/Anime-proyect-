@@ -56,7 +56,15 @@ object TitleMatcher {
     private fun numbers(tokens: List<String>): Set<String> =
         tokens.filter { t -> t.all(Char::isDigit) || (t.startsWith("s") && t.length > 1 && t.drop(1).all(Char::isDigit)) }.toSet()
 
+    private val YEAR_TAG = Regex("""[(\[]\s*((?:19|20)\d\d)\s*[)\]]""")
+
+    /** Año escrito entre paréntesis en el título: "Ranma ½ (2024)" → 2024. */
+    fun yearTag(title: String): Int? = YEAR_TAG.find(title)?.groupValues?.get(1)?.toIntOrNull()
+
     fun same(a: String, b: String): Boolean {
+        // Dos versiones del mismo nombre con año distinto (o solo una lo trae) son series distintas:
+        // "Ranma ½ (2024)" no es el "Ranma ½" de 1989. Preferimos no unir antes que esconder una.
+        if (yearTag(a) != yearTag(b)) return false
         val ta = tokens(a)
         val tb = tokens(b)
         if (ta.isEmpty() || tb.isEmpty()) return false
@@ -99,11 +107,16 @@ object TitleMatcher {
      * lleva a los demás). Conserva el orden de la primera aparición.
      * @param merge recibe el principal y las otras versiones del mismo anime.
      */
-    fun <T> group(items: List<T>, title: (T) -> String, merge: (main: T, others: List<T>) -> T): List<T> {
+    fun <T> group(
+        items: List<T>,
+        title: (T) -> String,
+        compatible: (T, T) -> Boolean = { _, _ -> true },
+        merge: (main: T, others: List<T>) -> T,
+    ): List<T> {
         val groups = mutableListOf<MutableList<T>>()
         for (item in items) {
             val t = title(item)
-            val home = groups.firstOrNull { g -> g.any { same(title(it), t) } }
+            val home = groups.firstOrNull { g -> g.any { same(title(it), t) && compatible(it, item) } }
             if (home != null) home += item else groups += mutableListOf(item)
         }
         return groups.map { g -> if (g.size == 1) g.first() else merge(g.first(), g.drop(1)) }

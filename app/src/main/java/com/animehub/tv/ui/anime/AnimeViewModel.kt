@@ -124,6 +124,9 @@ class AnimeViewModel @Inject constructor(
      */
     private fun mergeVersions(base: AnimeDetail, others: List<AnimeDetail>): AnimeDetail {
         if (others.isEmpty()) return base
+        // Con varias temporadas en la página principal no se mezcla nada: los números se repiten
+        // por temporada y las temporadas de esa página deben quedar tal cual.
+        if (base.episodes.mapNotNull { it.season }.distinct().size > 1) return base
         val have = base.episodes.map { it.number }.toMutableSet()
         val bySeason = base.episodes.sortedBy { it.number }
         val extra = others.flatMap { other ->

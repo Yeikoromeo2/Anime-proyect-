@@ -45,7 +45,8 @@ private fun <T> displayTitle(all: List<T>, title: (T) -> String): String {
 
 /** Une los títulos que son el mismo anime (otro sitio, otro idioma, otra escritura). */
 fun unifyCards(cards: List<AnimeCard>): List<AnimeCard> =
-    TitleMatcher.group(cards, { it.title }) { first, rest ->
+    // Si los dos sitios dan el año y es distinto, son series distintas (p. ej. Ranma ½ 1989 y 2024).
+    TitleMatcher.group(cards, { it.title }, { a, b -> a.year == null || b.year == null || a.year == b.year }) { first, rest ->
         val ordered = principal(listOf(first) + rest, { it.title }, { it.siteId })
         SameAnimeIndex.register(ordered.map { it.siteId to it.url })
         val main = ordered.first()

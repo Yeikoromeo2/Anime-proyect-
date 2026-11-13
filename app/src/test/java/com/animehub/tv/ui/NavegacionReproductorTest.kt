@@ -140,18 +140,15 @@ class NavegacionReproductorTest : TvUiTest() {
         compose.mainClock.advanceTimeBy(6_000)
         waitForText("HLS · Anime Ninja · Reproductor nativo · En pausa")
         capture("33_en_pausa")
-        // → dos veces seguidas: el salto se suma a un lado ("+20 s"); ← cambia de lado.
+        // → dos veces seguidas mueve el punto de la barra (+20 s) y se aplica de una vez al soltar.
         key(Key.DirectionRight)
         key(Key.DirectionRight)
         waitForDescription("+20 s")
         capture("34_avanzar")
-        assertEquals(2, FakeNative.commands.count { it == """{"type":"seekBy","seconds":10}""" })
-        key(Key.DirectionLeft)
-        waitForDescription("−10 s")
+        assertEquals(1, FakeNative.commands.count { it == """{"type":"seekBy","seconds":20}""" })
 
         // ↑ → "Cambiar servidor": todos en cuadros (HLS y MP4Upload con reproductor nativo; Voe y Byse caídos, al final).
         key(Key.DirectionUp)
-        activate("Cambiar servidor")
         waitForText("Elige un servidor", substring = true)
         waitForFocusedDescription("HLS · Subtitulado")
         waitForText("No disponible", substring = true)
@@ -188,8 +185,7 @@ class NavegacionReproductorTest : TvUiTest() {
         openTankChairEpisode6()
         waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
         // Elegirlo en la lista lo deja como preferido (arrancar solo no).
-        key(Key.DirectionUp)
-        activate("Cambiar servidor")
+        key(Key.DirectionUp) // abre directo la lista de versiones
         waitForFocusedDescription("HLS · Subtitulado")
         key(Key.DirectionCenter)
         waitForPlayer { FakeNative.played.size >= 2 }

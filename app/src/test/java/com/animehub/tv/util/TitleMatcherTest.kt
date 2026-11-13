@@ -3,6 +3,7 @@ package com.animehub.tv.util
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import com.animehub.tv.domain.model.AnimeCard
 import org.junit.Test
 
 class TitleMatcherTest {
@@ -46,5 +47,19 @@ class TitleMatcherTest {
         val items = listOf("Ragna Crimson|a", "One Piece|a", "Ragna Crimson Latino|b", "ONE PIECE|c", "Frieren|a")
         val merged = TitleMatcher.group(items, { it.substringBefore('|') }) { main, others -> main + "+" + others.joinToString("+") { it.substringAfter('|') } }
         assertEquals(listOf("Ragna Crimson|a+b", "One Piece|a+c", "Frieren|a"), merged)
+    }
+
+    @Test
+    fun `el mismo nombre con otro año es otra serie`() {
+        assertFalse(same("Ranma ½ (2024)", "Ranma ½"))
+        assertFalse(same("Ranma ½ (2024)", "Ranma ½ (1989)"))
+        assertTrue(same("Ranma ½ (2024) Latino", "RANMA ½ (2024) Castellano"))
+    }
+
+    @Test
+    fun `tarjetas con años distintos no se unen`() {
+        val a = AnimeCard("animeninja", "Ranma ½", "u1", null, year = 1989)
+        val b = AnimeCard("jkanime", "Ranma ½", "u2", null, year = 2024)
+        assertEquals(2, unifyCards(listOf(a, b)).size)
     }
 }

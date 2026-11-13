@@ -96,7 +96,7 @@ class NavegacionTabletTest : TvUiTest() {
         compose.mainClock.advanceTimeBy(400) // espera del doble toque
         tap(hasContentDescription("Pausa"))
         compose.waitUntil(5_000) { FakeNative.commands.contains("""{"type":"toggle"}""") }
-        waitFor(hasText("Toca la pantalla para ver los controles", substring = true))
+        waitFor(hasText("Toca la barra o arrástrala", substring = true))
         capture("41_tablet_controles")
 
         // Doble toque en el lado derecho: avanza.
@@ -106,7 +106,7 @@ class NavegacionTabletTest : TvUiTest() {
         // "Servidores": la cuadrícula se maneja tocando.
         compose.onRoot().performTouchInput { click(center) }
         compose.mainClock.advanceTimeBy(400)
-        tap(hasText("Servidores"))
+        tap(hasContentDescription("Idioma y versión"))
         tap(hasContentDescription("MP4Upload · Subtitulado"))
         compose.waitUntil(10_000) {
             shadowOf(Looper.getMainLooper()).idle()

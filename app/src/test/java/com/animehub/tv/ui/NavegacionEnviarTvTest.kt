@@ -97,7 +97,7 @@ class NavegacionEnviarTvTest : TvUiTest() {
         openTankChair()
         tap(hasContentDescription("Tank Chair"))
         // Un solo botón "Ver en"; su popup lista solo los nombres de los aparatos de la red.
-        tap(hasText("📺 Ver en: Este dispositivo  ▾"))
+        tap(hasContentDescription("Ver en otra pantalla"))
         waitFor(hasText("✓ Este dispositivo"))
         tap(hasText("TV de la sala"))
         tap(hasText("Ver episodio 6 · nuevo"))
@@ -179,7 +179,7 @@ class NavegacionEnviarTvTest : TvUiTest() {
         FakeRemote.extra.value = listOf(DlnaDevice("uuid:samsung", "[TV] Samsung Q60", "http://192.168.1.30:9197/upnp/control/AVTransport1"))
         openTankChair()
         tap(hasContentDescription("Tank Chair"))
-        tap(hasText("📺 Ver en: Este dispositivo  ▾"))
+        tap(hasContentDescription("Ver en otra pantalla"))
         waitFor(hasText("✓ Este dispositivo"))
         tap(hasText("[TV] Samsung Q60"))
         tap(hasText("Ver episodio 6 · nuevo"))

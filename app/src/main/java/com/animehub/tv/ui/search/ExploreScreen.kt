@@ -183,7 +183,7 @@ fun ExploreScreen(
                     imageUrl = card.coverUrl,
                     onClick = { onOpenAnime(card.siteId, card.url, card.title, card.coverUrl) },
                     cardModifier = if (index == 0 && focusResults) Modifier.initialFocus(resultsFocus) else Modifier,
-                    subtitle = listOfNotNull(card.type?.etiqueta, card.year?.toString(), card.language).joinToString(" · ").ifEmpty { null },
+                    subtitle = listOfNotNull(card.type?.etiqueta, (card.year ?: com.animehub.tv.util.TitleMatcher.yearTag(card.title))?.toString(), card.language).joinToString(" · ").ifEmpty { null },
                     badge = if (admin && state.selectedSite == null) state.siteNames[card.siteId] else null,
                     width = null,
                 )

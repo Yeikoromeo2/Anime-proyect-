@@ -191,7 +191,11 @@ class NavegacionReproductorTest : TvUiTest() {
         waitForFocusedDescription("HLS · Subtitulado")
         key(Key.DirectionCenter)
         waitForPlayer { FakeNative.played.size >= 2 }
-        back() // salir del reproductor
+        // Atrás una vez solo oculta los controles y avisa; la segunda sale del reproductor.
+        back()
+        compose.waitForIdle()
+        waitForText("Pulsa Atrás otra vez para salir")
+        back()
         waitForFocus("Ver episodio 6 · nuevo")
         // Episodio 5: ahora reproduce directo con el preferido, sin lista. (Con miniaturas, los
         // episodios quedan más abajo: se baja hasta él.)

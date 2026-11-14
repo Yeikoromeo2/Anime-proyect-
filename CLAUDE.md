@@ -32,6 +32,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - `ServerRepository.serversFlow`: abre los agregadores y comprueba los servidores **de a 3**, el preferido (o el primero de la lista) con 3 s de ventaja; emite la lista cada vez que uno responde. **Los que no responden o están caídos se descartan** (nunca se muestran ni se prueban). Plazos: 6 s por comprobación.
 - `PlaybackController` arranca con el primero que sirve y deja que la lista siga creciendo; si falla el que suena salta al siguiente (o espera si aún llegan más). Lo que el usuario **elige a mano no se cambia solo**: tiene 3× de paciencia y, si no carga, se vuelve a la lista. Atrás en la lista vuelve al video (`cancelChoosing`).
 - La preferencia se guarda como servidor + idioma (`encodePreferred`); los episodios siguientes arrancan con lo mismo.
+- Atrás en el reproductor: una vez oculta los controles y avisa; la segunda (en 3 s) sale. Nunca sale a la primera.
 - Al salir del reproductor se cancela la comprobación (`onExit`). La ficha completa del anime se pide en paralelo (`setEpisodes`).
 
 ## Pruebas y publicación

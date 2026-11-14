@@ -197,6 +197,7 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 ## Reproductor: controles
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
 - **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.
+- **Atrás**: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor. Con la lista de versiones abierta, Atrás vuelve al video.
 - **Idioma/versión**: lista con "Latino", "Subtitulado", "Castellano"… sin nombres de servidor (esos solo en modo administrador).
 
 ## Fuentes ocultas, modo administrador y errores

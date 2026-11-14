@@ -162,7 +162,16 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         if (playing && !state.paused && !controlsMode) infoVisible = false
     }
     LaunchedEffect(controlsMode) { if (controlsMode) infoVisible = true }
-    BackHandler(enabled = controlsMode && playing) { controlsMode = false }
+    // Atrás: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor.
+    var exitArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(exitArmed) { if (exitArmed) { delay(EXIT_ARMED_MS); exitArmed = false } }
+    BackHandler(enabled = playing) {
+        when {
+            exitArmed -> { controller.onExit(); onExit() }
+            infoVisible || controlsMode -> { controlsMode = false; infoVisible = false; exitArmed = true }
+            else -> exitArmed = true
+        }
+    }
     // Con la lista de versiones abierta, Atrás vuelve al video que sonaba (no cierra el reproductor).
     BackHandler(enabled = state.phase is PlayerPhase.ChoosingServer && controller.canResume) { controller.cancelChoosing() }
     // Tablet: tocar la pantalla muestra u oculta los controles (se ocultan solos como la barra).
@@ -327,7 +336,15 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     )
                 }
                 AnimatedVisibility(
-                    visible = noticeVisible,
+                    visible = exitArmed,
+                    enter = fadeIn(tween(150)),
+                    exit = fadeOut(tween(300)),
+                    modifier = Modifier.align(Alignment.TopCenter),
+                ) {
+                    Notice("Pulsa Atrás otra vez para salir")
+                }
+                AnimatedVisibility(
+                    visible = noticeVisible && !exitArmed,
                     enter = fadeIn(tween(200)) + slideInVertically(tween(250)) { -it },
                     exit = fadeOut(tween(400)),
                     modifier = Modifier.align(Alignment.TopCenter),
@@ -579,6 +596,7 @@ private fun CenterMessage(text: String, action: Pair<String, () -> Unit>?, onExi
 }
 
 private const val INFO_VISIBLE_MS = 4_000L
+private const val EXIT_ARMED_MS = 3_000L
 private const val SCRUB_COMMIT_MS = 700L
 private const val NOTICE_VISIBLE_MS = 4_000L
 private const val LIVE_POSITION_STEP_MS = 1_000L

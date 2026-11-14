@@ -1,0 +1,342 @@
+package com.animehub.tv.playback
+
+import com.animehub.tv.domain.model.Episode
+import com.animehub.tv.domain.model.ServerHealth
+import com.animehub.tv.domain.model.ServerOption
+import com.animehub.tv.domain.model.VideoServer
+import com.animehub.tv.domain.model.WatchProgress
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import com.animehub.tv.domain.model.DirectStream
+import com.animehub.tv.domain.model.StreamType
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class PlaybackControllerTest {
+
+    private val episodes = (1..3).map { Episode(it.toFloat(), "Episodio $it", "https://sitio/ver/x-episodio-$it") }
+    private fun opt(name: String, health: ServerHealth = ServerHealth.FUNCIONA, preferred: Boolean = false) =
+        ServerOption(VideoServer(name, "https://$name.example/e/1"), health, preferred)
+
+    private class Saved(val ep: Float, val pos: Long, val dur: Long, val completed: Boolean, val server: String?)
+
+    private fun TestScope.controller(
+        options: List<ServerOption>,
+        saved: WatchProgress? = null,
+        startIndex: Int = 0,
+        saves: MutableList<Saved> = mutableListOf(),
+        preferred: MutableList<String> = mutableListOf(),
+        nativeFailures: NativeFailures = NativeFailures(clock = { testScheduler.currentTime }),
+    ) = PlaybackController(
+        scope = this,
+        episodes = episodes,
+        startIndex = startIndex,
+        loadServers = { flowOf(options) },
+        savedProgress = { saved },
+        saveProgress = { ep, s, pos, dur, done -> saves += Saved(ep.number, pos, dur, done, s?.server?.name) },
+        rememberPreferred = { preferred += it },
+        watchdogMs = 25_000,
+        countdownSeconds = 10,
+        clock = { testScheduler.currentTime },
+        nativeFailures = nativeFailures,
+    )
+
+    private fun progress(pos: Double, dur: Double, paused: Boolean = false) = """{"type":"progress","pos":$pos,"dur":$dur,"paused":$paused}"""
+
+    @Test
+    fun `con servidor preferido que funciona reproduce directo`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe"), opt("mp4upload", preferred = true)))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        assertEquals("mp4upload", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        assertEquals(PlayerCommand.Load("https://mp4upload.example/e/1"), commands.first())
+        job.cancel()
+        c.onExit()
+    }
+
+    @Test
+    fun `sin preferido arranca solo con el primero viable y al elegir otro lo recuerda`() = runTest(UnconfinedTestDispatcher()) {
+        val preferred = mutableListOf<String>()
+        val c = controller(listOf(opt("roto", ServerHealth.NO_DISPONIBLE), opt("voe"), opt("filemoon")), preferred = preferred)
+        c.start()
+        runCurrent()
+        // Sin preguntar: el primero que no está caído (la lista ya viene ordenada por el repositorio).
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        assertTrue(preferred.isEmpty()) // arrancar solo no lo marca como preferido
+        // La lista se abre cuando se quiere; elegir uno sí lo recuerda.
+        c.showServers()
+        val phase = c.state.value.phase as PlayerPhase.ChoosingServer
+        c.choose(phase.options.first { it.server.name == "filemoon" })
+        runCurrent()
+        assertEquals(listOf("filemoon"), preferred)
+        assertEquals("filemoon", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
+    }
+
+    @Test
+    fun `si todos estan caidos muestra la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("roto", ServerHealth.NO_DISPONIBLE), opt("otro", ServerHealth.NO_DISPONIBLE)))
+        c.start()
+        runCurrent()
+        assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
+        c.onExit()
+    }
+
+    @Test
+    fun `si no arranca en 25 s prueba el siguiente servidor y salta los caidos`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("a", preferred = true), opt("roto", ServerHealth.NO_DISPONIBLE), opt("b", ServerHealth.SIN_VERIFICAR)))
+        c.start()
+        runCurrent()
+        advanceTimeBy(25_001)
+        val playing = c.state.value.phase as PlayerPhase.Playing
+        assertEquals("b", playing.option.server.name)
+        // Sin avisos técnicos: pasa solo al siguiente servidor.
+        assertNull(c.state.value.notice)
+        advanceTimeBy(25_001)
+        assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
+        assertNull(c.state.value.notice) // la pantalla decide qué mostrar (sin detalles técnicos)
+    }
+
+    @Test
+    fun `retoma 5 s antes del minuto guardado y guarda cada 5 s`() = runTest(UnconfinedTestDispatcher()) {
+        val saved = WatchProgress("s", "a", "A", null, 1f, episodes[0].url, "voe", 600_000, 1_440_000, 1, false)
+        val saves = mutableListOf<Saved>()
+        val c = controller(listOf(opt("voe", preferred = true)), saved = saved, saves = saves)
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
+        assertEquals(PlayerCommand.Script("""{"type":"seekTo","seconds":595.0}"""), commands.last())
+        assertEquals("Continuando en 9:55", c.state.value.notice)
+        c.onMessage(progress(596.0, 1440.0))
+        advanceTimeBy(5_000)
+        c.onMessage(progress(601.0, 1440.0))
+        assertEquals(listOf(596_000L, 601_000L), saves.map { it.pos })
+        assertEquals("voe", saves.last().server)
+        job.cancel()
+        c.onExit()
+    }
+
+    @Test
+    fun `al terminar cuenta 10 s y pasa solo al siguiente episodio`() = runTest(UnconfinedTestDispatcher()) {
+        val saves = mutableListOf<Saved>()
+        val c = controller(listOf(opt("voe", preferred = true)), saves = saves)
+        c.start()
+        runCurrent()
+        c.onMessage(progress(1.0, 1440.0))
+        c.onMessage("""{"type":"ended"}""")
+        val countdown = c.state.value.phase as PlayerPhase.NextCountdown
+        assertEquals(2f, countdown.next.number)
+        assertEquals(10, countdown.secondsLeft)
+        assertTrue(saves.last().completed)
+        advanceTimeBy(10_001)
+        runCurrent()
+        assertEquals(2f, c.state.value.episode!!.number)
+        assertTrue(c.state.value.phase is PlayerPhase.Playing)
+        c.onExit()
+    }
+
+    @Test
+    fun `cerca del final cuenta como terminado y en el ultimo episodio no hay siguiente`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe", preferred = true)), startIndex = 2)
+        c.start()
+        runCurrent()
+        assertTrue(!c.state.value.hasNext)
+        c.onMessage(progress(1439.0, 1440.0))
+        assertTrue(c.state.value.phase is PlayerPhase.Finished)
+    }
+
+    @Test
+    fun `cancelar la cuenta atras`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe", preferred = true)))
+        c.start()
+        runCurrent()
+        c.onMessage(progress(1.0, 1440.0))
+        c.onMessage("""{"type":"ended"}""")
+        c.cancelNext()
+        advanceTimeBy(15_000)
+        assertEquals(1f, c.state.value.episode!!.number)
+        assertTrue(c.state.value.phase is PlayerPhase.Finished)
+    }
+
+    @Test
+    fun `quitar recuadros manda la orden y avisa cuando el servidor pregunta si continuar`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe", preferred = true)))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage("""{"type":"prompt","accepted":true,"text":"¿Continuar viendo desde 05:12?"}""")
+        assertNull(c.state.value.notice) // el aviso del servidor se responde sin mostrar nada
+        c.cleanupOverlays()
+        assertEquals(PlayerCommand.Script("""{"type":"cleanup"}"""), commands.last())
+        c.onMessage("""{"type":"cleanup","hidden":1}""")
+        assertEquals("Se quitaron los recuadros que tapaban el video", c.state.value.notice)
+        job.cancel()
+        c.onExit()
+    }
+
+    private fun native(name: String, preferred: Boolean = false) = ServerOption(
+        VideoServer(name, "https://$name.example/e/1"), ServerHealth.FUNCIONA, preferred,
+        stream = DirectStream("https://$name.example/video.m3u8", StreamType.HLS, mapOf("Referer" to "https://$name.example/")),
+    )
+
+    @Test
+    fun `con video directo usa el reproductor nativo y si falla abre la pagina del mismo servidor`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(native("zilla", preferred = true), opt("voe")))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        assertEquals(PlayerCommand.PlayNative(DirectStream("https://zilla.example/video.m3u8", StreamType.HLS, mapOf("Referer" to "https://zilla.example/"))), commands.last())
+        assertTrue(c.state.value.nativePlayback)
+        // El nativo no pudo: mismo servidor en el reproductor web (no salta a Voe).
+        c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+        assertFalse(c.state.value.nativePlayback)
+        assertNull(c.state.value.notice) // sin avisos: el mismo servidor sigue en el reproductor web
+        // Si la página tampoco arranca, entonces sí pasa al siguiente servidor.
+        advanceTimeBy(25_001)
+        assertEquals(PlayerCommand.Load("https://voe.example/e/1"), commands.last())
+        job.cancel()
+        c.onExit()
+    }
+
+    @Test
+    fun `si el nativo falla a mitad sigue en la web desde el mismo minuto`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(native("zilla", preferred = true)))
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage(progress(600.0, 1440.0))
+        c.onMessage("""{"type":"error","code":2001,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+        // La página arranca: salta al minuto donde iba.
+        c.onMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
+        assertEquals(PlayerCommand.Script("""{"type":"seekTo","seconds":600.0}"""), commands.last())
+        job.cancel()
+        c.onExit()
+    }
+
+    @Test
+    fun `si el nativo fallo con un servidor los episodios siguientes van directo a la web`() = runTest(UnconfinedTestDispatcher()) {
+        val failures = NativeFailures(ttlMs = 30 * 60_000L, clock = { testScheduler.currentTime })
+        val c = controller(listOf(native("zilla", preferred = true)), nativeFailures = failures)
+        val commands = mutableListOf<PlayerCommand>()
+        val job = launch { c.commands.toList(commands) }
+        c.start()
+        runCurrent()
+        c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
+
+        // Siguiente episodio: sin volver a probar el nativo ni mostrar otra vez el aviso del cambio.
+        commands.clear()
+        c.nextEpisode()
+        runCurrent()
+        assertEquals(listOf<PlayerCommand>(PlayerCommand.Load("https://zilla.example/e/1")), commands.filterNot { it is PlayerCommand.Stop })
+        assertFalse(c.state.value.nativePlayback)
+        assertFalse(c.state.value.notice.orEmpty().contains("reproductor nativo"))
+        job.cancel()
+        c.onExit()
+
+        // Otra sesión (otro anime) con la misma memoria: también va a la web; pasada media hora se vuelve a intentar.
+        val other = controller(listOf(native("zilla", preferred = true)), nativeFailures = failures)
+        val more = mutableListOf<PlayerCommand>()
+        val job2 = launch { other.commands.toList(more) }
+        other.start()
+        runCurrent()
+        assertTrue(more.last() is PlayerCommand.Load)
+        other.onExit()
+        advanceTimeBy(30 * 60_000L + 1)
+        other.start()
+        runCurrent()
+        assertTrue(more.last() is PlayerCommand.PlayNative)
+        job2.cancel()
+        other.onExit()
+    }
+
+    @Test
+    fun `lo que el usuario elige no se cambia solo y si no carga vuelve a la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe"), opt("filemoon"), opt("streamwish")))
+        c.start()
+        runCurrent()
+        c.showServers()
+        val chosen = (c.state.value.phase as PlayerPhase.ChoosingServer).options[1]
+        c.choose(chosen)
+        runCurrent()
+        // Pasa más tiempo que con uno automático (25 s): sigue esperando al elegido.
+        advanceTimeBy(30_000)
+        assertEquals(chosen.server.name, (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        // Agotada la paciencia no salta a otro: abre la lista para que elija.
+        advanceTimeBy(60_000)
+        assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
+        c.onExit()
+    }
+
+    @Test
+    fun `cerrar la lista sin elegir sigue con el mismo servidor`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe"), opt("filemoon")))
+        c.start()
+        runCurrent()
+        assertTrue(c.canResume)
+        c.showServers()
+        c.cancelChoosing()
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
+    }
+
+    @Test
+    fun `arranca con el primero que responde y los que llegan despues solo engrosan la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
+        val c = PlaybackController(
+            scope = this, episodes = episodes, startIndex = 0,
+            loadServers = { gate },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            clock = { testScheduler.currentTime },
+        )
+        c.start()
+        runCurrent()
+        assertTrue(c.state.value.phase is PlayerPhase.LoadingServers)
+        gate.emit(listOf(opt("voe")))
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        gate.emit(listOf(opt("voe"), opt("filemoon")))
+        // No cambia lo que suena; la lista sí tiene los dos.
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        assertEquals(2, c.state.value.options.size)
+        c.onExit()
+    }
+
+    @Test
+    fun `si falla el unico servidor y aun llegan mas, espera y prueba el nuevo`() = runTest(UnconfinedTestDispatcher()) {
+        val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
+        val c = PlaybackController(
+            scope = this, episodes = episodes, startIndex = 0,
+            loadServers = { gate },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            watchdogMs = 25_000, clock = { testScheduler.currentTime },
+        )
+        c.start()
+        runCurrent()
+        gate.emit(listOf(opt("voe")))
+        advanceTimeBy(26_000) // voe no arranca
+        assertTrue(c.state.value.phase is PlayerPhase.LoadingServers)
+        gate.emit(listOf(opt("voe"), opt("filemoon")))
+        assertEquals("filemoon", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
+    }
+}

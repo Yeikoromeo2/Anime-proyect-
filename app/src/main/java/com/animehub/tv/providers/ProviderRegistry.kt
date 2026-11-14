@@ -1,0 +1,50 @@
+package com.animehub.tv.providers
+
+import com.animehub.tv.data.config.ConfigRepository
+import com.animehub.tv.data.config.EffectiveSite
+import com.animehub.tv.data.net.HtmlFetcher
+import com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider
+import com.animehub.tv.providers.dooplay.DooPlayProvider
+import com.animehub.tv.providers.jkanime.JkanimeProvider
+import com.animehub.tv.providers.latanime.LatanimeProvider
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** Crea el proveedor de cada sitio según su "engine" en la configuración remota. */
+@Singleton
+class ProviderRegistry @Inject constructor(
+    private val configRepository: ConfigRepository,
+    private val fetcher: HtmlFetcher,
+) {
+    fun create(site: EffectiveSite): SiteProvider? = when (site.config.engine) {
+        ENGINE_DOOPLAY -> DooPlayProvider(site, fetcher)
+        ENGINE_LATANIME -> LatanimeProvider(site, fetcher)
+        ENGINE_JKANIME -> JkanimeProvider(site, fetcher)
+        ENGINE_ANIMEFLV_WP -> AnimeFlvWpProvider(site, fetcher)
+        else -> null
+    }
+
+    /** El sitio tiene un proveedor en esta versión de la app. */
+    fun hasProvider(site: EffectiveSite): Boolean = site.config.engine in ENGINES
+
+    /** Proveedores de los sitios activos (los sitios sin proveedor todavía se omiten). */
+    val activeProviders: Flow<List<SiteProvider>> =
+        configRepository.sites.map { sites -> sites.filter { it.enabled }.mapNotNull(::create) }
+
+    /** Proveedor de un sitio aunque esté desactivado (para abrir favoritos o el historial). */
+    suspend fun provider(siteId: String): SiteProvider? {
+        configRepository.loadLocal()
+        return configRepository.sites.first().firstOrNull { it.id == siteId }?.let(::create)
+    }
+
+    companion object {
+        const val ENGINE_DOOPLAY = "dooplay"
+        const val ENGINE_LATANIME = "latanime"
+        const val ENGINE_JKANIME = "jkanime"
+        const val ENGINE_ANIMEFLV_WP = "animeflv-wp"
+        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP)
+    }
+}

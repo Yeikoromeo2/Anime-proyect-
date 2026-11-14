@@ -8,6 +8,8 @@ import com.animehub.tv.domain.model.WatchProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -69,9 +71,10 @@ sealed interface PlayerCommand {
  */
 class PlaybackController(
     private val scope: CoroutineScope,
-    private val episodes: List<Episode>,
+    episodes: List<Episode>,
     startIndex: Int,
-    private val loadServers: suspend (Episode) -> List<ServerOption>,
+    /** Los servidores van llegando a medida que responden; se reproduce con el primero que sirva. */
+    private val loadServers: (Episode) -> Flow<List<ServerOption>>,
     private val savedProgress: suspend (Episode) -> WatchProgress?,
     private val saveProgress: suspend (Episode, ServerOption?, positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
     private val rememberPreferred: suspend (String) -> Unit,
@@ -81,14 +84,31 @@ class PlaybackController(
     /** Hosts donde el nativo falló hace poco (compartido entre episodios y sesiones). */
     private val nativeFailures: NativeFailures = NativeFailures(clock = clock),
 ) {
+    private var episodes: List<Episode> = episodes
     private var index = startIndex.coerceIn(0, (episodes.size - 1).coerceAtLeast(0))
+    /** Se siguen comprobando servidores (llegan más opciones). */
+    private var loadingMore = false
+    /** Se esperaba una opción nueva porque la que sonaba falló y no quedaban más. */
+    private var awaitingMore = false
+    /** El usuario eligió este servidor: si falla no se salta solo a otro, se le avisa y elige. */
+    private var manual = false
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state.asStateFlow()
     private val _commands = MutableSharedFlow<PlayerCommand>(extraBufferCapacity = 16)
     val commands: SharedFlow<PlayerCommand> = _commands.asSharedFlow()
+    /**
+     * Última orden de reproducir/abrir/parar: si la pantalla todavía no estaba escuchando cuando se
+     * emitió (ahora que el servidor puede responder en cuanto llega la primera comprobación), se
+     * entrega al empezar a escuchar.
+     */
+    @Volatile var lastLoad: PlayerCommand? = null
+        private set
+    private fun emitLoad(cmd: PlayerCommand) { lastLoad = cmd; _commands.tryEmit(cmd) }
 
     private var current: ServerOption? = null
     private val tried = mutableSetOf<String>()
+    /** Hay un servidor al que volver si se cierra la lista sin elegir. */
+    val canResume: Boolean get() = current != null
     /** Servidores cuyo video directo falló: se usan con el reproductor web. */
     private val nativeBroken = mutableSetOf<String>()
     private var native = false
@@ -116,37 +136,81 @@ class PlaybackController(
             PlayerState(episode = ep, phase = PlayerPhase.LoadingServers, hasNext = index < episodes.lastIndex, hasPrevious = index > 0)
         }
         loadJob?.cancel()
+        manual = false
+        awaitingMore = false
+        loadingMore = true
         loadJob = scope.launch {
             val saved = runCatching { savedProgress(ep) }.getOrNull()
             resumeAtMs = saved?.takeIf { !it.completed && it.positionMs > RESUME_MIN_MS }?.let { (it.positionMs - RESUME_BACK_MS).coerceAtLeast(0) }
-            val options = runCatching { loadServers(ep) }.getOrElse { e ->
-                _state.update { it.copy(phase = PlayerPhase.Failed("No pudimos preparar este episodio. Inténtalo de nuevo en un momento.")) }
-                return@launch
+            var failure = false
+            runCatching {
+                loadServers(ep).collect { options -> onOptions(options) }
+            }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                failure = true
             }
-            _state.update { it.copy(options = options) }
-            // Siempre arranca solo: el preferido o, si no hay, el primero más viable (la lista ya
-            // viene ordenada: los que funcionan y los de reproductor nativo primero). Si falla, pasa
-            // al siguiente; la lista se puede abrir en cualquier momento para elegir otro.
+            loadingMore = false
+            val options = _state.value.options
             val usable = options.filter { it.health != ServerHealth.NO_DISPONIBLE }
-            val preferred = usable.firstOrNull { it.preferred }
-            val best = preferred ?: usable.firstOrNull()
             when {
+                // Ya está sonando: lo que llegue después solo engrosa la lista.
+                _state.value.phase is PlayerPhase.Playing || _state.value.phase is PlayerPhase.ChoosingServer -> Unit
+                failure && options.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.Failed("No pudimos preparar este episodio. Inténtalo de nuevo en un momento.")) }
                 options.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.Failed("Este episodio todavía no está disponible.")) }
-                preferred != null -> play(preferred)
-                best != null -> play(best)
-                else -> _state.update { it.copy(phase = PlayerPhase.ChoosingServer(options)) }
+                usable.isEmpty() -> _state.update { it.copy(phase = PlayerPhase.ChoosingServer(options)) }
+                awaitingMore -> { awaitingMore = false; _state.update { it.copy(phase = PlayerPhase.ChoosingServer(options)) } }
             }
         }
     }
 
+    /** Llegó una lista (cada vez más completa): arranca con el primero que sirva si aún no suena nada. */
+    private fun onOptions(options: List<ServerOption>) {
+        _state.update { s ->
+            val phase = s.phase
+            // Con la lista abierta se va actualizando en vivo.
+            if (phase is PlayerPhase.ChoosingServer) s.copy(options = options, phase = PlayerPhase.ChoosingServer(options)) else s.copy(options = options)
+        }
+        val phase = _state.value.phase
+        if (phase !is PlayerPhase.LoadingServers) return
+        val usable = options.filter { it.health != ServerHealth.NO_DISPONIBLE }
+        // Siempre arranca solo: el preferido o, si no hay, el primero más viable (la lista ya viene
+        // ordenada). Si falla, pasa al siguiente; la lista se puede abrir en cualquier momento.
+        val pick = if (awaitingMore) usable.firstOrNull { it.server.embedUrl !in tried } else usable.firstOrNull { it.preferred } ?: usable.firstOrNull()
+        if (pick != null) {
+            awaitingMore = false
+            play(pick)
+        }
+    }
+
+    /** La ficha completa llegó después de empezar: se pueden usar anterior y siguiente. */
+    fun setEpisodes(list: List<Episode>) {
+        val current = episode ?: return
+        val i = list.indexOfFirst { it.url == current.url }
+        if (i < 0) return
+        episodes = list
+        index = i
+        _state.update { it.copy(hasNext = index < episodes.lastIndex, hasPrevious = index > 0) }
+    }
+
     /** El usuario eligió un servidor: se recuerda como preferido para este sitio. */
     fun choose(option: ServerOption) {
-        scope.launch { runCatching { rememberPreferred(option.server.name) } }
+        // Se recuerda servidor e idioma: los episodios siguientes arrancan con lo mismo.
+        scope.launch { runCatching { rememberPreferred(ServerRepository.encodePreferred(option.server.name, option.server.language)) } }
+        manual = true
+        play(option)
+    }
+
+    /** Cierra la lista sin elegir y sigue con lo que sonaba (en el mismo minuto). */
+    fun cancelChoosing() {
+        val option = current ?: return
+        val s = _state.value
+        if (started && s.positionMs > RESUME_MIN_MS) resumeAtMs = s.positionMs
         play(option)
     }
 
     /** "Probar otra opción": pasa al siguiente servidor que funcione, sin mostrar cuál es. */
     fun tryAnother() {
+        manual = false
         val usable = _state.value.options.filter { it.health != ServerHealth.NO_DISPONIBLE }
         if (usable.size < 2) return
         val i = usable.indexOfFirst { it.server.embedUrl == current?.server?.embedUrl }
@@ -156,7 +220,7 @@ class PlaybackController(
     fun showServers() {
         watchdog?.cancel()
         _state.update { it.copy(phase = PlayerPhase.ChoosingServer(it.options), notice = null) }
-        _commands.tryEmit(PlayerCommand.Stop)
+        emitLoad(PlayerCommand.Stop)
     }
 
     private fun play(option: ServerOption, notice: String? = null) {
@@ -168,10 +232,11 @@ class PlaybackController(
         _state.update {
             it.copy(phase = PlayerPhase.Playing(option), notice = notice, positionMs = 0, durationMs = 0, paused = false, nativePlayback = native)
         }
-        _commands.tryEmit(if (stream != null) PlayerCommand.PlayNative(stream) else PlayerCommand.Load(option.server.embedUrl))
+        emitLoad(if (stream != null) PlayerCommand.PlayNative(stream) else PlayerCommand.Load(option.server.embedUrl))
         watchdog?.cancel()
         watchdog = scope.launch {
-            delay(watchdogMs)
+            // Si el usuario eligió este servidor se le da más margen (red lenta, VPN…) y no se salta solo.
+            delay(if (manual) watchdogMs * MANUAL_PATIENCE else watchdogMs)
             if (!started) {
                 if (native) nativeFailed("no arrancó") else serverFailed("no respondió")
             }
@@ -195,11 +260,23 @@ class PlaybackController(
     private fun serverFailed(reason: String) {
         val failed = current ?: return
         watchdog?.cancel()
+        // Lo que el usuario eligió a mano no se cambia solo: se vuelve a la lista para que elija otro.
+        if (manual) {
+            manual = false
+            emitLoad(PlayerCommand.Stop)
+            _state.update { it.copy(phase = PlayerPhase.ChoosingServer(it.options), notice = null) }
+            return
+        }
         val next = _state.value.options.firstOrNull { it.health != ServerHealth.NO_DISPONIBLE && it.server.embedUrl !in tried }
         if (next != null) {
             play(next)
+        } else if (loadingMore) {
+            // Aún se están comprobando más servidores: se espera a ver si llega alguno bueno.
+            awaitingMore = true
+            emitLoad(PlayerCommand.Stop)
+            _state.update { it.copy(phase = PlayerPhase.LoadingServers, notice = null) }
         } else {
-            _commands.tryEmit(PlayerCommand.Stop)
+            emitLoad(PlayerCommand.Stop)
             _state.update { it.copy(phase = PlayerPhase.ChoosingServer(it.options), notice = null) }
         }
     }
@@ -309,6 +386,8 @@ class PlaybackController(
         saveIfPlaying()
         countdown?.cancel()
         watchdog?.cancel()
+        // Deja de comprobar servidores: al salir ya no hacen falta (ahorra red y procesador).
+        loadJob?.cancel()
     }
 
     private fun saveIfPlaying() {
@@ -330,6 +409,7 @@ class PlaybackController(
         const val RESUME_BACK_MS = 5_000L
         const val RESUME_MIN_MS = 30_000L
         const val END_MARGIN_MS = 1_500L
+        const val MANUAL_PATIENCE = 3
         const val MIN_EPISODE_MS = 120_000L
 
         fun formatTime(ms: Long): String {

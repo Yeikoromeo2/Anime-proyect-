@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.flow.onSubscription
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,7 +120,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
         }
     }
     LaunchedEffect(controller) {
-        controller.commands.collect { cmd ->
+        controller.commands.onSubscription { controller.lastLoad?.let { emit(it) } }.collect { cmd ->
             when (cmd) {
                 is PlayerCommand.PlayNative -> {
                     web.stop()
@@ -162,6 +163,8 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     }
     LaunchedEffect(controlsMode) { if (controlsMode) infoVisible = true }
     BackHandler(enabled = controlsMode && playing) { controlsMode = false }
+    // Con la lista de versiones abierta, Atrás vuelve al video que sonaba (no cierra el reproductor).
+    BackHandler(enabled = state.phase is PlayerPhase.ChoosingServer && controller.canResume) { controller.cancelChoosing() }
     // Tablet: tocar la pantalla muestra u oculta los controles (se ocultan solos como la barra).
     var touchControls by remember { mutableStateOf(false) }
     LaunchedEffect(infoVisible) { if (!infoVisible) touchControls = false }
@@ -578,5 +581,5 @@ private fun CenterMessage(text: String, action: Pair<String, () -> Unit>?, onExi
 private const val INFO_VISIBLE_MS = 4_000L
 private const val SCRUB_COMMIT_MS = 700L
 private const val NOTICE_VISIBLE_MS = 4_000L
-private const val LIVE_POSITION_STEP_MS = 500L
+private const val LIVE_POSITION_STEP_MS = 1_000L
 private const val LIVE_POSITION_MAX_MS = 6_000L

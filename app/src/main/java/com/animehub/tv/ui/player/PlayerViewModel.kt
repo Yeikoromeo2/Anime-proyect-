@@ -22,6 +22,7 @@ import com.animehub.tv.ui.navigation.PlayerRoute
 import com.animehub.tv.util.UserMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -73,25 +74,19 @@ class PlayerViewModel @Inject constructor(
                 _error.value = "Este sitio no tiene proveedor"
                 return@launch
             }
-            // La lista de episodios permite seguir con el siguiente; si la ficha falla, solo este.
-            val detail = runCatching { provider.animeDetail(route.animeUrl) }
-                .onFailure { errorLog.log(provider.name, "Reproductor: ficha ${route.animeUrl}: ${UserMessages.forError(provider.name, it)}") }
-                .getOrNull()
+            // Se empieza ya con este episodio; la lista completa (para anterior/siguiente) llega
+            // en paralelo y no retrasa el arranque.
             val single = Episode(route.episodeNumber, "Episodio", route.episodeUrl)
-            val episodes = detail?.episodes?.takeIf { it.isNotEmpty() } ?: listOf(single)
-            val index = episodes.indexOfFirst { EpisodePager.sameUrl(it.url, route.episodeUrl) }.takeIf { it >= 0 }
-            val list = if (index == null) listOf(single) else episodes
-            val title = detail?.title?.ifBlank { null } ?: route.animeTitle
-            val cover = detail?.coverUrl ?: route.coverUrl
+            var title = route.animeTitle
+            var cover = route.coverUrl
             val config = configRepository.loadLocal().config
             val controller = PlaybackController(
                 scope = viewModelScope,
-                episodes = list,
-                startIndex = index ?: 0,
+                episodes = listOf(single),
+                startIndex = 0,
                 loadServers = { ep ->
-                    runCatching { servers.serversFor(provider, ep.url) }
-                        .onFailure { errorLog.logIssue(provider.name, "Servidores", it) }
-                        .getOrThrow()
+                    servers.serversFlow(provider, ep.url)
+                        .catch { e -> errorLog.logIssue(provider.name, "Servidores", e); throw e }
                 },
                 // Enviado desde la tablet con su minuto: se empieza ahí (solo el primer episodio).
                 savedProgress = { ep ->
@@ -130,6 +125,15 @@ class PlayerViewModel @Inject constructor(
             active.controller = controller
             active.animeTitle = title
             controller.start()
+            // La ficha completa: anterior/siguiente y el título definitivo.
+            val detail = runCatching { provider.animeDetail(route.animeUrl) }
+                .onFailure { errorLog.logIssue(provider.name, "Reproductor: ficha", it) }
+                .getOrNull()
+            if (detail != null) {
+                detail.title.ifBlank { null }?.let { title = it }
+                detail.coverUrl?.let { cover = it }
+                detail.episodes.takeIf { it.isNotEmpty() }?.let { controller.setEpisodes(it) }
+            }
         }
     }
 

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -147,11 +148,12 @@ class NavegacionReproductorTest : TvUiTest() {
         capture("34_avanzar")
         assertEquals(1, FakeNative.commands.count { it == """{"type":"seekBy","seconds":20}""" })
 
-        // ↑ → "Cambiar servidor": todos en cuadros (HLS y MP4Upload con reproductor nativo; Voe y Byse caídos, al final).
+        // ↑ abre la lista de versiones: solo los que responden (HLS y MP4Upload con reproductor nativo);
+        // Voe y Byse están caídos y se descartan por completo.
         key(Key.DirectionUp)
         waitForText("Elige un servidor", substring = true)
         waitForFocusedDescription("HLS · Subtitulado")
-        waitForText("No disponible", substring = true)
+        compose.onAllNodes(hasText("No disponible", substring = true)).assertCountEquals(0)
         capture("20_servidores")
         activateDescription("MP4Upload · Subtitulado")
         waitForPlayer { FakeNative.played.last().url.endsWith("/video.mp4") }

@@ -134,7 +134,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SettingItem(
                 title = "Servidor preferido",
                 subtitle = if (servers.isEmpty()) "Ninguno todavía: se guarda al elegir un servidor"
-                else servers.entries.joinToString(" · ") { "${names[it.key] ?: it.key}: ${it.value}" },
+                else servers.entries.joinToString(" · ") { "${names[it.key] ?: it.key}: ${it.value.replace("\u001F", " - ")}" },
                 onClick = { if (servers.isNotEmpty()) dialog = SettingsDialog.ClearServers },
             )
         }

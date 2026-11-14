@@ -6,6 +6,7 @@ import com.animehub.tv.domain.model.ServerOption
 import com.animehub.tv.domain.model.VideoServer
 import com.animehub.tv.domain.model.WatchProgress
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -41,7 +42,7 @@ class PlaybackControllerTest {
         scope = this,
         episodes = episodes,
         startIndex = startIndex,
-        loadServers = { options },
+        loadServers = { flowOf(options) },
         savedProgress = { saved },
         saveProgress = { ep, s, pos, dur, done -> saves += Saved(ep.number, pos, dur, done, s?.server?.name) },
         rememberPreferred = { preferred += it },
@@ -267,5 +268,75 @@ class PlaybackControllerTest {
         assertTrue(more.last() is PlayerCommand.PlayNative)
         job2.cancel()
         other.onExit()
+    }
+
+    @Test
+    fun `lo que el usuario elige no se cambia solo y si no carga vuelve a la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe"), opt("filemoon"), opt("streamwish")))
+        c.start()
+        runCurrent()
+        c.showServers()
+        val chosen = (c.state.value.phase as PlayerPhase.ChoosingServer).options[1]
+        c.choose(chosen)
+        runCurrent()
+        // Pasa más tiempo que con uno automático (25 s): sigue esperando al elegido.
+        advanceTimeBy(30_000)
+        assertEquals(chosen.server.name, (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        // Agotada la paciencia no salta a otro: abre la lista para que elija.
+        advanceTimeBy(60_000)
+        assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
+        c.onExit()
+    }
+
+    @Test
+    fun `cerrar la lista sin elegir sigue con el mismo servidor`() = runTest(UnconfinedTestDispatcher()) {
+        val c = controller(listOf(opt("voe"), opt("filemoon")))
+        c.start()
+        runCurrent()
+        assertTrue(c.canResume)
+        c.showServers()
+        c.cancelChoosing()
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
+    }
+
+    @Test
+    fun `arranca con el primero que responde y los que llegan despues solo engrosan la lista`() = runTest(UnconfinedTestDispatcher()) {
+        val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
+        val c = PlaybackController(
+            scope = this, episodes = episodes, startIndex = 0,
+            loadServers = { gate },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            clock = { testScheduler.currentTime },
+        )
+        c.start()
+        runCurrent()
+        assertTrue(c.state.value.phase is PlayerPhase.LoadingServers)
+        gate.emit(listOf(opt("voe")))
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        gate.emit(listOf(opt("voe"), opt("filemoon")))
+        // No cambia lo que suena; la lista sí tiene los dos.
+        assertEquals("voe", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        assertEquals(2, c.state.value.options.size)
+        c.onExit()
+    }
+
+    @Test
+    fun `si falla el unico servidor y aun llegan mas, espera y prueba el nuevo`() = runTest(UnconfinedTestDispatcher()) {
+        val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
+        val c = PlaybackController(
+            scope = this, episodes = episodes, startIndex = 0,
+            loadServers = { gate },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            watchdogMs = 25_000, clock = { testScheduler.currentTime },
+        )
+        c.start()
+        runCurrent()
+        gate.emit(listOf(opt("voe")))
+        advanceTimeBy(26_000) // voe no arranca
+        assertTrue(c.state.value.phase is PlayerPhase.LoadingServers)
+        gate.emit(listOf(opt("voe"), opt("filemoon")))
+        assertEquals("filemoon", (c.state.value.phase as PlayerPhase.Playing).option.server.name)
+        c.onExit()
     }
 }

@@ -28,10 +28,16 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).
 - La ficha se muestra en cuanto llega la versión principal; las otras versiones se mezclan después.
 
+## Servidores del reproductor (cómo funciona)
+- `ServerRepository.serversFlow`: abre los agregadores y comprueba los servidores **de a 3**, el preferido (o el primero de la lista) con 3 s de ventaja; emite la lista cada vez que uno responde. **Los que no responden o están caídos se descartan** (nunca se muestran ni se prueban). Plazos: 6 s por comprobación.
+- `PlaybackController` arranca con el primero que sirve y deja que la lista siga creciendo; si falla el que suena salta al siguiente (o espera si aún llegan más). Lo que el usuario **elige a mano no se cambia solo**: tiene 3× de paciencia y, si no carga, se vuelve a la lista. Atrás en la lista vuelve al video (`cancelChoosing`).
+- La preferencia se guarda como servidor + idioma (`encodePreferred`); los episodios siguientes arrancan con lo mismo.
+- Al salir del reproductor se cancela la comprobación (`onExit`). La ficha completa del anime se pide en paralelo (`setEpisodes`).
+
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.10.1 = 65) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.10.2 = 71) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

@@ -54,7 +54,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.13.0 = 87; la última publicada era 91) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.0 = 94) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

@@ -158,9 +158,17 @@ fun HomeScreen(
             )
         }
         // La página elegida; "←" desde su primera columna vuelve a la pestaña elegida.
+        // La barra lateral se esconde mientras el foco está en la página (más espacio) y vuelve al pulsar ←.
+        var contentFocused by remember { mutableStateOf(false) }
+        val sidebarShown by animateFloatAsState(if (contentFocused) 0f else 1f, tween(220), label = "barra")
+        val contentStart = SidebarWidth * sidebarShown + 12.dp * (1f - sidebarShown)
         val leftToSidebar = Modifier.focusProperties { left = tabRequesters.getValue(tab) }
         CompositionLocalProvider(LocalSidebarLeft provides leftToSidebar) {
-            Box(Modifier.fillMaxSize().padding(start = if (wide) SidebarWidth else 12.dp, top = if (wide) 74.dp else 128.dp)) {
+            Box(
+                Modifier.fillMaxSize()
+                    .onFocusChanged { contentFocused = it.hasFocus }
+                    .padding(start = if (wide) contentStart else 12.dp, top = if (wide) 74.dp else 128.dp),
+            ) {
                 when (tab) {
                     HomeTab.RETRO, HomeTab.PELIS, HomeTab.SERIES -> SectionPage(
                         section = tab.section,
@@ -289,7 +297,7 @@ fun HomeScreen(
             }
         }
         if (wide) {
-            HomeSidebar(tab, onFocusTab, tabRequesters, Modifier.align(Alignment.TopStart))
+            HomeSidebar(tab, onFocusTab, tabRequesters, Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
             topBar(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 32.dp))
         } else {
             Column(Modifier.align(Alignment.TopStart).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

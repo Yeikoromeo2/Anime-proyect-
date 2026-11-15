@@ -50,7 +50,8 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onSettings = { nav.navigate(SettingsRoute) },
                 onSection = { section -> if (section == "tv") nav.navigate(TvRoute) else nav.navigate(ExploreRoute(section = section)) },
                 onOpenAnime = openAnime,
-                onResume = { p -> nav.navigate(PlayerRoute(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl, p.episodeUrl, p.episodeNumber)) },
+                // Continuar viendo abre la ficha (lista de episodios) con el último visto resaltado; desde ahí se sigue o se elige otro.
+                onResume = { p -> nav.navigate(AnimeRoute(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl, p.episodeUrl)) },
                 onOpenEpisode = { siteId, animeUrl, episodeUrl, title, image ->
                     nav.navigate(AnimeRoute(siteId, animeUrl, title, image, episodeUrl))
                 },

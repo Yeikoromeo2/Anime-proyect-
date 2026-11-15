@@ -194,6 +194,12 @@ Algunos servidores recuerdan el minuto y muestran un recuadro de **"¿continuar 
 
 Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, quitar recuadros, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
 
+## Secciones: Retro, Pelis y Series
+- En Inicio, la fila **Secciones** abre cada una con su catálogo, su buscador y sus filtros; la ficha, el reproductor, los favoritos y el historial son los mismos que los del anime.
+- **Retro** (lacartoons), **Pelis** (gnula y cinehindi, unidas en una sola lista; el menú **Origen → Indú** deja solo las películas hindúes) y **Series** (serieslan, con sus temporadas).
+- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública como "Indú").
+- Límites: la búsqueda por texto de Gnula (Cloudflare) y de Cinehindi (devuelve una página señuelo) no se usa; en esos sitios se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
+
 ## Reproductor: controles
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
 - **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.

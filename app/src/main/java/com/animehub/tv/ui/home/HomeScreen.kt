@@ -297,7 +297,7 @@ private fun HomeHeader(
             )
             Column {
                 Text("AnimeHub TV", style = MaterialTheme.typography.headlineMedium)
-                Text("Tus sitios de anime en un solo lugar", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
+                Text("Anime, retro, pelis y series en un solo lugar", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
             }
         }
     }

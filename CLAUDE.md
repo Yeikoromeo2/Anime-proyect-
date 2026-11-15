@@ -24,6 +24,13 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - Enviar a otra pantalla: `remote/*` (servidor HTTP en la TV, descubrimiento NSD, `TargetDirectory`/`PlayTarget`), `cast/*`, `dlna/*`, `stream/StreamProxy.kt`.
 - Inicio: `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
 
+## Secciones (Retro, Pelis, Series, TV)
+- `SiteConfig.section` ("anime" por defecto) separa las fuentes; `ProviderRegistry.activeProvidersOf(section)`. Inicio solo usa las de anime. `ExploreRoute(section=…)` abre el catálogo de una sección (mismo `SearchViewModel`/`ExploreScreen`).
+- `SiteConfig.tag` = etiqueta pública de una fuente (p. ej. "Indú") para el menú **Origen** sin nombrar el sitio.
+- Motores: `generic-html` (`providers/generic/GenericHtmlProvider`, todo por selectores; `selectors.searchMode=local` filtra el catálogo cuando el buscador del sitio no sirve) y `videoapi` (`providers/videoapi/VideoApiProvider`, API JSON de SeriesLan).
+- No imitar un navegador para saltar protecciones: Cinehindi sirve una página señuelo a clientes que no son navegador y Gnula pone Cloudflare en su búsqueda; sus reproductores van por el reproductor web de la app.
+- Fixtures de estas fuentes en `app/src/test/resources/fixtures/{lacartoons,cinehindi,gnula,serieslan}`; el dominio de cada una debe estar permitido en la red del entorno de nube para poder volver a capturarlas.
+
 ## Rendimiento (lecciones)
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).
 - La ficha se muestra en cuanto llega la versión principal; las otras versiones se mezclan después.
@@ -38,7 +45,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.10.2 = 71) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.10.4 = 77) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

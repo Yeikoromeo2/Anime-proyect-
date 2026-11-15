@@ -98,7 +98,7 @@ class NavegacionTvTest : TvUiTest() {
         // En modo normal no se ve ningún sitio ni servidor.
         compose.onAllNodes(hasText("Latanime")).assertCountEquals(0)
         back() // vuelve a Inicio
-        compose.onNodeWithText("Tus sitios de anime en un solo lugar").assertExists()
+        compose.onNodeWithText("Anime, retro, pelis y series en un solo lugar").assertExists()
     }
 
     @Test

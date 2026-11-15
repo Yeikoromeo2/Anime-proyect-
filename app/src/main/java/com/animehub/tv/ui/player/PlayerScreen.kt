@@ -108,7 +108,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     val state by controller.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val web = remember(controller) {
-        PlayerWebView(context, session.adHosts, controller::onMessage, highQuality = session.quality == PreferredQuality.HIGH)
+        PlayerWebView(context, session.adHosts, controller::onMessage, highQuality = session.quality == PreferredQuality.HIGH, adPatterns = session.adPatterns)
     }
     // Reproductor nativo para los servidores con video directo (sin la página del servidor).
     val native = remember(controller) { session.nativeFactory.create(context, session.quality, controller::onMessage) }

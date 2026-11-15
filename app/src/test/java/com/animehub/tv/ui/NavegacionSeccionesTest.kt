@@ -53,10 +53,11 @@ class NavegacionSeccionesTest : TvUiTest() {
         // Una de cada fuente: cinehindi (hindú) y gnula.
         waitForDescription("Mujhse Shaadi Karogi")
         capture("52_pelis")
-        // "Origen → Indú": solo cinehindi; lo de gnula desaparece.
+        // "Origen → Bollywood": solo las películas hindúes; lo de Hollywood desaparece.
         activate("Origen")
-        waitForText("Indú")
-        activate("Indú")
+        waitForText("Hollywood")
+        waitForText("Bollywood")
+        activate("Bollywood")
         waitForText("títulos cargados", substring = true)
         waitForDescription("Mujhse Shaadi Karogi")
         compose.onAllNodes(hasContentDescription("The Last Temptation of Becky")).assertCountEquals(0)

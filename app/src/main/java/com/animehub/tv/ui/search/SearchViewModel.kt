@@ -49,7 +49,7 @@ data class SearchUiState(
     val noProviders: Boolean = false,
     /** Sección en la que se explora: "anime", "retro", "pelis" o "series". */
     val section: String = "anime",
-    /** Etiquetas públicas de fuentes de la sección (p. ej. "Indú"): filtran a una sola fuente sin nombrarla. */
+    /** Etiquetas públicas de fuentes de la sección (p. ej. "Bollywood"): filtran a una sola fuente sin nombrarla. */
     val tags: List<SiteChip> = emptyList(),
     /** Sitios para elegir (null = todos los sitios). */
     val sites: List<SiteChip> = emptyList(),

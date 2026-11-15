@@ -25,15 +25,30 @@ data class RemoteConfig(
     val directStreams: List<AggregatorConfig> = emptyList(),
     /** Dominios de anuncios y de rastreo que el reproductor web bloquea (también sus subdominios). */
     val adBlockHosts: List<String> = emptyList(),
+    /** Expresiones regulares de direcciones de anuncios (se aplican a lo que carga una página de otro dominio). */
+    val adBlockPatterns: List<String> = emptyList(),
     /** Listas M3U de TV en vivo (canales) y de películas/capítulos sueltos. */
     val iptvLists: List<IptvListConfig> = emptyList(),
+    /** Lista pequeña con la que arranca la TV en vivo la primera vez (antes de que se elija algo). */
+    val iptvStartUrl: String? = null,
 )
 
 /**
- * @param kind "live" (canales en vivo, por defecto) o "vod" (películas o capítulos sueltos).
+ * @param kind "live" (canales en vivo; la categoría es la del canal), "grouped" (lista general cuyo
+ *  group-title es el submenú: país, categoría o idioma; un canal puede estar en varios) o "vod" (películas o capítulos).
+ * @param translate "country" o "language": traduce los nombres de los submenús al español.
+ * @param order submenús que van primero (ya en español).
  */
 @Serializable
-data class IptvListConfig(val id: String, val name: String, val url: String, val kind: String = "live")
+data class IptvListConfig(
+    val id: String,
+    val name: String,
+    val url: String,
+    val kind: String = "live",
+    val description: String? = null,
+    val translate: String? = null,
+    val order: List<String> = emptyList(),
+)
 
 /**
  * @param type "msp-xor" (botones con URL en Base64 cifrada con la clave "pk" de la página) o
@@ -80,7 +95,7 @@ data class SiteConfig(
     val priority: Int = 0,
     /** Sección de la app a la que pertenece: "anime" (por defecto), "retro", "pelis" o "series". */
     val section: String = "anime",
-    /** Etiqueta pública para filtrar solo esta fuente dentro de su sección (p. ej. "Indú"); sin nombrar el sitio. */
+    /** Etiqueta pública para filtrar solo esta fuente dentro de su sección (p. ej. "Bollywood"); sin nombrar el sitio. */
     val tag: String? = null,
 ) {
     val isPending: Boolean get() = status != STATUS_OK

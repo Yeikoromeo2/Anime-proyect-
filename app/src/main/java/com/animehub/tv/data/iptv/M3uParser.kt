@@ -48,7 +48,7 @@ object M3uParser {
                 attrs != null && (line.startsWith("http://") || line.startsWith("https://")) -> {
                     val a = attrs
                     val name = title.ifBlank { a["tvg-name"].orEmpty() }
-                    if (name.isNotBlank()) out += Entry(name, line, a["tvg-logo"]?.takeIf { it.startsWith("http") }, a["group-title"]?.trim()?.ifEmpty { null }, referer, userAgent)
+                    if (name.isNotBlank()) out += Entry(name, stableUrl(line), a["tvg-logo"]?.takeIf { it.startsWith("http") }, a["group-title"]?.trim()?.ifEmpty { null }, referer, userAgent)
                     attrs = null
                 }
             }
@@ -82,34 +82,32 @@ object M3uParser {
         else -> 0
     }
 
+    /** Direcciones de archive.org atadas a un servidor concreto ("ia802200…/26/items/x/f.mp4") se cambian por la estable ("archive.org/download/x/f.mp4"): el servidor cambia y el enlace viejo deja de servir. */
+    private val ARCHIVE_NODE = Regex("""^https?://ia\d+\.[a-z]+\.archive\.org/\d+/items/([^/]+)/(.+)$""")
+    fun stableUrl(url: String): String = ARCHIVE_NODE.find(url)?.let { "https://archive.org/download/${it.groupValues[1]}/${it.groupValues[2]}" } ?: url
+
     /**
-     * Junta las entradas de varias listas (en el orden dado) sin repetidos.
-     * Un canal que ya está en una lista anterior no se copia: solo se le suman las calidades que le faltaban.
+     * Arma una lista sin repetidos.
+     * - "live": un canal una sola vez (aunque venga en varias categorías o calidades; las calidades distintas se conservan).
+     * - "grouped": el submenú es el group-title (país, categoría o idioma); un canal puede estar en varios, pero una sola vez en cada uno.
+     * - "vod": cada título (película o capítulo) tal cual.
+     * Si dos son iguales en la misma calidad se usa una (mejor https que http).
      */
-    fun build(sources: List<Triple<String, String, List<Entry>>>, onDemandIds: Set<String> = emptySet()): List<IptvList> {
-        val owners = mutableMapOf<String, MutableChannel>()
-        val result = sources.map { (id, name, entries) ->
-            val onDemand = id in onDemandIds
-            val own = LinkedHashMap<String, MutableChannel>()
-            for (e in entries) {
-                val group = groupOf(e, onDemand) ?: continue
-                val display = if (onDemand) e.name.trim() else baseName(e.name).ifEmpty { e.name.trim() }
-                // Películas y capítulos: cada título es único dentro de su lista; los canales, en toda la app.
-                val key = if (onDemand) "$id:" + Canonical.of(display) else Canonical.of(display)
-                if (key.isEmpty() || key == "$id:") continue
-                val variant = ChannelVariant(e.url, linesOf(e.name), e.referer, e.userAgent)
-                val existing = owners[key]
-                if (existing != null) {
-                    existing.add(variant)
-                } else {
-                    val channel = MutableChannel(key, display, e.logo, group, onDemand).also { it.add(variant) }
-                    owners[key] = channel
-                    own[key] = channel
-                }
-            }
-            Triple(id, name, own.values.toList()) to onDemand
+    fun buildList(id: String, name: String, entries: List<Entry>, kind: String = "live", order: List<String> = emptyList(), translate: String? = null): IptvList {
+        val onDemand = kind == "vod"
+        val grouped = kind == "grouped"
+        val channels = LinkedHashMap<String, MutableChannel>()
+        for (e in entries) {
+            val group = groupOf(e, onDemand, translate) ?: continue
+            val display = if (onDemand) e.name.trim() else baseName(e.name).ifEmpty { e.name.trim() }
+            val key = if (onDemand) "$id:" + Canonical.of(display) else Canonical.of(display)
+            if (key.isEmpty() || key == "$id:") continue
+            val variant = ChannelVariant(e.url, linesOf(e.name), e.referer, e.userAgent)
+            val slot = if (grouped) "$group|$key" else key
+            val existing = channels[slot]
+            if (existing != null) existing.add(variant) else channels[slot] = MutableChannel(key, display, e.logo, group, onDemand).also { it.add(variant) }
         }
-        return result.map { (t, onDemand) -> IptvList(t.first, t.second, t.third.map { it.freeze() }, onDemand) }
+        return IptvList(id, name, channels.values.map { it.freeze() }, onDemand, order)
     }
 
     /** Canal en construcción: una señal por calidad, la mejor primero. */
@@ -126,11 +124,15 @@ object M3uParser {
         fun freeze() = Channel(key, name, logo, group, variants.sortedByDescending { it.lines }, onDemand)
     }
 
-    private fun groupOf(e: Entry, onDemand: Boolean): String? {
+    private fun groupOf(e: Entry, onDemand: Boolean, translate: String? = null): String? {
         val raw = e.group
         if (raw != null) {
             if (raw.lowercase() in BAD_GROUPS) return null
-            return GROUPS[raw.lowercase()] ?: raw
+            return when (translate) {
+                "country" -> COUNTRY_NAMES[raw] ?: raw
+                "language" -> LANGUAGE_NAMES[raw] ?: raw
+                else -> GROUPS[raw.lowercase()] ?: raw
+            }
         }
         if (onDemand) return "Películas"
         // Sin categoría: el país que trae el nombre ("Rewind ✪ | CL") o "Otros".
@@ -156,5 +158,25 @@ object M3uParser {
         "MX" to "México", "NI" to "Nicaragua", "PA" to "Panamá", "PE" to "Perú", "PY" to "Paraguay", "PR" to "Puerto Rico", "UY" to "Uruguay",
         "VE" to "Venezuela", "US" to "Estados Unidos", "IL" to "Israel", "PS" to "Palestina", "FR" to "Francia", "IT" to "Italia",
         "DE" to "Alemania", "GB" to "Reino Unido", "UK" to "Reino Unido", "PT" to "Portugal", "CA" to "Canadá", "JP" to "Japón",
+    )
+
+    private val COUNTRY_NAMES = mapOf(
+        "Peru" to "Perú", "Mexico" to "México", "Argentina" to "Argentina", "Chile" to "Chile", "Colombia" to "Colombia", "Ecuador" to "Ecuador",
+        "Bolivia" to "Bolivia", "Venezuela" to "Venezuela", "Uruguay" to "Uruguay", "Paraguay" to "Paraguay", "Spain" to "España",
+        "United States" to "Estados Unidos", "Costa Rica" to "Costa Rica", "Cuba" to "Cuba", "Dominican Republic" to "Rep. Dominicana",
+        "El Salvador" to "El Salvador", "Guatemala" to "Guatemala", "Honduras" to "Honduras", "Nicaragua" to "Nicaragua", "Panama" to "Panamá",
+        "Puerto Rico" to "Puerto Rico", "Brazil" to "Brasil", "Canada" to "Canadá", "France" to "Francia", "Germany" to "Alemania",
+        "Italy" to "Italia", "Portugal" to "Portugal", "United Kingdom" to "Reino Unido", "Russia" to "Rusia", "India" to "India",
+        "Japan" to "Japón", "China" to "China", "South Korea" to "Corea del Sur", "Turkey" to "Turquía", "Israel" to "Israel",
+        "International" to "Internacional", "Netherlands" to "Países Bajos", "Belgium" to "Bélgica", "Switzerland" to "Suiza",
+        "Poland" to "Polonia", "Ukraine" to "Ucrania", "Greece" to "Grecia", "Egypt" to "Egipto", "Morocco" to "Marruecos",
+        "Philippines" to "Filipinas", "Indonesia" to "Indonesia", "Thailand" to "Tailandia", "Vietnam" to "Vietnam", "Australia" to "Australia",
+    )
+
+    private val LANGUAGE_NAMES = mapOf(
+        "Spanish" to "Español", "English" to "Inglés", "Portuguese" to "Portugués", "French" to "Francés", "Italian" to "Italiano",
+        "German" to "Alemán", "Russian" to "Ruso", "Arabic" to "Árabe", "Hindi" to "Hindi", "Chinese" to "Chino", "Japanese" to "Japonés",
+        "Korean" to "Coreano", "Turkish" to "Turco", "Dutch" to "Neerlandés", "Polish" to "Polaco", "Catalan" to "Catalán", "Quechua" to "Quechua",
+        "Guarani" to "Guaraní", "Aymara" to "Aimara", "Greek" to "Griego", "Hebrew" to "Hebreo", "Ukrainian" to "Ucraniano",
     )
 }

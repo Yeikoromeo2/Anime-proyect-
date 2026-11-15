@@ -26,15 +26,18 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 
 ## Secciones (Retro, Pelis, Series, TV)
 - `SiteConfig.section` ("anime" por defecto) separa las fuentes; `ProviderRegistry.activeProvidersOf(section)`. Inicio solo usa las de anime. `ExploreRoute(section=…)` abre el catálogo de una sección (mismo `SearchViewModel`/`ExploreScreen`).
-- `SiteConfig.tag` = etiqueta pública de una fuente (p. ej. "Indú") para el menú **Origen** sin nombrar el sitio.
+- `SiteConfig.tag` = etiqueta pública de una fuente (p. ej. "Bollywood") para el menú **Origen** sin nombrar el sitio.
 - Motores: `generic-html` (`providers/generic/GenericHtmlProvider`, todo por selectores; `selectors.searchMode=local` filtra el catálogo cuando el buscador del sitio no sirve) y `videoapi` (`providers/videoapi/VideoApiProvider`, API JSON de SeriesLan).
+- Anuncios en películas: `adBlockHosts` + `adBlockPatterns` (config), `PlayerWebView` abre el reproductor real de las páginas `?trembed=` (con el sitio como Referer) y `inject.js` quita las capas invisibles trampa.
 - No imitar un navegador para saltar protecciones: Cinehindi sirve una página señuelo a clientes que no son navegador y Gnula pone Cloudflare en su búsqueda; sus reproductores van por el reproductor web de la app.
 - Fixtures de estas fuentes en `app/src/test/resources/fixtures/{lacartoons,cinehindi,gnula,serieslan}`; el dominio de cada una debe estar permitido en la red del entorno de nube para poder volver a capturarlas.
 
 ## TV en vivo
-- Listas M3U en `config/sites.json` → `iptvLists` (`kind` "live" o "vod"). `data/iptv/M3uParser` (lee, limpia nombres, traduce categorías, agrupa por país si no hay categoría, **une repetidos y conserva una señal por calidad**), `IptvRepository` (descarga con copia en disco de 12 h), `ui/tv/LiveTvViewModel` + `LiveTvScreen` (reproductor nativo a pantalla completa + menú transparente).
-- Favoritos y último canal en `SettingsRepository` (`toggleFavoriteChannel`, `setLastChannel`). El manifiesto permite tráfico en claro (`usesCleartextTraffic`) porque varias listas son `http://`.
-- La tecla Atrás se maneja como `Key.Back` en la pantalla (el control) y con `BackHandler` (gesto de la tablet). En pruebas usar `key(Key.Back)` dentro de esta pantalla y `LiveTv.menuIdleMs` alto para que el menú no se cierre solo.
+- `config/sites.json`: `iptvStartUrl` (Perú, arranque de la primera vez) y `iptvLists` (menú, en orden): `kind` "grouped" (listas generales de iptv-org: el group-title es el submenú; `translate` country/language y `order` ponen primero Perú/Español…), "live" (categoría del canal) o "vod" (capítulos/películas).
+- `data/iptv/M3uParser` (`buildList`: sin repetidos, una señal por calidad, traduce, agrupa por país si no hay categoría, `stableUrl` para archive.org), `IptvRepository` (**carga bajo demanda** por lista, copia en disco de 12 h, 3 listas en memoria), `ui/tv/LiveTvViewModel` + `LiveTvScreen` (reproductor nativo a pantalla completa + menú general transparente).
+- Favoritos: se guarda el canal completo en JSON (`SettingsRepository.toggleFavoriteChannel`); último canal + de qué lista salió (`setLastChannel(json, "lista|categoría")`) para poder seguir cambiando con CH±.
+- Se descartaron Studio Ghibli (enlaces a un servidor de archive.org que ya no tiene los archivos) y m3u.cl (repetido). Antes de añadir una lista nueva, comprobar que sus enlaces sirven.
+- El manifiesto permite tráfico en claro (`usesCleartextTraffic`) porque varias listas son `http://`. La tecla Atrás se maneja como `Key.Back` en la pantalla y con `BackHandler`; en pruebas usar `compose.activity.onBackPressedDispatcher.onBackPressed()` y `LiveTv.menuIdleMs` alto.
 
 ## Rendimiento (lecciones)
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).
@@ -50,7 +53,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.11.0 = 82) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.12.0 = 85) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

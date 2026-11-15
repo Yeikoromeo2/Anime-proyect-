@@ -35,6 +35,7 @@ data class PlayerSession(
     val siteName: String,
     val referer: String,
     val adHosts: Set<String>,
+    val adPatterns: List<Regex> = emptyList(),
     val seekSeconds: Int,
     /** Crea el reproductor nativo para los servidores con video directo. */
     val nativeFactory: NativePlaybackFactory,
@@ -118,6 +119,7 @@ class PlayerViewModel @Inject constructor(
                 siteName = provider.name,
                 referer = provider.baseUrl + "/",
                 adHosts = config.adBlockHosts.toSet(),
+                adPatterns = config.adBlockPatterns.mapNotNull { runCatching { Regex(it) }.getOrNull() },
                 seekSeconds = settingsRepository.current().seekSeconds,
                 nativeFactory = nativeFactory,
                 quality = settingsRepository.current().preferredQuality,

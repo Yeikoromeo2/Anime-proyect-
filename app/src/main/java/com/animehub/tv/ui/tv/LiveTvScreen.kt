@@ -98,13 +98,8 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
     val startFocus = rememberInitialFocusState()
 
     fun openMenu() {
-        // Se abre en la categoría del canal que suena, con el foco en él.
-        val current = state.current
-        path = when {
-            current == null -> emptyList()
-            state.zap === state.favoriteChannels || (state.zap.isNotEmpty() && state.zap.map { it.key } == state.favoriteChannels.map { it.key }) -> listOf(FAVORITES)
-            else -> state.lists.firstNotNullOfOrNull { l -> l.groups.firstOrNull { (_, ch) -> ch.any { it.key == current.key } }?.let { (g, _) -> listOf(l.id, g) } } ?: emptyList()
-        }
+        // Siempre abre el menú general (listas → categorías → canales); el foco queda en la lista del canal que suena.
+        path = emptyList()
         menuOpen = true
         interaction++
     }
@@ -166,8 +161,8 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
 
         if (state.loading) {
             Text("Preparando los canales…", modifier = Modifier.align(Alignment.Center), color = AppColors.TextoSecundario)
-        } else if (state.lists.all { it.channels.isEmpty() }) {
-            Text("Todavía no hay canales para mostrar.", modifier = Modifier.align(Alignment.Center), color = AppColors.TextoSecundario)
+        } else if (state.current == null) {
+            Text("Todavía no hay canales para mostrar. Abre el menú con OK.", modifier = Modifier.align(Alignment.Center), color = AppColors.TextoSecundario)
         }
 
         AnimatedVisibility(
@@ -179,7 +174,8 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
                 state = state,
                 path = path,
                 onPath = { path = it; interaction++ },
-                onPlay = { channel, zap -> viewModel.play(channel, zap); menuOpen = false },
+                onOpenList = viewModel::openList,
+                onPlay = { channel, zap, context -> viewModel.play(channel, zap, context); menuOpen = false },
                 onFavorite = { viewModel.toggleFavorite(it); interaction++ },
                 onClose = { menuOpen = false },
             )
@@ -226,7 +222,8 @@ private fun Menu(
     state: LiveTvState,
     path: List<String>,
     onPath: (List<String>) -> Unit,
-    onPlay: (Channel, List<Channel>) -> Unit,
+    onOpenList: (String) -> Unit,
+    onPlay: (Channel, List<Channel>, String?) -> Unit,
     onFavorite: (Channel) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -239,50 +236,53 @@ private fun Menu(
                 .padding(start = 28.dp, end = 12.dp, top = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val list = state.lists.firstOrNull { it.id == path.firstOrNull() }
+            val config = state.menu.firstOrNull { it.id == path.firstOrNull() }
+            val list = state.lists[path.firstOrNull()]
             Text(
                 when {
                     path.firstOrNull() == FAVORITES -> "★ Favoritos"
-                    list != null && path.size > 1 -> "${list.name} · ${path[1]}"
-                    list != null -> list.name
+                    config != null && path.size > 1 -> "${config.name} · ${path[1]}"
+                    config != null -> config.name
                     else -> "TV en vivo"
                 },
                 style = MaterialTheme.typography.headlineSmall,
             )
+            if (path.isEmpty()) state.current?.let { Text("Sonando: ${it.name}", color = AppColors.TextoSecundario, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             val focus = remember(path) { InitialFocusState() }
             val listState = rememberLazyListState()
             // Al abrir una categoría la lista se acerca al canal que suena.
             val channelsHere = if (list != null && path.size > 1) list.groups.firstOrNull { it.first == path[1] }?.second.orEmpty() else emptyList()
             val soundingAt = channelsHere.indexOfFirst { it.key == state.current?.key }
-            LaunchedEffect(path) { if (soundingAt > 2) listState.scrollToItem(soundingAt - 2) }
+            LaunchedEffect(path, list) { if (soundingAt > 2) listState.scrollToItem(soundingAt - 2) }
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 28.dp)) {
                 when {
                     path.isEmpty() -> {
                         val favorites = state.favoriteChannels
                         item(key = FAVORITES) {
-                            Entry("★ Favoritos", if (favorites.isEmpty()) "Marca canales con la estrella" else plural(favorites.size, false), Modifier.initialFocus(focus)) { onPath(listOf(FAVORITES)) }
+                            Entry("★ Favoritos", if (favorites.isEmpty()) "Marca canales con la estrella" else plural(favorites.size, false), if (state.currentList == null) Modifier.initialFocus(focus) else Modifier) { onPath(listOf(FAVORITES)) }
                         }
-                        items(state.lists.filter { it.channels.isNotEmpty() }, key = { it.id }) { l ->
-                            Entry(l.name, plural(l.channels.size, l.onDemand)) { onPath(listOf(l.id)) }
+                        items(state.menu, key = { it.id }) { c ->
+                            val loaded = state.lists[c.id]
+                            val subtitle = loaded?.let { l -> if (c.kind == "grouped") "${l.groups.size} " + c.name.removePrefix("Por ").let { n -> if (n == "país") "países" else if (n == "categoría") "categorías" else "idiomas" } else plural(l.channels.size, l.onDemand) } ?: (c.description ?: "")
+                            Entry(c.name, subtitle, if (c.id == state.currentList) Modifier.initialFocus(focus) else Modifier) { onOpenList(c.id); onPath(listOf(c.id)) }
                         }
                     }
                     path.first() == FAVORITES -> {
                         val favorites = state.favoriteChannels
                         if (favorites.isEmpty()) item { Text("Aún no tienes favoritos. Abre una lista y toca la estrella.", color = AppColors.TextoSecundario) }
                         items(favorites, key = { it.key }) { c ->
-                            ChannelRow(c, state, if (c.key == state.current?.key) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, favorites) }
+                            ChannelRow(c, state, if (c.key == state.current?.key) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, favorites, null) }
                         }
                     }
-                    path.size == 1 && list != null -> items(list.groups, key = { it.first }) { (group, channels) ->
+                    list == null -> item {
+                        Text(if (state.loadingList == path.first()) "Cargando la lista…" else "No se pudo abrir esta lista. Inténtalo más tarde.", color = AppColors.TextoSecundario)
+                    }
+                    path.size == 1 -> items(list.groups, key = { it.first }) { (group, channels) ->
                         Entry(group, plural(channels.size, list.onDemand), if (group == list.groups.first().first) Modifier.initialFocus(focus) else Modifier) { onPath(listOf(list.id, group)) }
                     }
-                    list != null -> {
-                        val channels = list.groups.firstOrNull { it.first == path[1] }?.second.orEmpty()
-                        val currentIndex = channels.indexOfFirst { it.key == state.current?.key }
-                        items(channels, key = { it.key }) { c ->
-                            val first = if (currentIndex >= 0) c.key == state.current?.key else c.key == channels.first().key
-                            ChannelRow(c, state, if (first) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, channels) }
-                        }
+                    else -> items(channelsHere, key = { it.key }) { c ->
+                        val first = if (soundingAt >= 0) c.key == state.current?.key else c.key == channelsHere.first().key
+                        ChannelRow(c, state, if (first) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, channelsHere, "${list.id}|${path[1]}") }
                     }
                 }
             }

@@ -350,6 +350,28 @@
     send({ type: 'cleanup', hidden: hidden });
   }
 
+  /* Capas invisibles que cubren toda la pantalla para convertir el primer clic en un anuncio (típicas de los
+   * reproductores de películas): sin texto ni imágenes ni video dentro y con fondo transparente. Se quitan solas. */
+  function removeClickTraps() {
+    if (!document.body) return;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var all = document.body.querySelectorAll('div,a,span,section,ins');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (video && (el.contains(video) || el === video)) continue;
+      var st = getComputedStyle(el);
+      if (st.position !== 'fixed' && st.position !== 'absolute') continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < vw * 0.8 || r.height < vh * 0.8) continue;
+      if (el.querySelector('video,iframe,canvas,img,svg,input,button,object,embed')) continue;
+      if ((el.textContent || '').trim().length > 0) continue;
+      var bg = st.backgroundColor;
+      var clear = bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent' || parseFloat(st.opacity) < 0.05;
+      if (!clear || (st.backgroundImage && st.backgroundImage !== 'none')) continue;
+      el.remove();
+    }
+  }
+
   // Si no hay video en este marco y se pulsa OK: clic en el centro (botones de "play" propios).
   function clickCenter() {
     var el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
@@ -396,6 +418,9 @@
     preferHighQuality();
   }, 5000);
   setInterval(scan, 1000);
+  // Capas trampa de anuncios: cada 1,5 s durante el primer minuto (después ya no cambian).
+  var trapRuns = 0;
+  var trapTimer = setInterval(function () { removeClickTraps(); if (++trapRuns > 40) clearInterval(trapTimer); }, 1500);
   // Revisión completa de respaldo, poco frecuente (la normal es la del MutationObserver).
   setInterval(function () { dismissPrompts(); }, 8000);
   document.addEventListener('DOMContentLoaded', scan);

@@ -37,6 +37,8 @@ class PlayerWebView(
     private val onMessage: (String) -> Unit,
     /** "Alta calidad": el script elige la calidad más alta en el reproductor del servidor. */
     highQuality: Boolean = false,
+    /** Direcciones de anuncios por patrón (además de los dominios). */
+    private val adPatterns: List<Regex> = emptyList(),
 ) {
     /** Contenedor: la WebView y, encima, la vista de pantalla completa si el sitio la pide. */
     val container = FrameLayout(context).apply {
@@ -47,6 +49,10 @@ class PlayerWebView(
     private val script = (if (highQuality) "window.__animehubHigh = true;\n" else "") +
         context.assets.open("player/inject.js").bufferedReader().use { it.readText() }
     private var allowedHost: String? = null
+    /** Página "envoltorio" del sitio (con sus propios anuncios) y si ya se abrió el reproductor real que lleva dentro. */
+    private var wrapperUrl: String? = null
+    private var unwrapped = false
+    private var unwrapTries = 0
     private var customView: View? = null
     private val injectsInFrames = runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) }.getOrDefault(false)
     private val hasMessageListener = runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) }.getOrDefault(false)
@@ -87,6 +93,9 @@ class PlayerWebView(
 
     fun load(url: String, referer: String?) {
         allowedHost = Uri.parse(url).host
+        wrapperUrl = null
+        unwrapped = false
+        unwrapTries = 0
         val headers = referer?.let { mapOf("Referer" to it) } ?: emptyMap()
         webView.loadUrl(url, headers)
     }
@@ -121,7 +130,9 @@ class PlayerWebView(
     private inner class Client : WebViewClient() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             val host = request.url.host ?: return null
-            return if (isAd(host)) WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0))) else null
+            // Dominio de anuncios, o (en lo que carga la página, no en la página misma) una dirección con pinta de anuncio.
+            val blocked = isAd(host) || (!request.isForMainFrame && !sameSite(host, allowedHost) && adPatterns.any { it.containsMatchIn(request.url.toString()) })
+            return if (blocked) WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0))) else null
         }
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -138,6 +149,25 @@ class PlayerWebView(
         override fun onPageFinished(view: WebView, url: String?) {
             // Sin inyección en marcos: al menos el marco principal.
             if (!injectsInFrames && url != null && url != "about:blank") view.evaluateJavascript(script, null)
+            // Páginas "envoltorio" (?trembed=): el sitio mete el reproductor real en un marco y alrededor pone sus
+            // anuncios; se abre directamente el reproductor real (con el sitio como Referer).
+            if (url != null && url.contains("trembed=") && !unwrapped) {
+                wrapperUrl = url
+                unwrapTries = 0
+                tryUnwrap(view, url)
+            }
+        }
+
+        /** Sin servidor de video (error al abrir el reproductor real): se vuelve a la página del sitio, sin desenvolver. */
+        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
+            if (request.isForMainFrame && unwrapped) {
+                val back = wrapperUrl ?: return
+                wrapperUrl = null
+                unwrapped = false
+                allowedHost = Uri.parse(back).host
+                unwrapTries = UNWRAP_MAX // ya no se intenta desenvolver
+                view.loadUrl(back)
+            }
         }
     }
 
@@ -166,9 +196,32 @@ class PlayerWebView(
         }
     }
 
+    /** Lee la dirección del reproductor real dentro del envoltorio y la abre (el marco puede tardar en aparecer). */
+    private fun tryUnwrap(view: WebView, wrapper: String) {
+        view.evaluateJavascript(UNWRAP_JS) { raw ->
+            val src = raw?.trim('"')?.replace("\\/", "/")?.takeIf { it.startsWith("http") }
+            val host = src?.let { Uri.parse(it).host }
+            when {
+                src != null && host != null && !sameSite(host, Uri.parse(wrapper).host) && !isAd(host) -> {
+                    unwrapped = true
+                    allowedHost = host
+                    view.loadUrl(src, mapOf("Referer" to wrapper))
+                }
+                unwrapTries++ < UNWRAP_MAX -> view.postDelayed({ if (!unwrapped && wrapperUrl == wrapper) tryUnwrap(view, wrapper) }, UNWRAP_EVERY_MS)
+            }
+        }
+    }
+
     private fun isAd(host: String): Boolean = adHosts.any { host == it || host.endsWith(".$it") }
 
     companion object {
+        private const val UNWRAP_MAX = 8
+        private const val UNWRAP_EVERY_MS = 500L
+        private const val UNWRAP_JS =
+            "(function(){var f=document.querySelectorAll('iframe');for(var i=0;i<f.length;i++){" +
+                "var s=f[i].src||f[i].getAttribute('data-src')||f[i].getAttribute('data-lazy-src')||'';" +
+                "if(s.indexOf('http')===0)return s;}return '';})()"
+
         /** Mismo sitio = mismo dominio registrable (los dos últimos niveles). */
         fun sameSite(a: String, b: String?): Boolean {
             if (b == null) return false

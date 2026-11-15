@@ -7,9 +7,6 @@ import com.animehub.tv.data.log.ErrorLogRepository
 import com.animehub.tv.domain.model.IptvList
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,8 +17,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * TV en vivo: baja las listas M3U de la configuración (con copia en disco: si no hay red se usa la
- * última), las lee y las junta sin repetidos. El resultado queda en memoria mientras la app esté abierta.
+ * TV en vivo: las listas M3U de la configuración se bajan solo cuando se abren (las generales pesan
+ * unos 3 MB), con copia en disco (si no hay red se usa la última) y se leen sin repetidos.
+ * En memoria quedan las últimas listas abiertas.
  */
 @Singleton
 class IptvRepository @Inject constructor(
@@ -32,17 +30,28 @@ class IptvRepository @Inject constructor(
 ) {
     private val dir get() = File(context.filesDir, "iptv").apply { mkdirs() }
     private val mutex = Mutex()
-    private var cached: List<IptvList>? = null
-
-    /** Todas las listas, listas para mostrar (la primera vez tarda; luego queda en memoria). */
-    suspend fun lists(): List<IptvList> = mutex.withLock {
-        cached ?: withContext(Dispatchers.IO) { load() }.also { cached = it }
+    private val memory = object : LinkedHashMap<String, IptvList>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, IptvList>?) = size > MEMORY_LISTS
     }
 
-    private suspend fun load(): List<IptvList> = coroutineScope {
-        val configured = configRepository.loadLocal().config.iptvLists
-        val sources = configured.map { cfg -> async { Triple(cfg.id, cfg.name, runCatching { M3uParser.parseEntries(text(cfg)) }.getOrDefault(emptyList())) } }.awaitAll()
-        M3uParser.build(sources, onDemandIds = configured.filter { it.kind == "vod" }.map { it.id }.toSet())
+    /** Las listas del menú, en el orden de la configuración (sin descargar nada). */
+    suspend fun menu(): List<IptvListConfig> = configRepository.loadLocal().config.iptvLists
+
+    /** Una lista del menú, ya leída (la primera vez la baja). */
+    suspend fun list(id: String): IptvList? = mutex.withLock {
+        memory[id] ?: menu().firstOrNull { it.id == id }?.let { cfg -> build(cfg).also { memory[id] = it } }
+    }
+
+    /** La lista con la que arranca la TV la primera vez (Perú), que no sale en el menú. */
+    suspend fun startList(): IptvList? = mutex.withLock {
+        memory[START_ID] ?: configRepository.loadLocal().config.iptvStartUrl?.let { url ->
+            build(IptvListConfig(START_ID, "Perú", url)).also { memory[START_ID] = it }
+        }
+    }
+
+    private suspend fun build(cfg: IptvListConfig): IptvList = withContext(Dispatchers.IO) {
+        val entries = runCatching { M3uParser.parseEntries(text(cfg)) }.getOrDefault(emptyList())
+        M3uParser.buildList(cfg.id, cfg.name, entries, cfg.kind, cfg.order, cfg.translate)
     }
 
     /** Texto de la lista: la copia en disco si es reciente; si no, se baja (y si falla, la copia vieja). */
@@ -61,11 +70,13 @@ class IptvRepository @Inject constructor(
 
     /** Fuerza una descarga nueva la próxima vez. */
     suspend fun refresh() = mutex.withLock {
-        cached = null
+        memory.clear()
         dir.listFiles()?.forEach { it.setLastModified(0) }
     }
 
-    private companion object {
-        const val FRESH_MS = 12 * 60 * 60_000L
+    companion object {
+        const val START_ID = "inicio"
+        private const val FRESH_MS = 12 * 60 * 60_000L
+        private const val MEMORY_LISTS = 3
     }
 }

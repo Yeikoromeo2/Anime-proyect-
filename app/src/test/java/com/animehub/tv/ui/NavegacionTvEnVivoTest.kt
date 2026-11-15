@@ -9,6 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.animehub.tv.di.FakeNative
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performSemanticsAction
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -45,6 +47,12 @@ class NavegacionTvEnVivoTest : TvUiTest() {
         condition()
     }
 
+    /** Atrás como lo recibe la pantalla (el gesto/botón del sistema): no depende de qué elemento tenga el foco. */
+    private fun backKey() {
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+    }
+
     private fun openLiveTv() {
         toHeader()
         key(Key.DirectionDown) // fila de secciones
@@ -66,48 +74,69 @@ class NavegacionTvEnVivoTest : TvUiTest() {
     }
 
     @Test
-    fun el_menu_transparente_muestra_listas_categorias_canales_y_favoritos() {
+    fun ok_abre_el_menu_general_con_listas_por_pais_categoria_e_idioma_y_favoritos() {
         openLiveTv()
         waitForPlayer { FakeNative.played.isNotEmpty() }
-        key(Key.DirectionCenter) // abre el menú en la categoría del canal que suena
-        waitForText("Perú · ", substring = true)
-        capture("61_tv_menu")
-        key(Key.Back) // sube a las categorías
-        waitForText("Perú")
-        key(Key.Back) // sube a las listas
+        key(Key.DirectionCenter) // OK: el menú general (no la categoría del canal que suena)
         waitForText("TV en vivo")
         waitForText("★ Favoritos")
+        waitForText("Por país")
+        waitForText("Por categoría")
+        waitForText("Por idioma")
+        waitForText("Latinoamérica")
         waitForText("Dibujos animados")
-        waitForText("Studio Ghibli")
-        waitForText("Canales del mundo")
-        // Entrar a Perú → General → marcar un canal como favorito.
+        capture("61_tv_menu")
+        // La lista caída (Studio Ghibli) y la repetida (Canales del mundo) ya no están.
+        compose.onAllNodes(hasText("Studio Ghibli")).assertCountEquals(0)
+        compose.onAllNodes(hasText("Canales del mundo")).assertCountEquals(0)
+        // Por país → Perú primero (el orden pedido), luego los demás.
+        activate("Por país")
+        waitForText("Perú")
+        waitForText("Chile")
+        waitForText("España")
         activate("Perú")
-        activate("General")
-        waitForText("36 TV Huacho")
-        activateDescription("Añadir a favoritos 36 TV Huacho")
-        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription("Quitar de favoritos 36 TV Huacho")).fetchSemanticsNodes().isNotEmpty() }
-        key(Key.Back); key(Key.Back)
+        // Los canales de Perú (de la lista general): se marca uno como favorito.
+        compose.waitUntil(10_000) { compose.onAllNodes(hasContentDescription("Añadir a favoritos", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        val first = compose.onAllNodes(hasContentDescription("Añadir a favoritos", substring = true)).fetchSemanticsNodes().first()
+        compose.onAllNodes(hasContentDescription("Añadir a favoritos", substring = true)).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription("Quitar de favoritos", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        backKey(); backKey() // sube a las listas
         waitForText("1 canal")
         capture("62_tv_favoritos")
         // Back cierra el menú; otro Back sale a Inicio.
-        key(Key.Back)
+        backKey()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("★ Favoritos")).fetchSemanticsNodes().isEmpty() }
-        key(Key.Back)
+        backKey()
         waitForText("Secciones")
     }
 
     @Test
-    fun las_listas_de_peliculas_y_dibujos_se_reproducen_como_titulos() {
+    fun por_categoria_e_idioma_tienen_sus_submenus_en_espanol() {
         openLiveTv()
         waitForPlayer { FakeNative.played.isNotEmpty() }
         key(Key.DirectionCenter)
-        waitForText("Perú · ", substring = true) // espera a que el menú esté abierto
-        key(Key.Back); waitForText("Perú")
-        key(Key.Back); waitForText("TV en vivo")
-        activate("Studio Ghibli")
-        waitForText("Películas")
-        activate("Películas")
-        activateDescription("Cuentos de Terramar")
+        activate("Por categoría")
+        waitForText("Noticias")
+        waitForText("Infantil")
+        waitForText("Deportes")
+        backKey()
+        activate("Por idioma")
+        waitForText("Español")
+        waitForText("Inglés")
+    }
+
+    @Test
+    fun las_series_de_dibujos_se_reproducen_como_titulos() {
+        openLiveTv()
+        waitForPlayer { FakeNative.played.isNotEmpty() }
+        key(Key.DirectionCenter)
+        activate("Dibujos animados")
+        waitForText("Las aventuras de Tintin", substring = true)
+        compose.onAllNodes(hasText("Las aventuras de Tintin", substring = true)).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        // El título entero (no la estrella de favoritos, cuya descripción también lo contiene).
+        val title = "Las aventuras de Tintin - E1 Tintín en América"
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(title)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(hasContentDescription(title)).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
         waitForPlayer { FakeNative.played.last().url.endsWith(".mp4") }
         compose.onAllNodes(hasText("★ Favoritos")).assertCountEquals(0) // el menú se cerró al elegir
     }

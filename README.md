@@ -196,16 +196,19 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 
 ## Secciones: Retro, Pelis y Series
 - En Inicio, la fila **Secciones** abre cada una con su catálogo, su buscador y sus filtros; la ficha, el reproductor, los favoritos y el historial son los mismos que los del anime.
-- **Retro** (lacartoons), **Pelis** (gnula y cinehindi, unidas en una sola lista; el menú **Origen → Indú** deja solo las películas hindúes) y **Series** (serieslan, con sus temporadas).
-- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública como "Indú").
+- **Retro** (lacartoons), **Pelis** (gnula y cinehindi, unidas en una sola lista; el menú **Origen** tiene **Hollywood** (películas normales) y **Bollywood** (películas hindúes)) y **Series** (serieslan, con sus temporadas).
+- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública como "Bollywood").
+- Anuncios en los reproductores de películas: más redes de anuncios y patrones de direcciones en `adBlockHosts`/`adBlockPatterns`, las capas invisibles que convierten el primer clic en un anuncio se quitan solas y, en las páginas "envoltorio" del sitio (`?trembed=`), se abre directamente el reproductor real.
 - Límites: la búsqueda por texto de Gnula (Cloudflare) y de Cinehindi (devuelve una página señuelo) no se usa; en esos sitios se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
 
 ## TV en vivo
-- **Inicio → Secciones → TV en vivo**: un reproductor a pantalla completa que suena desde que entras (el último canal visto o el primero de la primera lista). Listas en `config/sites.json` (`iptvLists`): Perú, Latinoamérica, Dibujos animados, Studio Ghibli y Canales del mundo.
-- **Sin repetidos**: un canal que está en varias listas aparece una sola vez; si viene en varias calidades (SD, HD, Full HD, 4K) se conservan todas y ←/→ cambia entre ellas. Los capítulos y películas de las listas de dibujos y Ghibli se reproducen como títulos.
-- **Menú transparente (ghost)**: **OK** lo abre sobre la imagen (listas → categorías → canales, con logo, categoría y calidades); se esconde solo a los 10 s; **Atrás** sube un nivel, luego lo cierra y, ya cerrado, sale. En la tablet, tocar la pantalla lo muestra u oculta.
-- **Cambiar de canal**: teclas **CH+ / CH−** del control (o ↑/↓) con el menú cerrado. **Favoritos**: la estrella de cada canal; la primera entrada del menú los reúne.
-- Sin señal: si un canal no responde en 20 s se muestra "Sin señal" y se puede seguir cambiando. Algunas listas usan direcciones sin cifrar (`http://`), por eso la app permite tráfico en claro.
+- **Inicio → Secciones → TV en vivo**: un reproductor a pantalla completa que suena desde que entras (el último canal visto o, la primera vez, el primero de Perú).
+- **Menú general** (OK): **Favoritos**, **Por país**, **Por categoría**, **Por idioma**, **Latinoamérica** y **Dibujos animados**; cada uno abre sus submenús (países, categorías, idiomas) y de ahí los canales con logo, categoría y calidades. Arriba dice qué canal está sonando. Estructura tomada de [iptv-org/iptv](https://github.com/iptv-org/iptv) (listas generales `index.country`, `index.category` e `index.language`); Perú, México, Argentina… van primero y los nombres están en español. Cada lista se descarga solo cuando se abre (~3 MB las generales) y queda guardada 12 h.
+- **Sin repetidos**: un canal aparece una sola vez en cada submenú; si viene en varias calidades (SD, HD, Full HD, 4K) se conservan todas y ←/→ cambia entre ellas.
+- **Menú transparente (ghost)**: se ve la imagen a través; se esconde solo a los 10 s; **Atrás** sube un nivel, luego lo cierra y, ya cerrado, sale. En la tablet, tocar la pantalla lo muestra u oculta.
+- **Cambiar de canal**: teclas **CH+ / CH−** del control (o ↑/↓) con el menú cerrado, dentro de la categoría desde donde se eligió. **Favoritos**: la estrella de cada canal (se guarda el canal completo).
+- Se quitó **Studio Ghibli** (sus enlaces apuntaban a un servidor de archive.org que ya no tiene los archivos) y **Canales del mundo** (m3u.cl, repetido en las listas generales). Las direcciones de archive.org atadas a un servidor se cambian por la estable (`archive.org/download/…`).
+- Sin señal: si un canal no responde en 20 s se muestra "Sin señal" y se puede seguir cambiando. Algunas listas usan `http://`, por eso la app permite tráfico en claro.
 
 ## Reproductor: controles
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.

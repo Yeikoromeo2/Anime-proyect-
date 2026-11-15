@@ -131,7 +131,7 @@ fun ExploreScreen(
                     modifier = if (!focusResults && !(admin && state.sites.size > 2)) Modifier.initialFocus() else Modifier,
                 )
             }
-            // Origen: una etiqueta pública (p. ej. "Indú") que limita la búsqueda a una sola fuente.
+            // Origen: una etiqueta pública (p. ej. "Bollywood") que limita la búsqueda a una sola fuente.
             if (state.tags.isNotEmpty()) {
                 item(key = "origen") {
                     MenuEntry(

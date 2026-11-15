@@ -41,7 +41,7 @@ class ProviderRegistry @Inject constructor(
     fun activeProvidersOf(section: String): Flow<List<SiteProvider>> =
         configRepository.sites.map { sites -> sites.filter { it.enabled && it.config.section == section }.mapNotNull(::create) }
 
-    /** Etiquetas públicas (p. ej. "Indú") de las fuentes activas de una sección: id del sitio → etiqueta. */
+    /** Etiquetas públicas (p. ej. "Bollywood") de las fuentes activas de una sección: id del sitio → etiqueta. */
     fun tagsOf(section: String): Flow<Map<String, String>> =
         configRepository.sites.map { sites -> sites.filter { it.enabled && it.config.section == section }.mapNotNull { s -> s.config.tag?.let { s.id to it } }.toMap() }
 

@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -73,6 +74,7 @@ import com.animehub.tv.ui.theme.AppColors
 import kotlinx.coroutines.delay
 
 private const val FAVORITES = "__favoritos"
+private val DPAD = setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
 
 private fun plural(n: Int, onDemand: Boolean) = if (onDemand) (if (n == 1) "1 título" else "$n títulos") else (if (n == 1) "1 canal" else "$n canales")
 
@@ -94,6 +96,9 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
     var path by remember { mutableStateOf(listOf<String>()) }
     var interaction by remember { mutableIntStateOf(0) }
     val rootFocus = remember { FocusRequester() }
+    // Foco del menú: con el menú abierto la pantalla no retiene el foco (ocupa todo y no dejaría moverse a ninguna fila).
+    val menuFirst = remember { FocusRequester() }
+    var menuFocused by remember { mutableStateOf(false) }
     // El foco empieza en la pantalla (reintenta mientras entra): así las teclas de canal funcionan de inmediato.
     val startFocus = rememberInitialFocusState()
 
@@ -132,12 +137,17 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
             .background(Color.Black)
             .initialFocus(startFocus)
             .focusRequester(rootFocus)
-            .focusable()
+            .focusable(enabled = !menuOpen)
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 // La tecla Atrás del control llega aquí primero; el gesto de Atrás de la tablet, por BackHandler.
                 if (event.key == Key.Back) { goBack(); return@onPreviewKeyEvent true }
-                if (menuOpen) { interaction++; return@onPreviewKeyEvent false }
+                if (menuOpen) {
+                    interaction++
+                    // Si el foco se perdió (cambio de nivel, lista que aún carga), cualquier flecha u OK lo devuelve a la primera fila.
+                    if (!menuFocused && event.key in DPAD) { runCatching { menuFirst.requestFocus() }; return@onPreviewKeyEvent true }
+                    return@onPreviewKeyEvent false
+                }
                 when (event.key) {
                     Key.ChannelUp, Key.DirectionUp, Key.PageUp -> viewModel.zap(1)
                     Key.ChannelDown, Key.DirectionDown, Key.PageDown -> viewModel.zap(-1)
@@ -174,6 +184,8 @@ fun LiveTvScreen(onExit: () -> Unit, viewModel: LiveTvViewModel = hiltViewModel(
                 state = state,
                 path = path,
                 onPath = { path = it; interaction++ },
+                firstFocus = menuFirst,
+                onFocusChange = { menuFocused = it },
                 onOpenList = viewModel::openList,
                 onPlay = { channel, zap, context -> viewModel.play(channel, zap, context); menuOpen = false },
                 onFavorite = { viewModel.toggleFavorite(it); interaction++ },
@@ -222,6 +234,8 @@ private fun Menu(
     state: LiveTvState,
     path: List<String>,
     onPath: (List<String>) -> Unit,
+    firstFocus: FocusRequester,
+    onFocusChange: (Boolean) -> Unit,
     onOpenList: (String) -> Unit,
     onPlay: (Channel, List<Channel>, String?) -> Unit,
     onFavorite: (Channel) -> Unit,
@@ -230,6 +244,7 @@ private fun Menu(
     Row(Modifier.fillMaxSize()) {
         Column(
             Modifier
+                .onFocusChanged { onFocusChange(it.hasFocus) }
                 .width(470.dp)
                 .fillMaxHeight()
                 .background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.62f), Color.Black.copy(alpha = 0.34f), Color.Transparent)))
@@ -248,7 +263,17 @@ private fun Menu(
                 style = MaterialTheme.typography.headlineSmall,
             )
             if (path.isEmpty()) state.current?.let { Text("Sonando: ${it.name}", color = AppColors.TextoSecundario, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            val focus = remember(path) { InitialFocusState() }
+            // El foco va a la fila elegida (el canal que suena, la lista actual o la primera) y se reintenta mientras
+            // la lista carga o se recompone, hasta que algo del menú lo tenga.
+            var hasFocus by remember(path) { mutableStateOf(false) }
+            LaunchedEffect(path, list, state.loadingList, state.menu.size) {
+                delay(80)
+                var tries = 0
+                while (!hasFocus && tries++ < 60) {
+                    runCatching { firstFocus.requestFocus() }
+                    delay(100)
+                }
+            }
             val listState = rememberLazyListState()
             // Al abrir una categoría la lista se acerca al canal que suena.
             val channelsHere = if (list != null && path.size > 1) list.groups.firstOrNull { it.first == path[1] }?.second.orEmpty() else emptyList()
@@ -259,30 +284,30 @@ private fun Menu(
                     path.isEmpty() -> {
                         val favorites = state.favoriteChannels
                         item(key = FAVORITES) {
-                            Entry("★ Favoritos", if (favorites.isEmpty()) "Marca canales con la estrella" else plural(favorites.size, false), if (state.currentList == null) Modifier.initialFocus(focus) else Modifier) { onPath(listOf(FAVORITES)) }
+                            Entry("★ Favoritos", if (favorites.isEmpty()) "Marca canales con la estrella" else plural(favorites.size, false), if (state.currentList == null) Modifier.focusRequester(firstFocus).onFocusChanged { hasFocus = hasFocus || it.hasFocus } else Modifier) { onPath(listOf(FAVORITES)) }
                         }
                         items(state.menu, key = { it.id }) { c ->
                             val loaded = state.lists[c.id]
                             val subtitle = loaded?.let { l -> if (c.kind == "grouped") "${l.groups.size} " + c.name.removePrefix("Por ").let { n -> if (n == "país") "países" else if (n == "categoría") "categorías" else "idiomas" } else plural(l.channels.size, l.onDemand) } ?: (c.description ?: "")
-                            Entry(c.name, subtitle, if (c.id == state.currentList) Modifier.initialFocus(focus) else Modifier) { onOpenList(c.id); onPath(listOf(c.id)) }
+                            Entry(c.name, subtitle, if (c.id == state.currentList) Modifier.focusRequester(firstFocus).onFocusChanged { hasFocus = hasFocus || it.hasFocus } else Modifier) { onOpenList(c.id); onPath(listOf(c.id)) }
                         }
                     }
                     path.first() == FAVORITES -> {
                         val favorites = state.favoriteChannels
                         if (favorites.isEmpty()) item { Text("Aún no tienes favoritos. Abre una lista y toca la estrella.", color = AppColors.TextoSecundario) }
                         items(favorites, key = { it.key }) { c ->
-                            ChannelRow(c, state, if (c.key == state.current?.key) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, favorites, null) }
+                            ChannelRow(c, state, if (c.key == state.current?.key) Modifier.focusRequester(firstFocus).onFocusChanged { hasFocus = hasFocus || it.hasFocus } else Modifier, onFavorite) { onPlay(c, favorites, null) }
                         }
                     }
                     list == null -> item {
                         Text(if (state.loadingList == path.first()) "Cargando la lista…" else "No se pudo abrir esta lista. Inténtalo más tarde.", color = AppColors.TextoSecundario)
                     }
                     path.size == 1 -> items(list.groups, key = { it.first }) { (group, channels) ->
-                        Entry(group, plural(channels.size, list.onDemand), if (group == list.groups.first().first) Modifier.initialFocus(focus) else Modifier) { onPath(listOf(list.id, group)) }
+                        Entry(group, plural(channels.size, list.onDemand), if (group == list.groups.first().first) Modifier.focusRequester(firstFocus).onFocusChanged { hasFocus = hasFocus || it.hasFocus } else Modifier) { onPath(listOf(list.id, group)) }
                     }
                     else -> items(channelsHere, key = { it.key }) { c ->
                         val first = if (soundingAt >= 0) c.key == state.current?.key else c.key == channelsHere.first().key
-                        ChannelRow(c, state, if (first) Modifier.initialFocus(focus) else Modifier, onFavorite) { onPlay(c, channelsHere, "${list.id}|${path[1]}") }
+                        ChannelRow(c, state, if (first) Modifier.focusRequester(firstFocus).onFocusChanged { hasFocus = hasFocus || it.hasFocus } else Modifier, onFavorite) { onPlay(c, channelsHere, "${list.id}|${path[1]}") }
                     }
                 }
             }

@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Message
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -99,6 +101,28 @@ class PlayerWebView(
         val headers = referer?.let { mapOf("Referer" to it) } ?: emptyMap()
         webView.loadUrl(url, headers)
     }
+
+    /** Ancho y alto de la vista (para centrar el puntero y los toques). */
+    val width: Int get() = webView.width
+    val height: Int get() = webView.height
+
+    /**
+     * Un toque de verdad en ese punto (en píxeles de la vista): algunos reproductores (ok.ru…) solo
+     * arrancan con un toque del usuario y ignoran los clics que fabrica un script.
+     */
+    fun tap(x: Float, y: Float) {
+        val down = android.os.SystemClock.uptimeMillis()
+        val pressed = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0).apply { source = InputDevice.SOURCE_TOUCHSCREEN }
+        webView.dispatchTouchEvent(pressed)
+        webView.postDelayed({
+            val released = MotionEvent.obtain(down, android.os.SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0).apply { source = InputDevice.SOURCE_TOUCHSCREEN }
+            webView.dispatchTouchEvent(released)
+            released.recycle()
+            pressed.recycle()
+        }, TAP_MS)
+    }
+
+    fun tapCenter() = tap(width / 2f, height / 2f)
 
     /** Orden al script: {"type":"toggle"}, {"type":"seekBy","seconds":10}… */
     fun command(json: String) {
@@ -215,6 +239,7 @@ class PlayerWebView(
     private fun isAd(host: String): Boolean = adHosts.any { host == it || host.endsWith(".$it") }
 
     companion object {
+        private const val TAP_MS = 70L
         private const val UNWRAP_MAX = 8
         private const val UNWRAP_EVERY_MS = 500L
         private const val UNWRAP_JS =

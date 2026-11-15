@@ -183,6 +183,24 @@ class NavegacionReproductorTest : TvUiTest() {
     }
 
     @Test
+    fun en_un_reproductor_web_ok_tres_veces_abre_el_puntero_para_hacer_clic() {
+        openTankChairEpisode6()
+        waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }
+        nativeMessage("""{"type":"error","code":2004,"frame":"native"}""")
+        // Ahora suena en el reproductor web (la página del servidor).
+        compose.waitUntil(10_000) { webView()?.let { shadowOf(it).lastLoadedUrl } == "https://player.zilla-networks.com/play/fa543590d3399084aa0f1dc73ee1ccac" }
+        key(Key.DirectionCenter)
+        key(Key.DirectionCenter)
+        key(Key.DirectionCenter)
+        waitForText("Puntero: flechas para mover", substring = true)
+        capture("36_puntero")
+        // Atrás cierra el puntero (no el reproductor).
+        back()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Puntero: flechas para mover", substring = true)).fetchSemanticsNodes().isEmpty() }
+        compose.onAllNodes(hasText("Pulsa Atrás otra vez para salir")).assertCountEquals(0)
+    }
+
+    @Test
     fun con_servidor_preferido_reproduce_sin_preguntar_y_pasa_al_siguiente() {
         openTankChairEpisode6()
         waitForPlayer { FakeNative.played.any { it.url == zillaPlaylist } }

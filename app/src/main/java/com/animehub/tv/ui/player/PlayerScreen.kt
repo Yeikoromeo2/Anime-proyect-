@@ -48,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -163,10 +165,24 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     }
     LaunchedEffect(controlsMode) { if (controlsMode) infoVisible = true }
     // Atrás: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor.
+    // Reproductores web que esperan un toque (ok.ru…): se toca el centro solos y, con OK tres veces seguidas, aparece un puntero.
+    var pointer by remember { mutableStateOf<Offset?>(null) }
+    var okPresses by remember { mutableStateOf(listOf<Long>()) }
+    val latestState by rememberUpdatedState(state)
+    val embed = (state.phase as? PlayerPhase.Playing)?.option?.server?.embedUrl
+    LaunchedEffect(embed, state.nativePlayback, playing) {
+        if (!playing || state.nativePlayback) return@LaunchedEffect
+        repeat(AUTO_TAPS) {
+            delay(AUTO_TAP_AFTER_MS)
+            if (latestState.durationMs > 0) return@LaunchedEffect
+            web.tapCenter()
+        }
+    }
     var exitArmed by remember { mutableStateOf(false) }
     LaunchedEffect(exitArmed) { if (exitArmed) { delay(EXIT_ARMED_MS); exitArmed = false } }
     BackHandler(enabled = playing) {
         when {
+            pointer != null -> pointer = null
             exitArmed -> { controller.onExit(); onExit() }
             infoVisible || controlsMode -> { controlsMode = false; infoVisible = false; exitArmed = true }
             else -> exitArmed = true
@@ -233,6 +249,33 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
             .onPreviewKeyEvent { event ->
                 if (!playing || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 infoTick++
+                // Modo puntero: las flechas lo mueven, OK toca donde está y Atrás lo cierra.
+                pointer?.let { p ->
+                    val step = 48f + minOf(event.nativeKeyEvent.repeatCount, 12) * 14f
+                    val maxX = web.width.toFloat().coerceAtLeast(1f)
+                    val maxY = web.height.toFloat().coerceAtLeast(1f)
+                    when (event.key) {
+                        Key.DirectionLeft -> pointer = Offset((p.x - step).coerceIn(0f, maxX), p.y)
+                        Key.DirectionRight -> pointer = Offset((p.x + step).coerceIn(0f, maxX), p.y)
+                        Key.DirectionUp -> pointer = Offset(p.x, (p.y - step).coerceIn(0f, maxY))
+                        Key.DirectionDown -> pointer = Offset(p.x, (p.y + step).coerceIn(0f, maxY))
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> web.tap(p.x, p.y)
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    return@onPreviewKeyEvent true
+                }
+                // OK tres veces seguidas en un reproductor web: puntero para hacer clic donde haga falta.
+                if (!state.nativePlayback && (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter)) {
+                    val now = android.os.SystemClock.uptimeMillis()
+                    okPresses = (okPresses + now).filter { now - it < OK_WINDOW_MS }
+                    if (okPresses.size >= 3) {
+                        okPresses = emptyList()
+                        pointer = Offset(web.width / 2f, web.height / 2f)
+                        return@onPreviewKeyEvent true
+                    }
+                    // Mientras el video no ha empezado, OK toca el centro (el botón de reproducir de la página).
+                    if (state.durationMs <= 0) { web.tapCenter(); return@onPreviewKeyEvent true }
+                }
                 if (controlsMode) {
                     // En la fila de botones las flechas se mueven entre ellos; ↑ vuelve al video.
                     if (event.key == Key.DirectionUp) { controlsMode = false; return@onPreviewKeyEvent true }
@@ -262,6 +305,21 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
             update = { it.visibility = if (webVisible) View.VISIBLE else View.INVISIBLE },
         )
+        // Puntero para hacer clic dentro de la página del reproductor.
+        pointer?.let { p ->
+            Box(Modifier.fillMaxSize()) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(Color.Black.copy(alpha = 0.55f), radius = 20f, center = p)
+                    drawCircle(Color.White, radius = 14f, center = p)
+                    drawCircle(Color(0xFF7BD88F), radius = 6f, center = p)
+                }
+                Text(
+                    "Puntero: flechas para mover · OK hace clic · Atrás lo cierra",
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp)
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(10.dp)).padding(horizontal = 18.dp, vertical = 8.dp),
+                )
+            }
+        }
         native.view?.let { view ->
             AndroidView(
                 factory = { view },
@@ -274,7 +332,8 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
             is PlayerPhase.ChoosingServer ->
                 ServerGrid(session, state, phase.options, admin, onChoose = controller::choose)
             is PlayerPhase.Playing -> {
-                if (!isTv) {
+                // Antes de que el video empiece los toques son para la página (su botón de reproducir).
+                if (!isTv && state.durationMs > 0) {
                     // Capa táctil sobre el video (también evita tocar los anuncios de la página):
                     // un toque muestra los controles; doble toque a un lado salta atrás o adelante.
                     TouchLayer(
@@ -596,6 +655,9 @@ private fun CenterMessage(text: String, action: Pair<String, () -> Unit>?, onExi
 }
 
 private const val INFO_VISIBLE_MS = 4_000L
+private const val AUTO_TAPS = 3
+private const val AUTO_TAP_AFTER_MS = 3_500L
+private const val OK_WINDOW_MS = 1_400L
 private const val EXIT_ARMED_MS = 3_000L
 private const val SCRUB_COMMIT_MS = 700L
 private const val NOTICE_VISIBLE_MS = 4_000L

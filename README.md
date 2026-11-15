@@ -214,6 +214,7 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
 - **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.
 - **Atrás**: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor. Con la lista de versiones abierta, Atrás vuelve al video.
+- **Reproductores web que esperan un clic** (Retro/ok.ru, películas…): la app toca sola el centro hasta 3 veces si el video no empieza; con **OK mientras no ha empezado** también toca el centro; con **OK tres veces seguidas** aparece un **puntero** (flechas lo mueven, OK hace clic, Atrás lo cierra). En la tablet los toques llegan directo a la página hasta que el video empieza.
 - **Idioma/versión**: lista con "Latino", "Subtitulado", "Castellano"… sin nombres de servidor (esos solo en modo administrador).
 
 ## Fuentes ocultas, modo administrador y errores

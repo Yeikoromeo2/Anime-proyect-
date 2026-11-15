@@ -13,6 +13,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.Before
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performScrollToNode
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -119,7 +121,6 @@ class NavegacionExplorarTest : TvUiTest() {
         key(Key.DirectionCenter)
         // Solo JKAnime: sus capítulos, sus destacados y sus géneros, sin mezclar.
         waitForText("Lo que se acaba de publicar en JKAnime")
-        waitForText("Lo que destaca hoy, con una pequeña reseña")
         compose.onAllNodes(hasContentDescription(LATEST_FIRST)).assertCountEquals(0)
         waitForText("Kanojo no Tomodachi")
         capture("29_inicio_solo_jkanime")

@@ -44,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -89,6 +90,7 @@ fun HomeScreen(
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
+    onSection: (section: String) -> Unit = {},
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
     onResume: (WatchProgress) -> Unit,
     onOpenEpisode: (siteId: String, animeUrl: String, episodeUrl: String, title: String, image: String?) -> Unit,
@@ -136,7 +138,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
         item {
-            HomeHeader({ onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSearchFocus = { searchHasFocus = it }) {
+            HomeHeader({ onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSection, onSearchFocus = { searchHasFocus = it }) {
                 // Versión nueva en Releases: botón al final de la cabecera.
                 if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel(), maxLines = 1, softWrap = false) }
             }
@@ -277,6 +279,7 @@ private fun HomeHeader(
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
+    onSection: (String) -> Unit,
     onSearchFocus: (Boolean) -> Unit,
     extra: @Composable () -> Unit = {},
 ) {
@@ -298,30 +301,42 @@ private fun HomeHeader(
             }
         }
     }
+    // Desde la fila de secciones, ↑ vuelve siempre a "Explorar" (el primer botón de la cabecera).
+    val exploreFocus = remember { FocusRequester() }
     val buttons: @Composable () -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // Explorar incluye la búsqueda; el micrófono (si hay voz) abre Explorar escuchando.
-            Button(onClick = onExplore, modifier = Modifier.initialFocus(focus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Explorar") }
+            Button(onClick = onExplore, modifier = Modifier.initialFocus(focus).focusRequester(exploreFocus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Explorar") }
             if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤") }
             OutlinedButton(onClick = onHistory) { Text("Historial") }
             OutlinedButton(onClick = onSettings) { Text("Ajustes") }
             extra()
+
         }
     }
     // TV y tablet en horizontal: todo en una fila. Pantalla angosta (tablet en vertical): los
     // botones pasan a una segunda fila que se puede desplazar.
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth >= 760.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                title()
-                Spacer(Modifier.weight(1f))
-                buttons()
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth >= 760.dp) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    title()
+                    Spacer(Modifier.weight(1f))
+                    buttons()
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    title()
+                    Box(Modifier.horizontalScroll(rememberScrollState())) { buttons() }
+                }
             }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                title()
-                Box(Modifier.horizontalScroll(rememberScrollState())) { buttons() }
-            }
+        }
+        // Las otras secciones de la app: cada una con su catálogo y su buscador.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Secciones", style = MaterialTheme.typography.labelLarge, color = AppColors.TextoSecundario)
+            OutlinedButton(onClick = { onSection("retro") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Retro") }
+            OutlinedButton(onClick = { onSection("pelis") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Pelis") }
+            OutlinedButton(onClick = { onSection("series") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Series") }
         }
     }
 }

@@ -105,7 +105,7 @@ fun ExploreScreen(
         ) {
             item(key = "titulo") {
                 Column(Modifier.padding(bottom = 10.dp)) {
-                    Text("Explorar", style = MaterialTheme.typography.headlineMedium)
+                    Text(sectionTitle(state.section), style = MaterialTheme.typography.headlineMedium)
                     Text("Todo el catálogo, por categoría", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
                 }
             }
@@ -130,6 +130,17 @@ fun ExploreScreen(
                     },
                     modifier = if (!focusResults && !(admin && state.sites.size > 2)) Modifier.initialFocus() else Modifier,
                 )
+            }
+            // Origen: una etiqueta pública (p. ej. "Indú") que limita la búsqueda a una sola fuente.
+            if (state.tags.isNotEmpty()) {
+                item(key = "origen") {
+                    MenuEntry(
+                        title = "Origen",
+                        value = (state.tags.firstOrNull { it.id == state.selectedSite }?.name ?: "Todas") + "  ▾",
+                        selected = state.tags.any { it.id == state.selectedSite },
+                        onClick = { picking = TAG },
+                    )
+                }
             }
             items(groups, key = { it.id }) { group ->
                 val chosen = state.filters.valuesOf(group.id).firstOrNull()
@@ -160,7 +171,7 @@ fun ExploreScreen(
                         TvTextField(
                             value = text,
                             onValueChange = { text = it },
-                            placeholder = "Buscar un anime",
+                            placeholder = searchHint(state.section),
                             onDone = { search(text) },
                             pill = true,
                             modifier = Modifier.weight(1f),
@@ -209,6 +220,17 @@ fun ExploreScreen(
             },
             onDismiss = { picking = null },
         )
+        TAG -> ChoiceDialog(
+            title = "Origen",
+            options = listOf("Todas") + state.tags.map { it.name },
+            selectedIndex = state.tags.indexOfFirst { it.id == state.selectedSite } + 1,
+            onChoose = { i ->
+                picking = null
+                viewModel.selectSite(if (i == 0) null else state.tags[i - 1].id)
+                viewModel.browse()
+            },
+            onDismiss = { picking = null },
+        )
         else -> groups.firstOrNull { it.id == menu }?.let { group ->
             GroupDialog(
                 group = group,
@@ -225,7 +247,7 @@ fun ExploreScreen(
     voice.panel()
     // Si se cambió de sitio y esa categoría ya no existe, se cierra el menú pendiente.
     LaunchedEffect(groups) {
-        if (picking != null && picking != SITE && groups.none { it.id == picking } && !state.filtersLoading) picking = null
+        if (picking != null && picking != SITE && picking != TAG && groups.none { it.id == picking } && !state.filtersLoading) picking = null
     }
 }
 
@@ -268,6 +290,21 @@ private fun ExploreStatus(state: SearchUiState) {
 }
 
 private const val SITE = "__sitio"
+private const val TAG = "__origen"
+
+private fun sectionTitle(section: String) = when (section) {
+    "retro" -> "Retro"
+    "pelis" -> "Pelis"
+    "series" -> "Series"
+    else -> "Explorar"
+}
+
+private fun searchHint(section: String) = when (section) {
+    "retro" -> "Buscar una caricatura"
+    "pelis" -> "Buscar una película"
+    "series" -> "Buscar una serie"
+    else -> "Buscar un anime"
+}
 
 /** Orden del menú: primero lo que más se usa (género), luego tipo, estado, año y letra. */
 private val MENU_ORDER = listOf("genre", "type", "status", "year", "letter")

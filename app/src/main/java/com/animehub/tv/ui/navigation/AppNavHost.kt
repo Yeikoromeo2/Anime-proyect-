@@ -48,6 +48,7 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onVoiceSearch = { nav.navigate(ExploreRoute(voice = true)) },
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
+                onSection = { section -> nav.navigate(ExploreRoute(section = section)) },
                 onOpenAnime = openAnime,
                 onResume = { p -> nav.navigate(PlayerRoute(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl, p.episodeUrl, p.episodeNumber)) },
                 onOpenEpisode = { siteId, animeUrl, episodeUrl, title, image ->

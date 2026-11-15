@@ -70,6 +70,10 @@ data class SiteConfig(
      * (más episodios, miniaturas y video directo). Más alto = antes.
      */
     val priority: Int = 0,
+    /** Sección de la app a la que pertenece: "anime" (por defecto), "retro", "pelis" o "series". */
+    val section: String = "anime",
+    /** Etiqueta pública para filtrar solo esta fuente dentro de su sección (p. ej. "Indú"); sin nombrar el sitio. */
+    val tag: String? = null,
 ) {
     val isPending: Boolean get() = status != STATUS_OK
     val isClosed: Boolean get() = status == STATUS_CLOSED
@@ -98,6 +102,8 @@ data class BrowseConfig(
     val pageParam: String? = null,
     /** Valor que el sitio usa para "sin filtro" (Latanime usa "false"). */
     val emptyValue: String? = null,
+    /** Plantilla de ruta para páginas ≥ 2, p. ej. "/page/{page}/". */
+    val pagePath: String? = null,
 )
 
 @Serializable

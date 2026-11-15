@@ -46,7 +46,8 @@ class NavegacionTvTest : TvUiTest() {
         waitForText("Últimos capítulos")
         waitForFocusedDescription(LATEST_FIRST)
         capture("01_inicio")
-        key(Key.DirectionUp) // sin elegir sitio (modo normal): directo a la cabecera
+        key(Key.DirectionUp) // fila de secciones (Retro, Pelis, Series)
+        key(Key.DirectionUp) // y de ahí a la cabecera: vuelve a "Explorar"
         compose.onNodeWithText("Explorar").assertIsFocused()
         key(Key.DirectionRight)
         compose.onNodeWithText("Historial").assertIsFocused()

@@ -5,6 +5,8 @@ import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.net.HtmlFetcher
 import com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider
 import com.animehub.tv.providers.dooplay.DooPlayProvider
+import com.animehub.tv.providers.generic.GenericHtmlProvider
+import com.animehub.tv.providers.videoapi.VideoApiProvider
 import com.animehub.tv.providers.jkanime.JkanimeProvider
 import com.animehub.tv.providers.latanime.LatanimeProvider
 import kotlinx.coroutines.flow.Flow
@@ -24,15 +26,24 @@ class ProviderRegistry @Inject constructor(
         ENGINE_LATANIME -> LatanimeProvider(site, fetcher)
         ENGINE_JKANIME -> JkanimeProvider(site, fetcher)
         ENGINE_ANIMEFLV_WP -> AnimeFlvWpProvider(site, fetcher)
+        ENGINE_GENERIC_HTML -> GenericHtmlProvider(site, fetcher)
+        ENGINE_VIDEOAPI -> VideoApiProvider(site, fetcher)
         else -> null
     }
 
     /** El sitio tiene un proveedor en esta versión de la app. */
     fun hasProvider(site: EffectiveSite): Boolean = site.config.engine in ENGINES
 
-    /** Proveedores de los sitios activos (los sitios sin proveedor todavía se omiten). */
-    val activeProviders: Flow<List<SiteProvider>> =
-        configRepository.sites.map { sites -> sites.filter { it.enabled }.mapNotNull(::create) }
+    /** Proveedores de los sitios de anime activos (los sitios sin proveedor todavía se omiten). */
+    val activeProviders: Flow<List<SiteProvider>> = activeProvidersOf(SECTION_ANIME)
+
+    /** Proveedores activos de una sección ("anime", "retro", "pelis", "series"). */
+    fun activeProvidersOf(section: String): Flow<List<SiteProvider>> =
+        configRepository.sites.map { sites -> sites.filter { it.enabled && it.config.section == section }.mapNotNull(::create) }
+
+    /** Etiquetas públicas (p. ej. "Indú") de las fuentes activas de una sección: id del sitio → etiqueta. */
+    fun tagsOf(section: String): Flow<Map<String, String>> =
+        configRepository.sites.map { sites -> sites.filter { it.enabled && it.config.section == section }.mapNotNull { s -> s.config.tag?.let { s.id to it } }.toMap() }
 
     /** Proveedor de un sitio aunque esté desactivado (para abrir favoritos o el historial). */
     suspend fun provider(siteId: String): SiteProvider? {
@@ -45,6 +56,9 @@ class ProviderRegistry @Inject constructor(
         const val ENGINE_LATANIME = "latanime"
         const val ENGINE_JKANIME = "jkanime"
         const val ENGINE_ANIMEFLV_WP = "animeflv-wp"
-        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP)
+        const val ENGINE_GENERIC_HTML = "generic-html"
+        const val ENGINE_VIDEOAPI = "videoapi"
+        const val SECTION_ANIME = "anime"
+        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP, ENGINE_GENERIC_HTML, ENGINE_VIDEOAPI)
     }
 }

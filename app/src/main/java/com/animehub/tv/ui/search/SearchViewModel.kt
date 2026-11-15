@@ -2,6 +2,7 @@ package com.animehub.tv.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.animehub.tv.data.library.LibraryRepository
 import com.animehub.tv.data.log.ErrorLogRepository
 import com.animehub.tv.data.settings.SettingsRepository
@@ -46,6 +47,10 @@ data class SearchUiState(
     val version: Int = 0,
     val siteNames: Map<String, String> = emptyMap(),
     val noProviders: Boolean = false,
+    /** Sección en la que se explora: "anime", "retro", "pelis" o "series". */
+    val section: String = "anime",
+    /** Etiquetas públicas de fuentes de la sección (p. ej. "Indú"): filtran a una sola fuente sin nombrarla. */
+    val tags: List<SiteChip> = emptyList(),
     /** Sitios para elegir (null = todos los sitios). */
     val sites: List<SiteChip> = emptyList(),
     val selectedSite: String? = null,
@@ -65,6 +70,7 @@ data class SearchUiState(
  */
 @HiltViewModel
 class SearchViewModel @Inject constructor(
+    savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val library: LibraryRepository,
     private val registry: ProviderRegistry,
     private val errorLog: ErrorLogRepository,
@@ -81,6 +87,7 @@ class SearchViewModel @Inject constructor(
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     /** Página siguiente pendiente por sitio (solo los que tienen más resultados). */
+    private val section: String = runCatching { savedStateHandle.toRoute<com.animehub.tv.ui.navigation.ExploreRoute>().section }.getOrDefault(ProviderRegistry.SECTION_ANIME)
     private val nextPages = mutableMapOf<String, Int>()
     private val lastSelections = mutableMapOf<String, FilterSelection>()
     private var providers: List<SiteProvider> = emptyList()
@@ -93,14 +100,17 @@ class SearchViewModel @Inject constructor(
 
     init {
         ready = viewModelScope.launch {
-            providers = registry.activeProviders.first()
-            // Empieza en el sitio que se está viendo en Inicio (si se eligió uno).
-            val homeSite = settings.current().homeSite?.takeIf { id -> admin.enabled.value && providers.any { it.id == id } }
+            providers = registry.activeProvidersOf(section).first()
+            val tags = registry.tagsOf(section).first()
+            // Empieza en el sitio que se está viendo en Inicio (si se eligió uno; solo en la sección de anime).
+            val homeSite = settings.current().homeSite?.takeIf { id -> section == ProviderRegistry.SECTION_ANIME && admin.enabled.value && providers.any { it.id == id } }
             _state.update {
                 it.copy(
                     sites = listOf(SiteChip(null, "Todos los sitios")) + providers.map { p -> SiteChip(p.id, p.name) },
                     siteNames = providers.associate { p -> p.id to p.name },
                     noProviders = providers.isEmpty(),
+                    section = section,
+                    tags = tags.filterKeys { id -> providers.any { it.id == id } }.map { (id, label) -> SiteChip(id, label) },
                     selectedSite = homeSite,
                 )
             }
@@ -162,7 +172,7 @@ class SearchViewModel @Inject constructor(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             if (clean.isNotEmpty()) library.addSearch(clean)
-            if (providers.isEmpty()) providers = registry.activeProviders.first()
+            if (providers.isEmpty()) providers = registry.activeProvidersOf(section).first()
             val targets = providers.filter { _state.value.selectedSite == null || it.id == _state.value.selectedSite }
             nextPages.clear()
             lastSelections.clear()
@@ -208,7 +218,7 @@ class SearchViewModel @Inject constructor(
 
     /** En "Todos" traduce los filtros comunes; si el sitio no puede aplicarlos se omite con un aviso. */
     private suspend fun selectionFor(provider: SiteProvider, filters: FilterSelection, notices: MutableList<String>): FilterSelection? {
-        if (filters.isEmpty || _state.value.selectedSite != null) return filters
+        if (filters.isEmpty || _state.value.selectedSite != null || providers.size == 1) return filters
         val translated = FilterTranslator.toSite(filters, groupsOf(provider) ?: emptyList())
         if (translated.unsupported.isNotEmpty()) {
             // El filtro que un sitio no tiene se omite sin avisar.
@@ -221,7 +231,8 @@ class SearchViewModel @Inject constructor(
         filtersJob?.cancel()
         filtersJob = viewModelScope.launch {
             _state.update { it.copy(filtersLoading = true) }
-            val selected = _state.value.selectedSite
+            // Con una sola fuente en la sección (Retro, Series) se ven todos sus filtros reales, no solo los comunes.
+            val selected = _state.value.selectedSite ?: providers.singleOrNull()?.id
             val groups = if (selected != null) {
                 providers.firstOrNull { it.id == selected }?.let { groupsOf(it) }.orEmpty()
             } else {

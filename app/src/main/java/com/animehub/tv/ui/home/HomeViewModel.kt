@@ -156,8 +156,11 @@ class HomeViewModel @Inject constructor(
     /** Pocas fichas a la vez: las reseñas se piden solo de las tarjetas que se ven. */
     private val reviewLimiter = Semaphore(REVIEWS_IN_PARALLEL)
 
+    /** Inicio es de la sección de anime: las otras secciones (Retro, Pelis, Series) tienen su propia pantalla. */
+    private val animeSites = config.sites.map { list -> list.filter { it.config.section == "anime" } }
+
     val state: StateFlow<HomeUiState> = combine(
-        library.continueWatching, library.favorites, config.sites, content,
+        library.continueWatching, library.favorites, animeSites, content,
         // El sitio elegido solo cuenta en modo administrador: sin él siempre se ve todo junto.
         settings.settings.combine(admin.enabled) { prefs, on -> prefs.copy(homeSite = prefs.homeSite.takeIf { on }) },
     ) { cw, fav, sites, content, prefs ->
@@ -181,7 +184,7 @@ class HomeViewModel @Inject constructor(
         updates.checkOnStart()
         // Recarga cuando cambian los sitios activos o sus dominios.
         viewModelScope.launch {
-            config.sites
+            animeSites
                 .map { sites -> sites.filter { it.enabled }.map { it.id to it.baseUrl } }
                 .distinctUntilChanged()
                 .collect {
@@ -194,7 +197,7 @@ class HomeViewModel @Inject constructor(
     /** Recarga las novedades y los destacados de un sitio (o de todos). */
     fun reloadLatest(siteId: String? = null) {
         viewModelScope.launch {
-            val sites = config.sites.first().filter { it.enabled }
+            val sites = animeSites.first().filter { it.enabled }
             sites.filter { siteId == null || it.id == siteId }.forEach { site ->
                 val provider = registry.create(site)
                 if (provider == null) {

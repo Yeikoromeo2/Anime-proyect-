@@ -36,6 +36,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -129,21 +131,49 @@ fun HomeScreen(
                 if (showIntro && event.type == KeyEventType.KeyDown) { showIntro = false; true } else false
             },
     ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().graphicsLayer {
+    val context = LocalContext.current
+    val voiceAvailable = remember { VoiceSearch.anyAvailable(context) }
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val tab = HomeTab.entries[tabIndex]
+    val tabRequesters = remember { HomeTab.entries.associateWith { FocusRequester() } }
+    val exploreFocus = rememberInitialFocusState()
+    BoxWithConstraints(
+        Modifier.fillMaxSize().graphicsLayer {
             alpha = if (reveal >= 1f) 1f else reveal
             translationY = (1f - reveal) * 48f
         },
-        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        item {
-            HomeHeader({ onExplore(null) }, onVoiceSearch, onHistory, onSettings, onSection, onSearchFocus = { searchHasFocus = it }) {
-                // Versión nueva en Releases: botón al final de la cabecera.
-                if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel(), maxLines = 1, softWrap = false) }
-            }
+        val wide = maxWidth >= 760.dp
+        val onFocusTab: (HomeTab) -> Unit = { tabIndex = it.ordinal }
+        val updateChip: @Composable () -> Unit = {
+            // Versión nueva en Releases: botón junto a los accesos de arriba.
+            if (update.showsInHeader()) Button(onClick = { updateDialog = true }) { Text(update.headerLabel(), maxLines = 1, softWrap = false) }
         }
-
+        val topBar: @Composable (Modifier) -> Unit = { m ->
+            HomeTopBar(
+                onExplore = { onExplore(null) }, onVoiceSearch = onVoiceSearch, voiceAvailable = voiceAvailable,
+                onHistory = onHistory, onSettings = onSettings,
+                exploreModifier = Modifier.initialFocus(exploreFocus).onFocusChanged { searchHasFocus = it.isFocused },
+                modifier = m, extra = updateChip,
+            )
+        }
+        // La página elegida; "←" desde su primera columna vuelve a la pestaña elegida.
+        val leftToSidebar = Modifier.focusProperties { left = tabRequesters.getValue(tab) }
+        CompositionLocalProvider(LocalSidebarLeft provides leftToSidebar) {
+            Box(Modifier.fillMaxSize().padding(start = if (wide) SidebarWidth else 12.dp, top = if (wide) 74.dp else 128.dp)) {
+                when (tab) {
+                    HomeTab.RETRO, HomeTab.PELIS, HomeTab.SERIES -> SectionPage(
+                        section = tab.section,
+                        onOpen = { c -> onOpenAnime(c.siteId, c.url, c.title, c.coverUrl) },
+                        onViewAll = { onSection(tab.section) },
+                        leftFocus = leftToSidebar,
+                    )
+                    HomeTab.TV -> TvPage(onOpenTv = { onSection("tv") }, leftFocus = leftToSidebar)
+                    HomeTab.ANIME -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 8.dp, end = 24.dp, top = 6.dp, bottom = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                    ) {
         // Qué sitio se está viendo: todos mezclados o uno solo (se recuerda).
         if (admin && state.siteChoices.size > 1) {
             item(key = "elegir-sitio") { SiteChooser(state, viewModel::selectSite) }
@@ -254,6 +284,19 @@ fun HomeScreen(
                 }
             }
         }
+                    }
+                }
+            }
+        }
+        if (wide) {
+            HomeSidebar(tab, onFocusTab, tabRequesters, Modifier.align(Alignment.TopStart))
+            topBar(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 32.dp))
+        } else {
+            Column(Modifier.align(Alignment.TopStart).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.horizontalScroll(rememberScrollState())) { topBar(Modifier) }
+                HomeTabsRow(tab, onFocusTab, tabRequesters)
+            }
+        }
     }
     if (showIntro) IntroSplash { showIntro = false }
     }
@@ -273,75 +316,6 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun HomeHeader(
-    onExplore: () -> Unit,
-    onVoiceSearch: () -> Unit,
-    onHistory: () -> Unit,
-    onSettings: () -> Unit,
-    onSection: (String) -> Unit,
-    onSearchFocus: (Boolean) -> Unit,
-    extra: @Composable () -> Unit = {},
-) {
-    val context = LocalContext.current
-    val voiceAvailable = remember { VoiceSearch.anyAvailable(context) }
-    // Foco inicial inmediato: "Buscar" (luego pasa al capítulo más reciente cuando carga).
-    val focus = rememberInitialFocusState()
-    val title: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Kitsu, la mascota de la app (el mismo dibujo del icono).
-            Image(
-                painter = painterResource(R.drawable.mascota),
-                contentDescription = null,
-                modifier = Modifier.padding(end = 14.dp).size(48.dp),
-            )
-            Column {
-                Text("AnimeHub TV", style = MaterialTheme.typography.headlineMedium)
-                Text("Anime, retro, pelis y series en un solo lugar", style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario)
-            }
-        }
-    }
-    // Desde la fila de secciones, ↑ vuelve siempre a "Explorar" (el primer botón de la cabecera).
-    val exploreFocus = remember { FocusRequester() }
-    val buttons: @Composable () -> Unit = {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Explorar incluye la búsqueda; el micrófono (si hay voz) abre Explorar escuchando.
-            Button(onClick = onExplore, modifier = Modifier.initialFocus(focus).focusRequester(exploreFocus).onFocusChanged { onSearchFocus(it.isFocused) }) { Text("Explorar") }
-            if (voiceAvailable) OutlinedButton(onClick = onVoiceSearch) { Text("🎤") }
-            OutlinedButton(onClick = onHistory) { Text("Historial") }
-            OutlinedButton(onClick = onSettings) { Text("Ajustes") }
-            extra()
-
-        }
-    }
-    // TV y tablet en horizontal: todo en una fila. Pantalla angosta (tablet en vertical): los
-    // botones pasan a una segunda fila que se puede desplazar.
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            if (maxWidth >= 760.dp) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    title()
-                    Spacer(Modifier.weight(1f))
-                    buttons()
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    title()
-                    Box(Modifier.horizontalScroll(rememberScrollState())) { buttons() }
-                }
-            }
-        }
-        // Las otras secciones de la app: cada una con su catálogo y su buscador.
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Secciones", style = MaterialTheme.typography.labelLarge, color = AppColors.TextoSecundario)
-            OutlinedButton(onClick = { onSection("retro") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Retro") }
-            OutlinedButton(onClick = { onSection("pelis") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Pelis") }
-            OutlinedButton(onClick = { onSection("series") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Series") }
-            OutlinedButton(onClick = { onSection("tv") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("TV en vivo") }
-        }
-    }
-}
-
 /**
  * Fila horizontal de tarjetas. Al entrar con el D-pad el foco va a la última tarjeta usada
  * o, la primera vez, a la primera de la fila.
@@ -357,6 +331,7 @@ private fun <T> ContentRow(
     itemContent: @Composable (item: T, cardModifier: Modifier) -> Unit,
 ) {
     val firstCard = remember { FocusRequester() }
+    val leftToSidebar = LocalSidebarLeft.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column {
             Text(title, style = MaterialTheme.typography.titleLarge)
@@ -370,7 +345,7 @@ private fun <T> ContentRow(
         ) {
             itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
                 val modifier = if (index == 0) {
-                    Modifier.focusRequester(firstCard).then(firstItemModifier).onFocusChanged { if (it.isFocused) onFirstItemFocused() }
+                    Modifier.focusRequester(firstCard).then(leftToSidebar).then(firstItemModifier).onFocusChanged { if (it.isFocused) onFirstItemFocused() }
                 } else Modifier
                 itemContent(item, modifier)
             }

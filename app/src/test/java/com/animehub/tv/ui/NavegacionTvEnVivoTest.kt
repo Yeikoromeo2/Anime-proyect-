@@ -54,9 +54,8 @@ class NavegacionTvEnVivoTest : TvUiTest() {
     }
 
     private fun openLiveTv() {
-        toHeader()
-        key(Key.DirectionDown) // fila de secciones
-        activate("TV en vivo")
+        activateDescription("Pestaña TV en vivo")
+        activateDescription("Ver TV en vivo")
     }
 
     @Test
@@ -107,7 +106,7 @@ class NavegacionTvEnVivoTest : TvUiTest() {
         backKey()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("★ Favoritos")).fetchSemanticsNodes().isEmpty() }
         backKey()
-        waitForText("Secciones")
+        waitForText("AnimeHub TV") // de vuelta en Inicio (barra lateral)
     }
 
     @Test

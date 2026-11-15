@@ -134,7 +134,7 @@ abstract class TvUiTest {
 
     /** Desplaza la lista principal de Inicio hasta el texto indicado (filas fuera de la pantalla). */
     protected fun scrollHomeTo(text: String) {
-        compose.onAllNodes(hasScrollAction()).filterToOne(hasAnyDescendant(hasText("AnimeHub TV")))
+        compose.onAllNodes(hasScrollAction()).filterToOne(hasAnyDescendant(hasText("Últimos capítulos")))
             .performScrollToNode(hasText(text))
         compose.waitForIdle()
     }

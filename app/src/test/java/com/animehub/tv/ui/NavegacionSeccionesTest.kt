@@ -26,10 +26,26 @@ class NavegacionSeccionesTest : TvUiTest() {
         setUpImages()
     }
 
+    /** Elige la pestaña del Inicio (su página con el mosaico) y entra a "Ver todo y buscar". */
     private fun openSection(name: String) {
-        toHeader()
-        key(Key.DirectionDown) // la fila de secciones queda justo debajo de la cabecera
-        activate(name)
+        activateDescription("Pestaña $name")
+        activate("Ver todo y buscar")
+    }
+
+    @Test
+    fun la_pagina_de_cada_pestana_muestra_su_mosaico_de_titulos() {
+        activateDescription("Pestaña Retro")
+        waitForDescription("2 Perros Tontos")
+        capture("49_inicio_retro")
+        activateDescription("Pestaña Pelis")
+        waitForDescription("Quartier Lointain")
+        capture("49_inicio_pelis")
+        activateDescription("Pestaña Series")
+        waitForDescription("Policías de Chicago")
+        // La pestaña de TV: bloque "Ver TV en vivo".
+        activateDescription("Pestaña TV en vivo")
+        waitForDescription("Ver TV en vivo")
+        capture("49_inicio_tv")
     }
 
     @Test

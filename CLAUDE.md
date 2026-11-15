@@ -22,7 +22,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - Modo admin: `ui/Admin.kt` (`AdminMode`, `LocalAdmin`). Errores: `data/log/ErrorLogRepository.kt`.
 - Reproductor: `playback/PlaybackController.kt` (silencioso, `tryAnother()`), `ui/player/*` (OSD, táctil, ExoPlayer nativo + WebView con `inject.js`).
 - Enviar a otra pantalla: `remote/*` (servidor HTTP en la TV, descubrimiento NSD, `TargetDirectory`/`PlayTarget`), `cast/*`, `dlna/*`, `stream/StreamProxy.kt`.
-- Inicio: `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
+- Inicio (diseño tomado de la arquitectura de XUPER-HYDRA-PORT-WEBOS, solo distribución): barra lateral de pestañas Anime/Retro/Pelis/Series/TV en vivo (al enfocar una se cambia de página; en pantalla estrecha pasa a fila superior), accesos Explorar/Historial/Ajustes/versión arriba a la derecha (`HomeChrome.kt`, `LocalSidebarLeft`), páginas de mosaicos de tamaños mezclados (`Mosaic.kt`, `SectionPage.kt`, `TvPage.kt`; foco = escala 1.05 + borde #3A66FE y título solo con foco). Anime conserva sus filas. `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
 
 ## Secciones (Retro, Pelis, Series, TV)
 - `SiteConfig.section` ("anime" por defecto) separa las fuentes; `ProviderRegistry.activeProvidersOf(section)`. Inicio solo usa las de anime. `ExploreRoute(section=…)` abre el catálogo de una sección (mismo `SearchViewModel`/`ExploreScreen`).
@@ -54,7 +54,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.13.0 = 87) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.13.0 = 87; la última publicada era 91) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

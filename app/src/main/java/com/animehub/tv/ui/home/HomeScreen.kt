@@ -337,6 +337,7 @@ private fun HomeHeader(
             OutlinedButton(onClick = { onSection("retro") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Retro") }
             OutlinedButton(onClick = { onSection("pelis") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Pelis") }
             OutlinedButton(onClick = { onSection("series") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("Series") }
+            OutlinedButton(onClick = { onSection("tv") }, modifier = Modifier.focusProperties { up = exploreFocus }) { Text("TV en vivo") }
         }
     }
 }

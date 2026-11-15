@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "updated": "2026-11-15",
   "aggregators": [
     { "type": "msp-xor", "hosts": ["darkanimes.com"] },
@@ -26,6 +26,13 @@
     "connect.facebook.net", "scorecardresearch.com", "mc.yandex.ru", "mc.yandex.com", "histats.com",
     "statcounter.com", "static.cloudflareinsights.com", "hotjar.com", "clarity.ms", "quantserve.com", "onesignal.com",
     "ufouxbwn.com"
+  ],
+  "iptvLists": [
+    {"id": "pe", "name": "Perú", "url": "https://iptv-org.github.io/iptv/countries/pe.m3u"},
+    {"id": "latam", "name": "Latinoamérica", "url": "https://iptv-org.github.io/iptv/regions/latam.m3u"},
+    {"id": "dibujos", "name": "Dibujos animados", "url": "https://mametchikitty.github.io/Listas-IPTV/dibujos-animados.m3u", "kind": "vod"},
+    {"id": "ghibli", "name": "Studio Ghibli", "url": "https://mametchikitty.github.io/Listas-IPTV/studio-ghibli-latino.m3u", "kind": "vod"},
+    {"id": "mundo", "name": "Canales del mundo", "url": "https://www.m3u.cl/lista/total.m3u"}
   ],
   "sites": [
     {

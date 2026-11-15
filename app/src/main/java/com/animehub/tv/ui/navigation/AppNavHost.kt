@@ -48,7 +48,7 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onVoiceSearch = { nav.navigate(ExploreRoute(voice = true)) },
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
-                onSection = { section -> nav.navigate(ExploreRoute(section = section)) },
+                onSection = { section -> if (section == "tv") nav.navigate(TvRoute) else nav.navigate(ExploreRoute(section = section)) },
                 onOpenAnime = openAnime,
                 onResume = { p -> nav.navigate(PlayerRoute(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl, p.episodeUrl, p.episodeNumber)) },
                 onOpenEpisode = { siteId, animeUrl, episodeUrl, title, image ->
@@ -61,6 +61,7 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
             val route = entry.toRoute<ExploreRoute>()
             ExploreScreen(onOpenAnime = openAnime, initialGenre = route.genre, startVoice = route.voice)
         }
+        composable<TvRoute> { com.animehub.tv.ui.tv.LiveTvScreen(onExit = { nav.popBackStack() }) }
         composable<HistoryRoute> {
             HistoryScreen(
                 onOpenAnime = openAnime,

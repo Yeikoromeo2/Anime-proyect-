@@ -25,7 +25,15 @@ data class RemoteConfig(
     val directStreams: List<AggregatorConfig> = emptyList(),
     /** Dominios de anuncios y de rastreo que el reproductor web bloquea (también sus subdominios). */
     val adBlockHosts: List<String> = emptyList(),
+    /** Listas M3U de TV en vivo (canales) y de películas/capítulos sueltos. */
+    val iptvLists: List<IptvListConfig> = emptyList(),
 )
+
+/**
+ * @param kind "live" (canales en vivo, por defecto) o "vod" (películas o capítulos sueltos).
+ */
+@Serializable
+data class IptvListConfig(val id: String, val name: String, val url: String, val kind: String = "live")
 
 /**
  * @param type "msp-xor" (botones con URL en Base64 cifrada con la clave "pk" de la página) o

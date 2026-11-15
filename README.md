@@ -200,6 +200,13 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 - Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública como "Indú").
 - Límites: la búsqueda por texto de Gnula (Cloudflare) y de Cinehindi (devuelve una página señuelo) no se usa; en esos sitios se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
 
+## TV en vivo
+- **Inicio → Secciones → TV en vivo**: un reproductor a pantalla completa que suena desde que entras (el último canal visto o el primero de la primera lista). Listas en `config/sites.json` (`iptvLists`): Perú, Latinoamérica, Dibujos animados, Studio Ghibli y Canales del mundo.
+- **Sin repetidos**: un canal que está en varias listas aparece una sola vez; si viene en varias calidades (SD, HD, Full HD, 4K) se conservan todas y ←/→ cambia entre ellas. Los capítulos y películas de las listas de dibujos y Ghibli se reproducen como títulos.
+- **Menú transparente (ghost)**: **OK** lo abre sobre la imagen (listas → categorías → canales, con logo, categoría y calidades); se esconde solo a los 10 s; **Atrás** sube un nivel, luego lo cierra y, ya cerrado, sale. En la tablet, tocar la pantalla lo muestra u oculta.
+- **Cambiar de canal**: teclas **CH+ / CH−** del control (o ↑/↓) con el menú cerrado. **Favoritos**: la estrella de cada canal; la primera entrada del menú los reúne.
+- Sin señal: si un canal no responde en 20 s se muestra "Sin señal" y se puede seguir cambiando. Algunas listas usan direcciones sin cifrar (`http://`), por eso la app permite tráfico en claro.
+
 ## Reproductor: controles
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
 - **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.

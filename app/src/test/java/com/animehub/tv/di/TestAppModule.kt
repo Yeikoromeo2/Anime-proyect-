@@ -45,6 +45,10 @@ object TestAppModule {
         "cinehindi.com" -> cinehindi(url)?.let { it to 200 }
         "ver.gnula.one" -> gnula(url)?.let { it to 200 }
         "serieslan.live" -> serieslan(url)?.let { it to 200 }
+        // TV en vivo: las cinco listas M3U (recortadas).
+        "iptv-org.github.io" -> (if (url.encodedPath.endsWith("/pe.m3u")) "iptv/pe_inicio.m3u" else "iptv/latam_inicio.m3u") to 200
+        "mametchikitty.github.io" -> (if (url.encodedPath.contains("ghibli")) "iptv/ghibli.m3u" else "iptv/dibujos_inicio.m3u") to 200
+        "www.m3u.cl" -> "iptv/mundo_inicio.m3u" to 200
         // Actualización desde la app: la Release real, con un número de versión más alto que cualquier
         // compilación (las de GitHub Actions se llaman como la versión que se publica), y un "APK" de prueba.
         "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) {

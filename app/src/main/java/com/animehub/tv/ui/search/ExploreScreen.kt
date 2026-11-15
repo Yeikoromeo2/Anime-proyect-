@@ -132,7 +132,7 @@ fun ExploreScreen(
                 )
             }
             // Origen: una etiqueta pública (p. ej. "Bollywood") que limita la búsqueda a una sola fuente.
-            if (state.tags.isNotEmpty()) {
+            if (state.tags.size >= 2) {
                 item(key = "origen") {
                     MenuEntry(
                         title = "Origen",

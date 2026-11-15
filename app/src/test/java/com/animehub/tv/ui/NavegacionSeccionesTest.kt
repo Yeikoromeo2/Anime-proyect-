@@ -46,24 +46,15 @@ class NavegacionSeccionesTest : TvUiTest() {
     }
 
     @Test
-    fun pelis_junta_dos_fuentes_y_el_origen_indu_deja_solo_una() {
+    fun pelis_lista_el_catalogo_y_abre_su_ficha_con_un_solo_episodio() {
         openSection("Pelis")
         waitForText("Buscar una película")
         waitForText("títulos cargados", substring = true)
-        // Una de cada fuente: cinehindi (hindú) y gnula.
-        waitForDescription("Mujhse Shaadi Karogi")
+        waitForDescription("Quartier Lointain")
         capture("52_pelis")
-        // "Origen → Bollywood": solo las películas hindúes; lo de Hollywood desaparece.
-        activate("Origen")
-        waitForText("Hollywood")
-        waitForText("Bollywood")
-        activate("Bollywood")
-        waitForText("títulos cargados", substring = true)
-        waitForDescription("Mujhse Shaadi Karogi")
-        compose.onAllNodes(hasContentDescription("The Last Temptation of Becky")).assertCountEquals(0)
-        capture("53_pelis_indu")
-        // La película abre su ficha con un solo "episodio" y sus opciones de reproductor.
-        activateDescription("Mujhse Shaadi Karogi")
+        // Con una sola fuente no hay menú "Origen".
+        compose.onAllNodes(hasText("Origen")).assertCountEquals(0)
+        activateDescription("Quartier Lointain")
         waitForText("Ver", substring = false)
     }
 

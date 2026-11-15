@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** Retro (lacartoons) y Pelis (cinehindi, gnula) con el proveedor genérico, contra sus HTML guardados. */
+/** Retro (lacartoons) y Pelis (gnula) con el proveedor genérico, contra sus HTML guardados. */
 class GenericHtmlProviderTest {
 
     private val server = MockWebServer()
@@ -36,10 +36,6 @@ class GenericHtmlProviderTest {
                     "/?Categoria_id=1&page=2" -> html("lacartoons/categoria_1_p2.html")
                     "/serie/1" -> html("lacartoons/serie_1.html")
                     "/serie/capitulo/1?t=1" -> html("lacartoons/capitulo_1.html")
-                    "/pelicula/" -> html("cinehindi/peliculas.html")
-                    "/pelicula/page/2/" -> html("cinehindi/peliculas_p2.html")
-                    "/genero/accion/" -> html("cinehindi/genero_accion.html")
-                    "/pelicula/mujhse-shaadi-karogi-completa-subtitulada-online/" -> html("cinehindi/pelicula_mujhse.html")
                     "/peliculas/" -> html("gnula/peliculas.html")
                     "/movies/the-last-temptation-of-becky/" -> html("gnula/pelicula_becky.html")
                     else -> MockResponse.Builder().code(404).build()
@@ -90,38 +86,6 @@ class GenericHtmlProviderTest {
         val servers = p.servers(detail.episodes.first().url)
         assertEquals("https://ok.ru/videoembed/1392690399817", servers.single().embedUrl)
         assertEquals("Latino", servers.single().language)
-    }
-
-    @Test
-    fun `cinehindi lista peliculas, pagina y filtra por genero`() = runBlocking {
-        val p = provider("cinehindi")
-        val page1 = p.search("", FilterSelection.NONE, 1)
-        assertTrue("tarjetas: ${page1.items.size}", page1.items.size >= 10)
-        assertEquals("Mujhse Shaadi Karogi", page1.items.first().title)
-        assertEquals(2004, page1.items.first().year)
-        assertTrue(page1.hasNextPage)
-        assertTrue(p.search("", FilterSelection.NONE, 2).items.isNotEmpty())
-        assertTrue(p.search("", FilterSelection(mapOf("genre" to setOf("accion"))), 1).items.isNotEmpty())
-    }
-
-    @Test
-    fun `cinehindi busca filtrando su catalogo porque su buscador no sirve`() = runBlocking {
-        val result = provider("cinehindi").search("mujhse", FilterSelection.NONE, 1)
-        assertTrue(result.items.any { it.title == "Mujhse Shaadi Karogi" })
-        assertTrue("no usó la búsqueda del sitio", requests.none { it.contains("?s=") })
-    }
-
-    @Test
-    fun `cinehindi ficha de pelicula y opciones de reproductor con idioma`() = runBlocking {
-        val p = provider("cinehindi")
-        val detail = p.animeDetail("https://cinehindi.com/pelicula/mujhse-shaadi-karogi-completa-subtitulada-online/")
-        assertEquals("Mujhse Shaadi Karogi", detail.title)
-        assertEquals(1, detail.episodes.size) // película = un solo episodio
-        assertTrue(detail.genres.contains("Comedia"))
-        val servers = p.servers(detail.episodes.single().url)
-        assertEquals(listOf("Hqq", "Mixdrop", "Streamz"), servers.map { it.name })
-        assertEquals("Subtitulado", servers.first().language)
-        assertTrue(servers.first().embedUrl.contains("trembed=0"))
     }
 
     @Test

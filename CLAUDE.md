@@ -26,11 +26,11 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 
 ## Secciones (Retro, Pelis, Series, TV)
 - `SiteConfig.section` ("anime" por defecto) separa las fuentes; `ProviderRegistry.activeProvidersOf(section)`. Inicio solo usa las de anime. `ExploreRoute(section=…)` abre el catálogo de una sección (mismo `SearchViewModel`/`ExploreScreen`).
-- `SiteConfig.tag` = etiqueta pública de una fuente (p. ej. "Bollywood") para el menú **Origen** sin nombrar el sitio.
+- `SiteConfig.tag` = etiqueta pública de una fuente para el menú **Origen** (solo con 2 o más fuentes etiquetadas) sin nombrar el sitio.
 - Motores: `generic-html` (`providers/generic/GenericHtmlProvider`, todo por selectores; `selectors.searchMode=local` filtra el catálogo cuando el buscador del sitio no sirve) y `videoapi` (`providers/videoapi/VideoApiProvider`, API JSON de SeriesLan).
 - Anuncios en películas: `adBlockHosts` + `adBlockPatterns` (config), `PlayerWebView` abre el reproductor real de las páginas `?trembed=` (con el sitio como Referer) y `inject.js` quita las capas invisibles trampa.
-- No imitar un navegador para saltar protecciones: Cinehindi sirve una página señuelo a clientes que no son navegador y Gnula pone Cloudflare en su búsqueda; sus reproductores van por el reproductor web de la app.
-- Fixtures de estas fuentes en `app/src/test/resources/fixtures/{lacartoons,cinehindi,gnula,serieslan}`; el dominio de cada una debe estar permitido en la red del entorno de nube para poder volver a capturarlas.
+- No imitar un navegador para saltar protecciones: Gnula pone Cloudflare en su búsqueda; sus reproductores van por el reproductor web de la app. El catálogo indú (Cinehindi) se retiró por fallas de reproducción: no volver a añadirlo.
+- Fixtures de estas fuentes en `app/src/test/resources/fixtures/{lacartoons,gnula,serieslan}`; el dominio de cada una debe estar permitido en la red del entorno de nube para poder volver a capturarlas.
 
 ## TV en vivo
 - `config/sites.json`: `iptvStartUrl` (Perú, arranque de la primera vez) y `iptvLists` (menú, en orden): `kind` "grouped" (listas generales de iptv-org: el group-title es el submenú; `translate` country/language y `order` ponen primero Perú/Español…), "live" (categoría del canal) o "vod" (capítulos/películas).

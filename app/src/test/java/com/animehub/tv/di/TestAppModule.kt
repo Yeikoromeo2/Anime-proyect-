@@ -42,7 +42,6 @@ object TestAppModule {
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
         "lacartoons.com" -> lacartoons(url)?.let { it to 200 }
-        "cinehindi.com" -> cinehindi(url)?.let { it to 200 }
         "ver.gnula.one" -> gnula(url)?.let { it to 200 }
         "serieslan.live" -> serieslan(url)?.let { it to 200 }
         // TV en vivo: las listas M3U (recortadas).
@@ -92,17 +91,10 @@ object TestAppModule {
         else -> null
     }
 
-    private fun cinehindi(url: HttpUrl): String? = when (url.encodedPath) {
-        "/pelicula/" -> "cinehindi/peliculas.html"
-        "/pelicula/page/2/" -> "cinehindi/peliculas_p2.html"
-        "/genero/accion/" -> "cinehindi/genero_accion.html"
-        "/pelicula/mujhse-shaadi-karogi-completa-subtitulada-online/" -> "cinehindi/pelicula_mujhse.html"
-        else -> null
-    }
-
-    private fun gnula(url: HttpUrl): String? = when (url.encodedPath) {
-        "/peliculas/" -> "gnula/peliculas.html"
-        "/movies/the-last-temptation-of-becky/" -> "gnula/pelicula_becky.html"
+    private fun gnula(url: HttpUrl): String? = when {
+        url.encodedPath == "/peliculas/" -> "gnula/peliculas.html"
+        // Cualquier película del catálogo abre la ficha guardada (con sus servidores).
+        url.encodedPath.startsWith("/movies/") -> "gnula/pelicula_becky.html"
         else -> null
     }
 

@@ -33,7 +33,7 @@ import java.net.URLEncoder
 /**
  * Proveedor genérico para sitios HTML sencillos (engine = "generic-html"): catálogo paginado,
  * búsqueda, ficha (con o sin temporadas) y reproductores incrustados. Todo sale de los selectores
- * de la configuración; sirve para Retro (lacartoons) y Pelis (gnula, cinehindi).
+ * de la configuración; sirve para Retro (lacartoons) y Pelis (gnula).
  *
  * Claves de la configuración (todas opcionales salvo las de tarjeta y ficha):
  * - `selectors`: card, title, titleAttr, cover, link, year ("@atributo" lee un atributo de la tarjeta),

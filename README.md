@@ -196,10 +196,10 @@ Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/
 
 ## Secciones: Retro, Pelis y Series
 - En Inicio, la fila **Secciones** abre cada una con su catálogo, su buscador y sus filtros; la ficha, el reproductor, los favoritos y el historial son los mismos que los del anime.
-- **Retro** (lacartoons), **Pelis** (gnula y cinehindi, unidas en una sola lista; el menú **Origen** tiene **Hollywood** (películas normales) y **Bollywood** (películas hindúes)) y **Series** (serieslan, con sus temporadas).
-- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública como "Bollywood").
+- **Retro** (lacartoons), **Pelis** (gnula) y **Series** (serieslan, con sus temporadas).
+- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública para el menú **Origen**, que solo sale con 2 o más fuentes etiquetadas en la sección).
 - Anuncios en los reproductores de películas: más redes de anuncios y patrones de direcciones en `adBlockHosts`/`adBlockPatterns`, las capas invisibles que convierten el primer clic en un anuncio se quitan solas y, en las páginas "envoltorio" del sitio (`?trembed=`), se abre directamente el reproductor real.
-- Límites: la búsqueda por texto de Gnula (Cloudflare) y de Cinehindi (devuelve una página señuelo) no se usa; en esos sitios se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
+- Límites: la búsqueda por texto de Gnula (Cloudflare) no se usa; se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
 
 ## TV en vivo
 - **Inicio → Secciones → TV en vivo**: un reproductor a pantalla completa que suena desde que entras (el último canal visto o, la primera vez, el primero de Perú).

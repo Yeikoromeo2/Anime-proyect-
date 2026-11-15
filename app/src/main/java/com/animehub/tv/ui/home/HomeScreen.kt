@@ -297,7 +297,7 @@ fun HomeScreen(
             }
         }
         if (wide) {
-            HomeSidebar(tab, onFocusTab, tabRequesters, Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
+            HomeSidebar(tab, onFocusTab, tabRequesters, onActivate = { t -> if (t == HomeTab.TV) onSection("tv") else onFocusTab(t) }, modifier = Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
             topBar(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 32.dp))
         } else {
             Column(Modifier.align(Alignment.TopStart).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

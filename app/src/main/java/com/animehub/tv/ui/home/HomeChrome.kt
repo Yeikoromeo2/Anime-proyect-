@@ -59,6 +59,7 @@ fun HomeSidebar(
     onFocusTab: (HomeTab) -> Unit,
     requesters: Map<HomeTab, FocusRequester>,
     modifier: Modifier = Modifier,
+    onActivate: (HomeTab) -> Unit = onFocusTab,
 ) {
     Column(
         modifier
@@ -75,7 +76,7 @@ fun HomeSidebar(
         HomeTab.entries.forEach { tab ->
             ListItem(
                 selected = tab == selected,
-                onClick = { onFocusTab(tab) },
+                onClick = { onActivate(tab) },
                 modifier = Modifier.focusRequester(requesters.getValue(tab)).onFocusChanged { if (it.isFocused) onFocusTab(tab) }.semantics { contentDescription = "Pestaña ${tab.title}" },
                 headlineContent = { Text(tab.title, color = if (tab == selected) AppColors.Acento2 else Color.White) },
                 scale = listItemScale(),

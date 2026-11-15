@@ -165,19 +165,9 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
     }
     LaunchedEffect(controlsMode) { if (controlsMode) infoVisible = true }
     // Atrás: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor.
-    // Reproductores web que esperan un toque (ok.ru…): se toca el centro solos y, con OK tres veces seguidas, aparece un puntero.
+    // Reproductores web que esperan un toque (ok.ru…): con OK tres veces seguidas aparece un puntero (no se toca nada solo).
     var pointer by remember { mutableStateOf<Offset?>(null) }
     var okPresses by remember { mutableStateOf(listOf<Long>()) }
-    val latestState by rememberUpdatedState(state)
-    val embed = (state.phase as? PlayerPhase.Playing)?.option?.server?.embedUrl
-    LaunchedEffect(embed, state.nativePlayback, playing) {
-        if (!playing || state.nativePlayback) return@LaunchedEffect
-        repeat(AUTO_TAPS) {
-            delay(AUTO_TAP_AFTER_MS)
-            if (latestState.durationMs > 0) return@LaunchedEffect
-            web.tapCenter()
-        }
-    }
     var exitArmed by remember { mutableStateOf(false) }
     LaunchedEffect(exitArmed) { if (exitArmed) { delay(EXIT_ARMED_MS); exitArmed = false } }
     BackHandler(enabled = playing) {
@@ -273,8 +263,6 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                         pointer = Offset(web.width / 2f, web.height / 2f)
                         return@onPreviewKeyEvent true
                     }
-                    // Mientras el video no ha empezado, OK toca el centro (el botón de reproducir de la página).
-                    if (state.durationMs <= 0) { web.tapCenter(); return@onPreviewKeyEvent true }
                 }
                 if (controlsMode) {
                     // En la fila de botones las flechas se mueven entre ellos; ↑ vuelve al video.
@@ -655,8 +643,6 @@ private fun CenterMessage(text: String, action: Pair<String, () -> Unit>?, onExi
 }
 
 private const val INFO_VISIBLE_MS = 4_000L
-private const val AUTO_TAPS = 3
-private const val AUTO_TAP_AFTER_MS = 3_500L
 private const val OK_WINDOW_MS = 1_400L
 private const val EXIT_ARMED_MS = 3_000L
 private const val SCRUB_COMMIT_MS = 700L

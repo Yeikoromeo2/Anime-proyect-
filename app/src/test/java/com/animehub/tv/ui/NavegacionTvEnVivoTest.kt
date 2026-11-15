@@ -54,8 +54,7 @@ class NavegacionTvEnVivoTest : TvUiTest() {
     }
 
     private fun openLiveTv() {
-        activateDescription("Pestaña TV en vivo")
-        activateDescription("Ver TV en vivo")
+        activateDescription("Pestaña TV en vivo") // OK sobre la pestaña abre la TV y suena el último canal
     }
 
     @Test

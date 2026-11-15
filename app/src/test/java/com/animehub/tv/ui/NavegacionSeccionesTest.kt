@@ -42,9 +42,7 @@ class NavegacionSeccionesTest : TvUiTest() {
         capture("49_inicio_pelis")
         activateDescription("Pestaña Series")
         waitForDescription("Policías de Chicago")
-        // La pestaña de TV: bloque "Ver TV en vivo".
-        activateDescription("Pestaña TV en vivo")
-        waitForDescription("Ver TV en vivo")
+        // La pestaña de TV abre la TV en vivo directo (se prueba en NavegacionTvEnVivoTest).
         capture("49_inicio_tv")
     }
 

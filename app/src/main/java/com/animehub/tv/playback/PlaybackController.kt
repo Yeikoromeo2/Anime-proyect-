@@ -185,7 +185,9 @@ class PlaybackController(
     /** La ficha completa llegó después de empezar: se pueden usar anterior y siguiente. */
     fun setEpisodes(list: List<Episode>) {
         val current = episode ?: return
-        val i = list.indexOfFirst { it.url == current.url }
+        // Misma URL (sin barra final) o, si el sitio la escribe distinto, el mismo número de episodio.
+        val i = list.indexOfFirst { it.url.trimEnd('/') == current.url.trimEnd('/') }
+            .takeIf { it >= 0 } ?: list.indexOfFirst { it.number == current.number }
         if (i < 0) return
         episodes = list
         index = i

@@ -301,6 +301,27 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun `la ficha completa activa siguiente aunque la url cambie de barra final o de forma`() = runTest(UnconfinedTestDispatcher()) {
+        val c = PlaybackController(
+            scope = this, episodes = listOf(Episode(3f, "Episodio", "https://x.test/ep-3/")), startIndex = 0,
+            loadServers = { flowOf(listOf(opt("voe"))) },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            clock = { testScheduler.currentTime },
+        )
+        c.start()
+        runCurrent()
+        assertFalse(c.state.value.hasNext)
+        // Mismo episodio escrito sin la barra final: se reconoce y habilita siguiente.
+        c.setEpisodes(listOf(Episode(2f, "E", "https://x.test/ep-2"), Episode(3f, "E", "https://x.test/ep-3"), Episode(4f, "E", "https://x.test/ep-4")))
+        assertTrue(c.state.value.hasNext)
+        assertTrue(c.state.value.hasPrevious)
+        // La URL cambió del todo: se encuentra por número de episodio.
+        c.setEpisodes(listOf(Episode(3f, "E", "https://x.test/otra-3"), Episode(4f, "E", "https://x.test/otra-4")))
+        assertTrue(c.state.value.hasNext)
+        c.onExit()
+    }
+
+    @Test
     fun `arranca con el primero que responde y los que llegan despues solo engrosan la lista`() = runTest(UnconfinedTestDispatcher()) {
         val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
         val c = PlaybackController(

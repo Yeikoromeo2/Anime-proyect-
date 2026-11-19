@@ -128,9 +128,15 @@ class PlayerViewModel @Inject constructor(
             active.animeTitle = title
             controller.start()
             // La ficha completa: anterior/siguiente y el título definitivo.
-            val detail = runCatching { provider.animeDetail(route.animeUrl) }
-                .onFailure { errorLog.logIssue(provider.name, "Reproductor: ficha", it) }
-                .getOrNull()
+            // Si el sitio tarda o falla, se reintenta (sin esto "siguiente" quedaba apagado en ese episodio).
+            var detail: com.animehub.tv.domain.model.AnimeDetail? = null
+            for (attempt in 1..3) {
+                detail = runCatching { provider.animeDetail(route.animeUrl) }
+                    .onFailure { if (attempt == 3) errorLog.logIssue(provider.name, "Reproductor: ficha", it) }
+                    .getOrNull()
+                if (detail?.episodes?.isNotEmpty() == true) break
+                kotlinx.coroutines.delay(2_500)
+            }
             if (detail != null) {
                 detail.title.ifBlank { null }?.let { title = it }
                 detail.coverUrl?.let { cover = it }

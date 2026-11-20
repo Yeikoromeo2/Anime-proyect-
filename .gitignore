@@ -1,0 +1,18 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/app/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+# Firma: no subir otros keystores (la clave fija del proyecto está en signing/ a propósito)
+*.jks
+*.keystore
+!signing/animehub-release.jks
+keystore.properties
+tools/player-js-test/captura.png

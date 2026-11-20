@@ -7,7 +7,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - **No borres funciones ni estructura sin avisar antes.** Si algo debe quitarse, se comunica primero.
 - En uso normal **no se ve de qué sitio viene nada**: ni sitios, ni URLs, ni nombres de servidor. Todo es "AnimeHub TV". Solo el **modo administrador** (Ajustes → pulsar "Versión de la app" → PIN **041992**, 6 dígitos) los muestra.
 - **Los errores no se muestran** al usuario; solo se guardan (`ErrorLogRepository.logIssue`, solo los accionables) y se leen en modo admin.
-- En el reproductor sí se elige **versión por idioma** (Latino / Subtitulado / Castellano…), sin nombrar el servidor.
+- En el reproductor sí se elige **versión por idioma** (Latino / Subtitulado / Castellano…), sin nombrar el servidor. Cada servidor lleva un número fijo por episodio, **"Reproductor N"** (`PlayerState.playerNumbers`): aparece como aviso breve al empezar o cambiar de servidor y en la lista (con "▶ En uso" en el que suena), sin nombrar el servidor.
 - Botones con **iconos y pocas palabras**; nada de pantallas tipo "dashboard".
 - El mismo anime de varios sitios/idiomas es **una sola tarjeta y una sola ficha**, pero **años o temporadas distintas son series distintas** (Ranma ½ 2024 ≠ Ranma ½ 1989; "Overlord 3" ≠ "Overlord 2").
 - Las páginas con varias temporadas conservan su selector de temporadas.
@@ -54,7 +54,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.0 = 94) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.3 = 102) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

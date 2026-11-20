@@ -446,29 +446,23 @@ private fun ServerGrid(session: PlayerSession, state: PlayerState, options: List
                 state.notice?.let { Text(it, color = AppColors.Error) }
             }
         }
-        // Sin modo administrador solo se ve el idioma ("Latino", "Subtitulado"…); si se repite, se numera.
-        val seen = mutableMapOf<String, Int>()
-        val labels = ordered.map { o ->
-            val base = o.server.language?.takeIf { it.isNotBlank() } ?: "Versión"
-            val n = (seen[base] ?: 0) + 1
-            seen[base] = n
-            if (n == 1) base else "$base $n"
-        }
+        // Sin modo administrador no hay nombres: "Reproductor N" (número fijo en este episodio) + idioma.
+        val labels = ordered.map { o -> "Reproductor ${state.playerNumbers[o.server.embedUrl] ?: (options.indexOf(o) + 1)}" }
         itemsIndexed(ordered, key = { _, o -> o.server.embedUrl }) { i, option ->
-            ServerTile(option, labels[i], admin, if (i == 0) Modifier.initialFocus(focus) else Modifier) { onChoose(option) }
+            ServerTile(option, labels[i], admin, option.server.embedUrl == state.playingUrl, if (i == 0) Modifier.initialFocus(focus) else Modifier) { onChoose(option) }
         }
     }
 }
 
 @Composable
-private fun ServerTile(option: ServerOption, label: String, admin: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun ServerTile(option: ServerOption, label: String, admin: Boolean, inUse: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val down = option.health == ServerHealth.NO_DISPONIBLE
     val statusColor = when (option.health) {
         ServerHealth.FUNCIONA -> AppColors.Acento2
         ServerHealth.NO_DISPONIBLE -> AppColors.Error
         else -> AppColors.Aviso
     }
-    val description = if (admin) listOfNotNull(option.server.name, option.server.language).joinToString(" · ") else label
+    val description = (if (admin) listOfNotNull(option.server.name, option.server.language) else listOfNotNull(label, option.server.language?.takeIf { it.isNotBlank() })).joinToString(" · ")
     Card(
         onClick = onClick,
         modifier = modifier
@@ -495,7 +489,8 @@ private fun ServerTile(option: ServerOption, label: String, admin: Boolean, modi
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (admin) option.server.language?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario, maxLines = 1) }
+            if (inUse) Text("▶ En uso", style = MaterialTheme.typography.labelMedium, color = AppColors.Acento2, maxLines = 1)
+            else option.server.language?.takeIf { admin || it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.TextoSecundario, maxLines = 1) }
             if (admin) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Tag(option.kind.etiqueta.removePrefix("Reproductor ").replaceFirstChar { it.uppercase() }, if (option.stream != null) AppColors.Acento else AppColors.SuperficieFoco)
                 Text(

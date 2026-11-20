@@ -51,6 +51,10 @@ data class PlayerState(
     val options: List<ServerOption> = emptyList(),
     /** Se está usando el reproductor nativo (video directo) en vez de la página del servidor. */
     val nativePlayback: Boolean = false,
+    /** "Reproductor 1, 2, 3…": número fijo de cada servidor en este episodio (sin nombrar el servidor). */
+    val playerNumbers: Map<String, Int> = emptyMap(),
+    /** El servidor que suena ahora (para marcarlo "En uso" en la lista). */
+    val playingUrl: String? = null,
 )
 
 /** Órdenes para el reproductor (web o nativo). */
@@ -114,6 +118,7 @@ class PlaybackController(
     private var native = false
     private var started = false
     private var resumeAtMs: Long? = null
+    private val numbers = linkedMapOf<String, Int>()
     private var lastSave = -SAVE_EVERY_MS
     private var ended = false
     private var watchdog: Job? = null
@@ -128,6 +133,7 @@ class PlaybackController(
         countdown?.cancel()
         watchdog?.cancel()
         tried.clear()
+        numbers.clear()
         current = null
         started = false
         ended = false
@@ -165,6 +171,9 @@ class PlaybackController(
 
     /** Llegó una lista (cada vez más completa): arranca con el primero que sirva si aún no suena nada. */
     private fun onOptions(options: List<ServerOption>) {
+        options.forEach { o -> numbers.getOrPut(o.server.embedUrl) { numbers.size + 1 } }
+        val snapshot = numbers.toMap()
+        _state.update { s -> s.copy(playerNumbers = snapshot) }
         _state.update { s ->
             val phase = s.phase
             // Con la lista abierta se va actualizando en vivo.
@@ -225,6 +234,9 @@ class PlaybackController(
         emitLoad(PlayerCommand.Stop)
     }
 
+    /** "Reproductor N" del servidor actual (aviso breve que se va solo). */
+    private fun playerLabel(option: ServerOption) = "Reproductor ${numbers[option.server.embedUrl] ?: 1}"
+
     private fun play(option: ServerOption, notice: String? = null) {
         current = option
         tried += option.server.embedUrl
@@ -232,7 +244,7 @@ class PlaybackController(
         val stream = option.stream?.takeIf { option.server.embedUrl !in nativeBroken && !nativeFailures.isBroken(it.url) }
         native = stream != null
         _state.update {
-            it.copy(phase = PlayerPhase.Playing(option), notice = notice, positionMs = 0, durationMs = 0, paused = false, nativePlayback = native)
+            it.copy(phase = PlayerPhase.Playing(option), notice = notice ?: playerLabel(option), playingUrl = option.server.embedUrl, positionMs = 0, durationMs = 0, paused = false, nativePlayback = native)
         }
         emitLoad(if (stream != null) PlayerCommand.PlayNative(stream) else PlayerCommand.Load(option.server.embedUrl))
         watchdog?.cancel()
@@ -325,7 +337,7 @@ class PlaybackController(
         resumeAtMs?.let { ms ->
             resumeAtMs = null
             seekTo(ms)
-            _state.update { it.copy(notice = "Continuando en ${formatTime(ms)}") }
+            _state.update { it.copy(notice = (current?.let { o -> playerLabel(o) + " · " } ?: "") + "Continuando en ${formatTime(ms)}") }
         }
     }
 

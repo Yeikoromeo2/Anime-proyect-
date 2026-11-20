@@ -103,8 +103,8 @@ class PlaybackControllerTest {
         advanceTimeBy(25_001)
         val playing = c.state.value.phase as PlayerPhase.Playing
         assertEquals("b", playing.option.server.name)
-        // Sin avisos técnicos: pasa solo al siguiente servidor.
-        assertNull(c.state.value.notice)
+        // Solo se avisa "Reproductor N" (sin nombrar el servidor): pasa solo al siguiente.
+        assertEquals("Reproductor 3", c.state.value.notice) // el 2 estaba caído y se salta; el número de cada uno no cambia
         advanceTimeBy(25_001)
         assertTrue(c.state.value.phase is PlayerPhase.ChoosingServer)
         assertNull(c.state.value.notice) // la pantalla decide qué mostrar (sin detalles técnicos)
@@ -121,7 +121,7 @@ class PlaybackControllerTest {
         runCurrent()
         c.onMessage("""{"type":"playing","pos":0,"dur":1440,"paused":false}""")
         assertEquals(PlayerCommand.Script("""{"type":"seekTo","seconds":595.0}"""), commands.last())
-        assertEquals("Continuando en 9:55", c.state.value.notice)
+        assertEquals("Reproductor 1 · Continuando en 9:55", c.state.value.notice)
         c.onMessage(progress(596.0, 1440.0))
         advanceTimeBy(5_000)
         c.onMessage(progress(601.0, 1440.0))
@@ -181,7 +181,7 @@ class PlaybackControllerTest {
         c.start()
         runCurrent()
         c.onMessage("""{"type":"prompt","accepted":true,"text":"¿Continuar viendo desde 05:12?"}""")
-        assertNull(c.state.value.notice) // el aviso del servidor se responde sin mostrar nada
+        assertEquals("Reproductor 1", c.state.value.notice) // el aviso del servidor se responde sin mostrar nada más
         c.cleanupOverlays()
         assertEquals(PlayerCommand.Script("""{"type":"cleanup"}"""), commands.last())
         c.onMessage("""{"type":"cleanup","hidden":1}""")
@@ -208,7 +208,7 @@ class PlaybackControllerTest {
         c.onMessage("""{"type":"error","code":2004,"frame":"native"}""")
         assertEquals(PlayerCommand.Load("https://zilla.example/e/1"), commands.last())
         assertFalse(c.state.value.nativePlayback)
-        assertNull(c.state.value.notice) // sin avisos: el mismo servidor sigue en el reproductor web
+        assertEquals("Reproductor 1", c.state.value.notice) // el mismo servidor sigue en el reproductor web
         // Si la página tampoco arranca, entonces sí pasa al siguiente servidor.
         advanceTimeBy(25_001)
         assertEquals(PlayerCommand.Load("https://voe.example/e/1"), commands.last())

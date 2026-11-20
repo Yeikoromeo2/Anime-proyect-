@@ -322,6 +322,28 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun `siguiente pulsado antes de que llegue la lista la pide y reproduce el siguiente solo`() = runTest(UnconfinedTestDispatcher()) {
+        var pedidas = 0
+        val c = PlaybackController(
+            scope = this, episodes = listOf(Episode(3f, "Episodio", "https://x.test/ep-3")), startIndex = 0,
+            loadServers = { flowOf(listOf(opt("voe"))) },
+            savedProgress = { null }, saveProgress = { _, _, _, _, _ -> }, rememberPreferred = { },
+            clock = { testScheduler.currentTime },
+            // El sitio la entrega del más nuevo al más viejo.
+            refreshEpisodes = { pedidas++; listOf(4f, 3f, 2f).map { Episode(it, "E", "https://x.test/ep-${it.toInt()}") } },
+        )
+        c.start()
+        runCurrent()
+        assertFalse(c.state.value.episodesLoaded)
+        c.nextEpisode()
+        runCurrent()
+        assertEquals(1, pedidas)
+        assertEquals(4f, c.state.value.episode?.number)
+        assertTrue(c.state.value.episodesLoaded)
+        c.onExit()
+    }
+
+    @Test
     fun `arranca con el primero que responde y los que llegan despues solo engrosan la lista`() = runTest(UnconfinedTestDispatcher()) {
         val gate = kotlinx.coroutines.flow.MutableSharedFlow<List<ServerOption>>()
         val c = PlaybackController(

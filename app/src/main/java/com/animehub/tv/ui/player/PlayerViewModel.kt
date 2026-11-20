@@ -112,6 +112,7 @@ class PlayerViewModel @Inject constructor(
                 },
                 rememberPreferred = { name -> servers.rememberPreferred(route.siteId, name) },
                 nativeFailures = nativeFailures,
+                refreshEpisodes = { provider.animeDetail(route.animeUrl).episodes },
             )
             _session.value = PlayerSession(
                 controller = controller,

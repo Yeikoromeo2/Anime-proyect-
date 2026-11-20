@@ -55,6 +55,8 @@ data class PlayerState(
     val playerNumbers: Map<String, Int> = emptyMap(),
     /** El servidor que suena ahora (para marcarlo "En uso" en la lista). */
     val playingUrl: String? = null,
+    /** Ya se conoce la lista completa de episodios (anterior/siguiente fiables). */
+    val episodesLoaded: Boolean = false,
 )
 
 /** Órdenes para el reproductor (web o nativo). */
@@ -87,6 +89,8 @@ class PlaybackController(
     private val clock: () -> Long = System::currentTimeMillis,
     /** Hosts donde el nativo falló hace poco (compartido entre episodios y sesiones). */
     private val nativeFailures: NativeFailures = NativeFailures(clock = clock),
+    /** Pide de nuevo la lista completa de episodios (si "siguiente" se pulsa antes de que llegue). */
+    private val refreshEpisodes: (suspend () -> List<Episode>?)? = null,
 ) {
     private var episodes: List<Episode> = episodes
     private var index = startIndex.coerceIn(0, (episodes.size - 1).coerceAtLeast(0))
@@ -119,6 +123,7 @@ class PlaybackController(
     private var started = false
     private var resumeAtMs: Long? = null
     private val numbers = linkedMapOf<String, Int>()
+    private var refreshing: Job? = null
     private var lastSave = -SAVE_EVERY_MS
     private var ended = false
     private var watchdog: Job? = null
@@ -139,7 +144,7 @@ class PlaybackController(
         ended = false
         lastSave = -SAVE_EVERY_MS
         _state.update {
-            PlayerState(episode = ep, phase = PlayerPhase.LoadingServers, hasNext = index < episodes.lastIndex, hasPrevious = index > 0)
+            PlayerState(episode = ep, phase = PlayerPhase.LoadingServers, hasNext = index < episodes.lastIndex, hasPrevious = index > 0, episodesLoaded = it.episodesLoaded)
         }
         loadJob?.cancel()
         manual = false
@@ -192,15 +197,17 @@ class PlaybackController(
     }
 
     /** La ficha completa llegó después de empezar: se pueden usar anterior y siguiente. */
-    fun setEpisodes(list: List<Episode>) {
+    fun setEpisodes(raw: List<Episode>) {
         val current = episode ?: return
+        // Siempre en orden de temporada y número (algunos sitios listan del más nuevo al más viejo).
+        val list = raw.sortedWith(compareBy({ it.season ?: 0 }, { it.number }))
         // Misma URL (sin barra final) o, si el sitio la escribe distinto, el mismo número de episodio.
         val i = list.indexOfFirst { it.url.trimEnd('/') == current.url.trimEnd('/') }
             .takeIf { it >= 0 } ?: list.indexOfFirst { it.number == current.number }
         if (i < 0) return
         episodes = list
         index = i
-        _state.update { it.copy(hasNext = index < episodes.lastIndex, hasPrevious = index > 0) }
+        _state.update { it.copy(hasNext = index < episodes.lastIndex, hasPrevious = index > 0, episodesLoaded = true) }
     }
 
     /** El usuario eligió un servidor: se recuerda como preferido para este sitio. */
@@ -368,7 +375,21 @@ class PlaybackController(
     }
 
     fun nextEpisode() {
-        if (index >= episodes.lastIndex) return
+        if (index >= episodes.lastIndex) {
+            // La lista completa aún no llegó: se pide ahora y, en cuanto hay siguiente, se reproduce solo.
+            val refresh = refreshEpisodes
+            if (refresh != null && !_state.value.episodesLoaded && refreshing == null) {
+                _state.update { it.copy(notice = "Buscando el siguiente episodio…") }
+                refreshing = scope.launch {
+                    val list = runCatching { refresh() }.getOrNull()
+                    refreshing = null
+                    if (!list.isNullOrEmpty()) setEpisodes(list)
+                    if (index < episodes.lastIndex) nextEpisode()
+                    else _state.update { it.copy(notice = "Último episodio disponible") }
+                }
+            }
+            return
+        }
         saveIfPlaying()
         index++
         start()

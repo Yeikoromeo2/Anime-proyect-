@@ -345,7 +345,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                     InfoBar(session, state, phase.option, isTv, admin, pending, { pending = it }, ::commitScrub, liveHolder) {
                         if (isTv) {
                             ControlRow(
-                                paused = state.paused, hasPrevious = state.hasPrevious, hasNext = state.hasNext, seekSeconds = session.seekSeconds,
+                                paused = state.paused, hasPrevious = state.hasPrevious, hasNext = state.hasNext || !state.episodesLoaded, seekSeconds = session.seekSeconds,
                                 onPrevious = controller::previousEpisode, onSeek = { seek(it) }, onToggle = { togglePlay() }, onNext = controller::nextEpisode,
                                 onVersions = controller::showServers, onClean = controller::cleanupOverlays,
                                 firstFocus = firstControl,
@@ -363,7 +363,7 @@ private fun PlayerContent(session: PlayerSession, onExit: () -> Unit) {
                         paused = state.paused,
                         seekSeconds = session.seekSeconds,
                         hasPrevious = state.hasPrevious,
-                        hasNext = state.hasNext,
+                        hasNext = state.hasNext || !state.episodesLoaded,
                         onToggle = {
                             togglePlay()
                             infoTick++

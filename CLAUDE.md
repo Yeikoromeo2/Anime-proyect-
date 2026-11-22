@@ -5,6 +5,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 
 ## Reglas del dueño (no negociables)
 - **No borres funciones ni estructura sin avisar antes.** Si algo debe quitarse, se comunica primero.
+- **Todas las preguntas para avanzar se hacen con el cuadro de selección (AskUserQuestion), nunca como texto al final de la respuesta.** Primero el informe corto de lo hecho y luego el cuadro con las opciones (máx. 4 preguntas por cuadro; si hay más, en cuadros seguidos). El dueño marca la opción.
 - En uso normal **no se ve de qué sitio viene nada**: ni sitios, ni URLs, ni nombres de servidor. Todo es "AnimeHub TV". Solo el **modo administrador** (Ajustes → pulsar "Versión de la app" → PIN **041992**, 6 dígitos) los muestra.
 - **Los errores no se muestran** al usuario; solo se guardan (`ErrorLogRepository.logIssue`, solo los accionables) y se leen en modo admin.
 - En el reproductor sí se elige **versión por idioma** (Latino / Subtitulado / Castellano…), sin nombrar el servidor. Cada servidor lleva un número fijo por episodio, **"Reproductor N"** (`PlayerState.playerNumbers`): aparece como aviso breve al empezar o cambiar de servidor y en la lista (con "▶ En uso" en el que suena), sin nombrar el servidor.

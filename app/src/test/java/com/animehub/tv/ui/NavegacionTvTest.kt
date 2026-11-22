@@ -93,7 +93,7 @@ class NavegacionTvTest : TvUiTest() {
         key(Key.DirectionRight) // Historial
         key(Key.DirectionRight) // Ajustes
         key(Key.DirectionCenter)
-        waitForText("Buscar actualización")
+        waitForText("Saltar con las flechas") // la sección de arriba (la lista es larga)
         capture("03_ajustes")
         // En modo normal no se ve ningún sitio ni servidor.
         compose.onAllNodes(hasText("Latanime")).assertCountEquals(0)

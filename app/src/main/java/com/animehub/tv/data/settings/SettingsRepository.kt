@@ -52,6 +52,16 @@ data class AppSettings(
     val homeSite: String? = null,
     /** "Enviar a mi TV": dispositivos (tablets) que esta TV ya aceptó, por su identificador. */
     val allowedRemotes: Set<String> = emptySet(),
+    /** TV en vivo: favoritos (clave → canal en JSON), último canal visto y de qué lista salió. */
+    val favoriteChannels: Map<String, String> = emptyMap(),
+    val lastChannel: String? = null,
+    val lastContext: String? = null,
+    /** Lista de TV del usuario (se escribe en Ajustes, modo administrador; nunca va en el repositorio). */
+    val iptvHost: String = "",
+    val iptvUser: String = "",
+    val iptvPass: String = "",
+    /** Formato de transmisión de la lista: "ts" o "m3u8" (si uno falla se prueba el otro). */
+    val iptvFormat: String = "ts",
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "ajustes")
@@ -73,6 +83,13 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             lastConfigUpdate = p[LAST_UPDATE] ?: 0L,
             homeSite = p[HOME_SITE]?.takeIf { it.isNotBlank() },
             allowedRemotes = p[ALLOWED_REMOTES].orEmpty(),
+            favoriteChannels = decodeMap(p[FAVORITE_CHANNELS]),
+            lastChannel = p[LAST_CHANNEL]?.takeIf { it.isNotBlank() },
+            lastContext = p[LAST_CONTEXT]?.takeIf { it.isNotBlank() },
+            iptvHost = p[IPTV_HOST].orEmpty(),
+            iptvUser = p[IPTV_USER].orEmpty(),
+            iptvPass = p[IPTV_PASS].orEmpty(),
+            iptvFormat = p[IPTV_FORMAT]?.takeIf { it == "ts" || it == "m3u8" } ?: "ts",
         )
     }
 
@@ -110,6 +127,26 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun forgetRemotes() = store.edit { it.remove(ALLOWED_REMOTES) }
 
+    /** Marca o quita un canal de favoritos (se guarda entero, para verlo sin abrir su lista). */
+    suspend fun toggleFavoriteChannel(key: String, json: String) = store.edit {
+        val map = decodeMap(it[FAVORITE_CHANNELS]).toMutableMap()
+        if (map.remove(key) == null) map[key] = json
+        it[FAVORITE_CHANNELS] = encodeMap(map)
+    }
+
+    /** Borra los favoritos y el último canal de TV en vivo. */
+    suspend fun clearLiveTv() = store.edit { it.remove(FAVORITE_CHANNELS); it.remove(LAST_CHANNEL); it.remove(LAST_CONTEXT) }
+
+    suspend fun setLastChannel(json: String, context: String?) = store.edit {
+        it[LAST_CHANNEL] = json
+        if (context == null) it.remove(LAST_CONTEXT) else it[LAST_CONTEXT] = context
+    }
+
+    suspend fun setIptvHost(value: String) = store.edit { it[IPTV_HOST] = value.trim() }
+    suspend fun setIptvUser(value: String) = store.edit { it[IPTV_USER] = value.trim() }
+    suspend fun setIptvPass(value: String) = store.edit { it[IPTV_PASS] = value.trim() }
+    suspend fun setIptvFormat(value: String) = store.edit { it[IPTV_FORMAT] = if (value == "m3u8") "m3u8" else "ts" }
+
     private suspend fun updateMap(key: Preferences.Key<Set<String>>, id: String, value: String?) {
         store.edit { prefs ->
             val map = decodeMap(prefs[key]).toMutableMap()
@@ -134,6 +171,13 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         private val QUALITY = stringPreferencesKey("preferred_quality")
         private val SEEK = intPreferencesKey("seek_seconds")
         private val DEVICE_ID = stringPreferencesKey("device_id")
+        private val FAVORITE_CHANNELS = stringSetPreferencesKey("favorite_channels")
+        private val LAST_CHANNEL = stringPreferencesKey("last_channel")
+        private val LAST_CONTEXT = stringPreferencesKey("last_channel_context")
+        private val IPTV_HOST = stringPreferencesKey("iptv_host")
+        private val IPTV_USER = stringPreferencesKey("iptv_user")
+        private val IPTV_PASS = stringPreferencesKey("iptv_pass")
+        private val IPTV_FORMAT = stringPreferencesKey("iptv_format")
         private val ALLOWED_REMOTES = stringSetPreferencesKey("allowed_remotes")
         private val LAST_UPDATE = longPreferencesKey("last_config_update")
         private val HOME_SITE = stringPreferencesKey("home_site")

@@ -43,6 +43,9 @@ private sealed interface SettingsDialog {
     data class EditDomain(val site: EffectiveSite) : SettingsDialog
     data object EditRemoteUrl : SettingsDialog
     data object Pin : SettingsDialog
+    data object EditIptvHost : SettingsDialog
+    data object EditIptvUser : SettingsDialog
+    data object EditIptvPass : SettingsDialog
     data object ClearServers : SettingsDialog
     data object Errors : SettingsDialog
 }
@@ -161,6 +164,27 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             )
         }
 
+        item { Section("TV en vivo") }
+        if (admin) item {
+            SettingItem(title = "Servidor de la lista", subtitle = state.settings.iptvHost.ifBlank { "Sin definir (http://…)" }, onClick = { dialog = SettingsDialog.EditIptvHost })
+        }
+        if (admin) item {
+            SettingItem(title = "Usuario de la lista", subtitle = state.settings.iptvUser.ifBlank { "Sin definir" }, onClick = { dialog = SettingsDialog.EditIptvUser })
+        }
+        if (admin) item {
+            SettingItem(title = "Contraseña de la lista", subtitle = if (state.settings.iptvPass.isBlank()) "Sin definir" else "••••••", onClick = { dialog = SettingsDialog.EditIptvPass })
+        }
+        item {
+            SettingItem(
+                title = "Formato de transmisión",
+                subtitle = (if (state.settings.iptvFormat == "m3u8") "M3U8" else "TS") + " (pulsa para cambiar; si uno falla se prueba el otro solo)",
+                onClick = viewModel::toggleIptvFormat,
+            )
+        }
+        item {
+            SettingItem(title = "Recargar lista de TV", subtitle = "La lista se guarda 6 horas; pulsa para bajarla de nuevo", onClick = viewModel::reloadIptv)
+        }
+
         item { Section("Actualizaciones") }
         item {
             SettingItem(
@@ -242,6 +266,30 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 if (dialogError == null) dialog = null
             },
             onReset = { viewModel.resetRemoteUrl(); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.EditIptvHost -> TextInputDialog(
+            title = "Servidor de la lista",
+            message = "Dirección del servidor de TV, por ejemplo http://servidor.com",
+            initialValue = state.settings.iptvHost,
+            placeholder = "http://…",
+            onSave = { value -> viewModel.setIptvHost(value); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.EditIptvUser -> TextInputDialog(
+            title = "Usuario de la lista",
+            initialValue = state.settings.iptvUser,
+            placeholder = "usuario",
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+            onSave = { value -> viewModel.setIptvUser(value); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.EditIptvPass -> TextInputDialog(
+            title = "Contraseña de la lista",
+            initialValue = state.settings.iptvPass,
+            placeholder = "contraseña",
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+            onSave = { value -> viewModel.setIptvPass(value); dialog = null },
             onDismiss = { dialog = null },
         )
         SettingsDialog.ClearServers -> ConfirmDialog(

@@ -40,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val configRepository: ConfigRepository,
     private val errorLog: ErrorLogRepository,
+    private val iptv: com.animehub.tv.data.iptv.IptvRepository,
     /** Actualización de la app desde Releases. */
     val appUpdates: UpdateManager,
     val admin: com.animehub.tv.ui.AdminMode,
@@ -84,6 +85,16 @@ class SettingsViewModel @Inject constructor(
             )
         }
     }
+
+    fun setIptvHost(value: String) = viewModelScope.launch { settingsRepository.setIptvHost(value); iptv.refresh() }
+    fun setIptvUser(value: String) = viewModelScope.launch { settingsRepository.setIptvUser(value); iptv.refresh() }
+    fun setIptvPass(value: String) = viewModelScope.launch { settingsRepository.setIptvPass(value); iptv.refresh() }
+    fun toggleIptvFormat() = viewModelScope.launch {
+        settingsRepository.setIptvFormat(if (settingsRepository.current().iptvFormat == "ts") "m3u8" else "ts")
+        iptv.refresh()
+    }
+    /** Recarga manual de la lista de TV (la próxima vez que se abra se baja de nuevo). */
+    fun reloadIptv() = viewModelScope.launch { iptv.refresh() }
 
     fun toggleSeek() = viewModelScope.launch {
         settingsRepository.setSeekSeconds(if (state.value.settings.seekSeconds == 10) 30 else 10)

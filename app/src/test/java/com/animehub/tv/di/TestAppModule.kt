@@ -41,6 +41,10 @@ object TestAppModule {
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
+        // Lista de TV del usuario (datos de prueba): con output=ts responde 404 para probar el formato alternativo.
+        "tv.m3uts.xyz" -> if (url.encodedPath == "/get.php" && url.queryParameter("username") == "prueba") {
+            if (url.queryParameter("output") == "m3u8") "iptv/lista_usuario.m3u" to 200 else "TEXTO:{\"message\":\"not found\"}" to 404
+        } else null
         // Actualización desde la app: la Release real, con un número de versión más alto que cualquier
         // compilación (las de GitHub Actions se llaman como la versión que se publica), y un "APK" de prueba.
         "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) {

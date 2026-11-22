@@ -26,10 +26,17 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - Inicio (diseño tomado de la arquitectura de XUPER-HYDRA-PORT-WEBOS, solo distribución): barra lateral de pestañas (hoy solo Anime, por lo que no se muestra; al enfocar una pestaña se cambia de página; en pantalla estrecha pasa a fila superior), accesos Explorar/Historial/Ajustes/versión arriba a la derecha (`HomeChrome.kt`, `LocalSidebarLeft`), mosaicos de tamaños mezclados (`Mosaic.kt`; foco = escala 1.05 + borde #3A66FE y título solo con foco). Anime conserva sus filas. `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
 
 ## Secciones retiradas (22-nov-2026)
-- Por decisión del dueño se **eliminaron Retro, Pelis, Series y TV en vivo** (fuentes lacartoons, gnula, serieslan, listas iptv-org, motores `generic-html` y `videoapi`, `data/iptv`, `ui/tv`, páginas de mosaicos de sección, sus pruebas y fixtures). La app es **solo anime**; la mecánica nueva (películas/series/TV) se diseña aparte.
+- Por decisión del dueño se **eliminaron Retro, Pelis y Series y la TV en vivo anterior (listas iptv-org)** (fuentes lacartoons, gnula, serieslan, listas iptv-org, motores `generic-html` y `videoapi`, `data/iptv`, `ui/tv`, páginas de mosaicos de sección, sus pruebas y fixtures). La app es **solo anime**; la mecánica nueva (películas/series/TV) se diseña aparte.
 - Se conservó lo genérico: `SiteConfig.section` y `ProviderRegistry.activeProvidersOf(section)`, `SiteConfig.tag` (menú Origen con 2+ fuentes etiquetadas), `ExploreRoute(section)`, `ui/home/Mosaic.kt`, `adBlockHosts/adBlockPatterns`, y `HomeTab`/`HomeSidebar`: con **una sola pestaña no hay barra lateral** (el logo va arriba a la izquierda); al añadir más pestañas la barra reaparece sola.
 - El catálogo indú (Cinehindi) también se retiró por fallas de reproducción: no volver a añadirlo.
 - Las credenciales de listas de terceros **nunca** se guardan en el repositorio ni en `config/sites.json` (es público): irían en Ajustes, solo en el dispositivo.
+
+## TV en vivo (lista M3U del usuario, desde 0.16.0)
+- Una sola lista: `http://<servidor>/get.php?username=…&password=…&type=m3u&output=ts|m3u8` (`IptvUrl`, `data/iptv/IptvRepository.kt`) con cabecera `User-Agent: VLC/3.0.20 LibVLC/3.0.20` y tiempos límite (15/30/45 s). Si el formato elegido falla se prueba el otro, y si `http` no responde, `https`. Copia en disco **6 h** (`TTL_MS`) y recarga manual en Ajustes → "Recargar lista de TV".
+- **Credenciales**: servidor/usuario/contraseña se escriben en Ajustes (modo admin) y quedan solo en el dispositivo (DataStore). Para pruebas locales pueden ir en `local.properties` (`IPTV_HOST/USER/PASS`, ignorado por git) y solo entran en la compilación **debug**; la release y la de GitHub Actions salen sin credenciales. Nunca en el repositorio ni en `config/sites.json`.
+- Reproducción (`ui/tv/LiveTvViewModel.markDead`): reconexión una vez si ya sonaba, luego formato alternativo de la señal (`.ts` ↔ `.m3u8`, `IptvUrl.swapStream`), y solo después "Sin señal".
+- Pestaña **TV en vivo** del Inicio (`TvPage`): OK en la pestaña abre la TV con el último canal; la barra lateral reaparece porque hay 2 pestañas.
+- Estado del servidor `tv.m3uts.xyz` el 22-nov-2026: `get.php` respondía 404 (no es Xtream estándar); sí respondían `player_api.php?action=get_vod_categories|get_vod_streams|get_series|get_live_categories`. Sin verificar contra la lista real.
 
 ## Rendimiento (lecciones)
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).
@@ -46,7 +53,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.5 = 109) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.15.0 = 112) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

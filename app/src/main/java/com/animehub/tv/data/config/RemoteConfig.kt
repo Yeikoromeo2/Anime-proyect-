@@ -156,3 +156,14 @@ data class ShowcaseConfig(
 
 @Serializable
 data class RewriteConfig(val pattern: String, val replacement: String)
+
+/** Una lista del menú de TV en vivo (hoy una sola: la del usuario). No viene de la configuración remota. */
+data class IptvListConfig(
+    val id: String,
+    val name: String,
+    val url: String = "",
+    val kind: String = "live",
+    val description: String? = null,
+    val translate: String? = null,
+    val order: List<String> = emptyList(),
+)

@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
  * Catálogo completo por categorías.
  * @param genre género elegido en Inicio (valor común entre sitios, p. ej. "accion"); null = todo.
  */
+@Serializable object TvRoute
 @Serializable data class ExploreRoute(val genre: String? = null, val voice: Boolean = false, val section: String = "anime")
 /** TV en vivo (canales de las listas M3U). */
 @Serializable object HistoryRoute

@@ -89,6 +89,7 @@ import com.animehub.tv.voice.VoiceSearch
 @Composable
 fun HomeScreen(
     onExplore: (genre: String?) -> Unit,
+    onSection: (section: String) -> Unit = {},
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -171,6 +172,7 @@ fun HomeScreen(
                     .padding(start = if (wide && multiTab) contentStart else 12.dp, top = if (wide) 74.dp else if (multiTab) 128.dp else 84.dp),
             ) {
                 when (tab) {
+                    HomeTab.TV -> TvPage(onOpenTv = { onSection("tv") }, leftFocus = leftToSidebar)
                     HomeTab.ANIME -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 8.dp, end = 24.dp, top = 6.dp, bottom = 28.dp),
@@ -300,7 +302,7 @@ fun HomeScreen(
                 androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.animehub.tv.R.drawable.mascota), contentDescription = null, modifier = Modifier.size(40.dp))
                 Text("AnimeHub TV", style = androidx.tv.material3.MaterialTheme.typography.titleMedium)
             }
-            if (multiTab) HomeSidebar(tab, onFocusTab, tabRequesters, modifier = Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
+            if (multiTab) HomeSidebar(tab, onFocusTab, tabRequesters, onActivate = { t -> if (t == HomeTab.TV) onSection("tv") else onFocusTab(t) }, modifier = Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
             topBar(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 32.dp))
         } else {
             Column(Modifier.align(Alignment.TopStart).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

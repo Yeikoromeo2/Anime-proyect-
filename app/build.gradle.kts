@@ -20,6 +20,12 @@ val keystoreProps = loadProps("keystore.properties").takeIf { !it.isEmpty } ?: l
 fun signingValue(envName: String, propName: String): String? =
     System.getenv(envName)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(propName)
 
+// Lista de TV del dueño para pruebas locales: IPTV_HOST / IPTV_USER / IPTV_PASS en local.properties
+// (ignorado por git). Solo entran en la compilación "debug" local; la release y la de GitHub Actions
+// salen sin credenciales (se escriben en Ajustes, en el dispositivo).
+val localProps = loadProps("local.properties")
+fun quoted(value: String?) = "\"" + (value ?: "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
 val releaseStoreFile = signingValue("ANIMEHUB_KEYSTORE_FILE", "storeFile")?.let { rootProject.file(it).takeIf { f -> f.exists() } ?: file(it) }
 val hasReleaseSigning = releaseStoreFile != null && releaseStoreFile.exists()
 
@@ -34,6 +40,9 @@ android {
         versionCode = (System.getenv("ANIMEHUB_VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("ANIMEHUB_VERSION_NAME") ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "IPTV_HOST", "\"\"")
+        buildConfigField("String", "IPTV_USER", "\"\"")
+        buildConfigField("String", "IPTV_PASS", "\"\"")
     }
 
     signingConfigs {
@@ -56,6 +65,9 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "IPTV_HOST", quoted(localProps.getProperty("IPTV_HOST")))
+            buildConfigField("String", "IPTV_USER", quoted(localProps.getProperty("IPTV_USER")))
+            buildConfigField("String", "IPTV_PASS", quoted(localProps.getProperty("IPTV_PASS")))
         }
     }
 

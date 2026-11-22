@@ -16,3 +16,4 @@ captures/
 !signing/animehub-release.jks
 keystore.properties
 tools/player-js-test/captura.png
+.env

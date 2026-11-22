@@ -194,27 +194,15 @@ Algunos servidores recuerdan el minuto y muestran un recuadro de **"¿continuar 
 
 Control remoto en el reproductor: **OK** pausa/reanuda · **← →** retrocede/avanza (los segundos de Ajustes) · **↑** menú (cambiar servidor, quitar recuadros, siguiente/anterior episodio, salir) · **↓** muestra la información · **Atrás** sale guardando el minuto. "Continuar viendo" (Inicio) e Historial abren el reproductor directamente.
 
-## Secciones: Retro, Pelis y Series
-- En Inicio, la fila **Secciones** abre cada una con su catálogo, su buscador y sus filtros; la ficha, el reproductor, los favoritos y el historial son los mismos que los del anime.
-- **Retro** (lacartoons), **Pelis** (gnula) y **Series** (serieslan, con sus temporadas).
-- Motores nuevos en `config/sites.json`: `generic-html` (sitios HTML con selectores: catálogo, búsqueda, ficha y reproductores) y `videoapi` (API JSON de SeriesLan). Cada fuente lleva `section` ("retro", "pelis", "series") y, si hace falta, `tag` (etiqueta pública para el menú **Origen**, que solo sale con 2 o más fuentes etiquetadas en la sección).
-- Anuncios en los reproductores de películas: más redes de anuncios y patrones de direcciones en `adBlockHosts`/`adBlockPatterns`, las capas invisibles que convierten el primer clic en un anuncio se quitan solas y, en las páginas "envoltorio" del sitio (`?trembed=`), se abre directamente el reproductor real.
-- Límites: la búsqueda por texto de Gnula (Cloudflare) no se usa; se filtra su catálogo (primeras páginas). Sus reproductores se abren en el reproductor web.
-
-## TV en vivo
-- **Inicio → Secciones → TV en vivo**: un reproductor a pantalla completa que suena desde que entras (el último canal visto o, la primera vez, el primero de Perú).
-- **Menú general** (OK): **Favoritos**, **Por país**, **Por categoría**, **Por idioma**, **Latinoamérica** y **Dibujos animados**; cada uno abre sus submenús (países, categorías, idiomas) y de ahí los canales con logo, categoría y calidades. Arriba dice qué canal está sonando. Estructura tomada de [iptv-org/iptv](https://github.com/iptv-org/iptv) (listas generales `index.country`, `index.category` e `index.language`); Perú, México, Argentina… van primero y los nombres están en español. Cada lista se descarga solo cuando se abre (~3 MB las generales) y queda guardada 12 h.
-- **Sin repetidos**: un canal aparece una sola vez en cada submenú; si viene en varias calidades (SD, HD, Full HD, 4K) se conservan todas y ←/→ cambia entre ellas.
-- **Menú transparente (ghost)**: se ve la imagen a través; se esconde solo a los 10 s; **Atrás** sube un nivel, luego lo cierra y, ya cerrado, sale. En la tablet, tocar la pantalla lo muestra u oculta.
-- **Cambiar de canal**: teclas **CH+ / CH−** del control (o ↑/↓) con el menú cerrado, dentro de la categoría desde donde se eligió. **Favoritos**: la estrella de cada canal (se guarda el canal completo).
-- Se quitó **Studio Ghibli** (sus enlaces apuntaban a un servidor de archive.org que ya no tiene los archivos) y **Canales del mundo** (m3u.cl, repetido en las listas generales). Las direcciones de archive.org atadas a un servidor se cambian por la estable (`archive.org/download/…`).
-- Sin señal: si un canal no responde en 20 s se muestra "Sin señal" y se puede seguir cambiando. Algunas listas usan `http://`, por eso la app permite tráfico en claro.
+## Solo anime (secciones retiradas)
+- El 22-nov-2026 se **eliminaron Retro, Pelis, Series y TV en vivo** (sus fuentes, motores, pantallas, pruebas y datos de prueba). La app es solo anime; la mecánica nueva de películas/series/TV se está diseñando aparte.
+- Con una sola pestaña (Anime) el Inicio no muestra barra lateral: el logo va arriba a la izquierda y los accesos arriba a la derecha. Si se añaden más pestañas, la barra reaparece sola.
 
 ## Reproductor: controles
 - **Barra de avance**: en la TV, ←/→ mueve el punto (más rápido si se mantiene) y se aplica al soltar; en la tablet se toca o se arrastra con el dedo.
 - **Botones con iconos** (↓ en la TV): anterior, −10 s, pausa, +10 s, siguiente, idioma/versión y quitar recuadros. ↑ abre directo la lista de versiones.
 - **Atrás**: una vez oculta los controles; otra vez (en menos de 3 s) sale del reproductor. Con la lista de versiones abierta, Atrás vuelve al video.
-- **Reproductores web que esperan un clic** (Retro/ok.ru, películas…): la app toca sola el centro hasta 3 veces si el video no empieza; con **OK mientras no ha empezado** también toca el centro; con **OK tres veces seguidas** aparece un **puntero** (flechas lo mueven, OK hace clic, Atrás lo cierra). En la tablet los toques llegan directo a la página hasta que el video empieza.
+- **Reproductores web que esperan un clic**: no se toca nada solo; con **OK tres veces seguidas** aparece un puntero (flechas lo mueven, OK hace clic donde está, Atrás lo cierra).
 - **Idioma/versión**: lista con "Latino", "Subtitulado", "Castellano"… sin nombres de servidor (esos solo en modo administrador).
 
 ## Fuentes ocultas, modo administrador y errores

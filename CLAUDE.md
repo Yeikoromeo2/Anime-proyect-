@@ -22,22 +22,13 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - Modo admin: `ui/Admin.kt` (`AdminMode`, `LocalAdmin`). Errores: `data/log/ErrorLogRepository.kt`.
 - Reproductor: `playback/PlaybackController.kt` (silencioso, `tryAnother()`), `ui/player/*` (OSD, táctil, ExoPlayer nativo + WebView con `inject.js`).
 - Enviar a otra pantalla: `remote/*` (servidor HTTP en la TV, descubrimiento NSD, `TargetDirectory`/`PlayTarget`), `cast/*`, `dlna/*`, `stream/StreamProxy.kt`.
-- Inicio (diseño tomado de la arquitectura de XUPER-HYDRA-PORT-WEBOS, solo distribución): barra lateral de pestañas Anime/Retro/Pelis/Series/TV en vivo (al enfocar una se cambia de página; en pantalla estrecha pasa a fila superior), accesos Explorar/Historial/Ajustes/versión arriba a la derecha (`HomeChrome.kt`, `LocalSidebarLeft`), páginas de mosaicos de tamaños mezclados (`Mosaic.kt`, `SectionPage.kt`, `TvPage.kt`; foco = escala 1.05 + borde #3A66FE y título solo con foco). Anime conserva sus filas. `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
+- Inicio (diseño tomado de la arquitectura de XUPER-HYDRA-PORT-WEBOS, solo distribución): barra lateral de pestañas (hoy solo Anime, por lo que no se muestra; al enfocar una pestaña se cambia de página; en pantalla estrecha pasa a fila superior), accesos Explorar/Historial/Ajustes/versión arriba a la derecha (`HomeChrome.kt`, `LocalSidebarLeft`), mosaicos de tamaños mezclados (`Mosaic.kt`; foco = escala 1.05 + borde #3A66FE y título solo con foco). Anime conserva sus filas. `ui/home/*` (con `Intro.kt`); Explorar incluye la barra de búsqueda y 🎤 (`ui/search/ExploreScreen.kt`, `VoiceUi.kt`). No existe pantalla de Búsqueda aparte.
 
-## Secciones (Retro, Pelis, Series, TV)
-- `SiteConfig.section` ("anime" por defecto) separa las fuentes; `ProviderRegistry.activeProvidersOf(section)`. Inicio solo usa las de anime. `ExploreRoute(section=…)` abre el catálogo de una sección (mismo `SearchViewModel`/`ExploreScreen`).
-- `SiteConfig.tag` = etiqueta pública de una fuente para el menú **Origen** (solo con 2 o más fuentes etiquetadas) sin nombrar el sitio.
-- Motores: `generic-html` (`providers/generic/GenericHtmlProvider`, todo por selectores; `selectors.searchMode=local` filtra el catálogo cuando el buscador del sitio no sirve) y `videoapi` (`providers/videoapi/VideoApiProvider`, API JSON de SeriesLan).
-- Anuncios en películas: `adBlockHosts` + `adBlockPatterns` (config), `PlayerWebView` abre el reproductor real de las páginas `?trembed=` (con el sitio como Referer) y `inject.js` quita las capas invisibles trampa.
-- No imitar un navegador para saltar protecciones: Gnula pone Cloudflare en su búsqueda; sus reproductores van por el reproductor web de la app. El catálogo indú (Cinehindi) se retiró por fallas de reproducción: no volver a añadirlo.
-- Fixtures de estas fuentes en `app/src/test/resources/fixtures/{lacartoons,gnula,serieslan}`; el dominio de cada una debe estar permitido en la red del entorno de nube para poder volver a capturarlas.
-
-## TV en vivo
-- `config/sites.json`: `iptvStartUrl` (Perú, arranque de la primera vez) y `iptvLists` (menú, en orden): `kind` "grouped" (listas generales de iptv-org: el group-title es el submenú; `translate` country/language y `order` ponen primero Perú/Español…), "live" (categoría del canal) o "vod" (capítulos/películas).
-- `data/iptv/M3uParser` (`buildList`: sin repetidos, una señal por calidad, traduce, agrupa por país si no hay categoría, `stableUrl` para archive.org), `IptvRepository` (**carga bajo demanda** por lista, copia en disco de 12 h, 3 listas en memoria), `ui/tv/LiveTvViewModel` + `LiveTvScreen` (reproductor nativo a pantalla completa + menú general transparente).
-- Favoritos: se guarda el canal completo en JSON (`SettingsRepository.toggleFavoriteChannel`); último canal + de qué lista salió (`setLastChannel(json, "lista|categoría")`) para poder seguir cambiando con CH±.
-- Se descartaron Studio Ghibli (enlaces a un servidor de archive.org que ya no tiene los archivos) y m3u.cl (repetido). Antes de añadir una lista nueva, comprobar que sus enlaces sirven.
-- El manifiesto permite tráfico en claro (`usesCleartextTraffic`) porque varias listas son `http://`. La tecla Atrás se maneja como `Key.Back` en la pantalla y con `BackHandler`; en pruebas usar `compose.activity.onBackPressedDispatcher.onBackPressed()` y `LiveTv.menuIdleMs` alto.
+## Secciones retiradas (22-nov-2026)
+- Por decisión del dueño se **eliminaron Retro, Pelis, Series y TV en vivo** (fuentes lacartoons, gnula, serieslan, listas iptv-org, motores `generic-html` y `videoapi`, `data/iptv`, `ui/tv`, páginas de mosaicos de sección, sus pruebas y fixtures). La app es **solo anime**; la mecánica nueva (películas/series/TV) se diseña aparte.
+- Se conservó lo genérico: `SiteConfig.section` y `ProviderRegistry.activeProvidersOf(section)`, `SiteConfig.tag` (menú Origen con 2+ fuentes etiquetadas), `ExploreRoute(section)`, `ui/home/Mosaic.kt`, `adBlockHosts/adBlockPatterns`, y `HomeTab`/`HomeSidebar`: con **una sola pestaña no hay barra lateral** (el logo va arriba a la izquierda); al añadir más pestañas la barra reaparece sola.
+- El catálogo indú (Cinehindi) también se retiró por fallas de reproducción: no volver a añadirlo.
+- Las credenciales de listas de terceros **nunca** se guardan en el repositorio ni en `config/sites.json` (es público): irían en Ajustes, solo en el dispositivo.
 
 ## Rendimiento (lecciones)
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).
@@ -47,14 +38,14 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - `ServerRepository.serversFlow`: abre los agregadores y comprueba los servidores **de a 3**, el preferido (o el primero de la lista) con 3 s de ventaja; emite la lista cada vez que uno responde. **Los que no responden o están caídos se descartan** (nunca se muestran ni se prueban). Plazos: 6 s por comprobación.
 - `PlaybackController` arranca con el primero que sirve y deja que la lista siga creciendo; si falla el que suena salta al siguiente (o espera si aún llegan más). Lo que el usuario **elige a mano no se cambia solo**: tiene 3× de paciencia y, si no carga, se vuelve a la lista. Atrás en la lista vuelve al video (`cancelChoosing`).
 - La preferencia se guarda como servidor + idioma (`encodePreferred`); los episodios siguientes arrancan con lo mismo.
-- Reproductores web que exigen un toque real: `PlayerWebView.tap` inyecta un MotionEvent (los clics de un script no cuentan); `PlayerScreen` ya no toca nada solo: OK×3 abre el puntero (flechas mueven, OK toca, Atrás cierra). En el Inicio, OK sobre la pestaña "TV en vivo" abre la TV directo (suena el último canal). En el menú de TV en vivo el foco se reintenta hasta que una fila lo tenga (la pantalla no retiene el foco con el menú abierto).
+- Reproductores web que exigen un toque real: `PlayerWebView.tap` inyecta un MotionEvent (los clics de un script no cuentan); `PlayerScreen` ya no toca nada solo: OK×3 abre el puntero (flechas mueven, OK toca, Atrás cierra).
 - Atrás en el reproductor: una vez oculta los controles y avisa; la segunda (en 3 s) sale. Nunca sale a la primera.
 - Al salir del reproductor se cancela la comprobación (`onExit`). La ficha completa del anime se pide en paralelo (`setEpisodes`).
 
 ## Pruebas y publicación
 - Pruebas: Robolectric + Roborazzi (`app/src/test/.../ui/*`, base `TvUiTest`), `./gradlew --offline :app:testDebugUnitTest`. En pruebas de UI sin modo admin, nombres de sitio/servidor no existen: usar `admin.unlock(AdminMode.PIN)` si se necesitan.
 - Robolectric: hacer `shadowOf(Looper.getMainLooper()).idle()` en los `waitUntil`; emitir eventos de navegación en Main.
-- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.4 = 105) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
+- Publicar: push a la rama y ejecutar `android.yml` (workflow_dispatch, ref de la rama, `version` = x.y.z). Verificar el APK: firma SHA-256 `0499d0707c044fc33ca6f73b00734a16994e97bfd6575522d45f796f0954ad87` y `versionCode` mayor que el anterior (v0.14.5 = 109) con `apksigner`/`aapt2` de `/root/android-sdk/build-tools/37.0.0`.
 
 ## Pendiente / ideas aprobadas
 Agregar sitio por URL (admin), chequeo semanal de salud de sitios, precarga del siguiente episodio, respaldo entre sitios si falla un servidor, más extractores de video directo (Voe, Filemoon, Streamwish, Mixdrop, dsvplay), búsqueda local del catálogo de Latanime, sincronizar historial, pantalla de bienvenida, selección automática de TVs con AnimeHub.

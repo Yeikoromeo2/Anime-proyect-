@@ -48,7 +48,6 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onVoiceSearch = { nav.navigate(ExploreRoute(voice = true)) },
                 onHistory = { nav.navigate(HistoryRoute) },
                 onSettings = { nav.navigate(SettingsRoute) },
-                onSection = { section -> if (section == "tv") nav.navigate(TvRoute) else nav.navigate(ExploreRoute(section = section)) },
                 onOpenAnime = openAnime,
                 // Continuar viendo abre la ficha (lista de episodios) con el último visto resaltado; desde ahí se sigue o se elige otro.
                 onResume = { p -> nav.navigate(AnimeRoute(p.siteId, p.animeUrl, p.animeTitle, p.coverUrl, p.episodeUrl)) },
@@ -62,7 +61,6 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
             val route = entry.toRoute<ExploreRoute>()
             ExploreScreen(onOpenAnime = openAnime, initialGenre = route.genre, startVoice = route.voice)
         }
-        composable<TvRoute> { com.animehub.tv.ui.tv.LiveTvScreen(onExit = { nav.popBackStack() }) }
         composable<HistoryRoute> {
             HistoryScreen(
                 onOpenAnime = openAnime,

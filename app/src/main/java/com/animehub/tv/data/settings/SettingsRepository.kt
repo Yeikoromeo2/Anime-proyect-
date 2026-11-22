@@ -52,10 +52,6 @@ data class AppSettings(
     val homeSite: String? = null,
     /** "Enviar a mi TV": dispositivos (tablets) que esta TV ya aceptó, por su identificador. */
     val allowedRemotes: Set<String> = emptySet(),
-    /** TV en vivo: canales favoritos (clave → canal en JSON), último canal visto (JSON) y de qué lista salió ("lista|categoría"). */
-    val favoriteChannels: Map<String, String> = emptyMap(),
-    val lastChannel: String? = null,
-    val lastContext: String? = null,
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "ajustes")
@@ -77,9 +73,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             lastConfigUpdate = p[LAST_UPDATE] ?: 0L,
             homeSite = p[HOME_SITE]?.takeIf { it.isNotBlank() },
             allowedRemotes = p[ALLOWED_REMOTES].orEmpty(),
-            favoriteChannels = decodeMap(p[FAVORITE_CHANNELS]),
-            lastChannel = p[LAST_CHANNEL]?.takeIf { it.isNotBlank() },
-            lastContext = p[LAST_CONTEXT]?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -117,21 +110,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun forgetRemotes() = store.edit { it.remove(ALLOWED_REMOTES) }
 
-    /** Marca o quita un canal de favoritos (se guarda entero, para verlo sin abrir su lista). */
-    suspend fun toggleFavoriteChannel(key: String, json: String) = store.edit {
-        val map = decodeMap(it[FAVORITE_CHANNELS]).toMutableMap()
-        if (map.remove(key) == null) map[key] = json
-        it[FAVORITE_CHANNELS] = encodeMap(map)
-    }
-
-    /** Borra los favoritos y el último canal de TV en vivo. */
-    suspend fun clearLiveTv() = store.edit { it.remove(FAVORITE_CHANNELS); it.remove(LAST_CHANNEL); it.remove(LAST_CONTEXT) }
-
-    suspend fun setLastChannel(json: String, context: String?) = store.edit {
-        it[LAST_CHANNEL] = json
-        if (context == null) it.remove(LAST_CONTEXT) else it[LAST_CONTEXT] = context
-    }
-
     private suspend fun updateMap(key: Preferences.Key<Set<String>>, id: String, value: String?) {
         store.edit { prefs ->
             val map = decodeMap(prefs[key]).toMutableMap()
@@ -157,9 +135,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         private val SEEK = intPreferencesKey("seek_seconds")
         private val DEVICE_ID = stringPreferencesKey("device_id")
         private val ALLOWED_REMOTES = stringSetPreferencesKey("allowed_remotes")
-        private val FAVORITE_CHANNELS = stringSetPreferencesKey("favorite_channels")
-        private val LAST_CHANNEL = stringPreferencesKey("last_channel")
-        private val LAST_CONTEXT = stringPreferencesKey("last_channel_context")
         private val LAST_UPDATE = longPreferencesKey("last_config_update")
         private val HOME_SITE = stringPreferencesKey("home_site")
 

@@ -35,13 +35,9 @@ import com.animehub.tv.ui.components.listItemColors
 import com.animehub.tv.ui.components.listItemScale
 import com.animehub.tv.ui.theme.AppColors
 
-/** Pestañas del Inicio: una página por sección. */
+/** Pestañas del Inicio: una página por sección (hoy solo Anime; con más de una aparece la barra lateral). */
 enum class HomeTab(val title: String, val section: String) {
     ANIME("Anime", "anime"),
-    RETRO("Retro", "retro"),
-    PELIS("Pelis", "pelis"),
-    SERIES("Series", "series"),
-    TV("TV en vivo", "tv"),
 }
 
 /** A dónde va "←" desde la primera columna de una página: a la pestaña elegida de la barra lateral. */

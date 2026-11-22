@@ -16,7 +16,7 @@ class ConfigParserTest {
     fun `la configuracion publicada es valida`() {
         val config = ConfigParser.parse(publishedConfig)
         assertTrue(config.version >= 1)
-        assertEquals(listOf("latanime", "animeninja", "animeflv", "jkanime", "lacartoons", "gnula", "serieslan"), config.sites.map { it.id })
+        assertEquals(listOf("latanime", "animeninja", "animeflv", "jkanime"), config.sites.map { it.id })
     }
 
     @Test

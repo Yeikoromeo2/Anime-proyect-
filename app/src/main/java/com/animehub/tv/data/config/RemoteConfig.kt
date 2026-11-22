@@ -27,27 +27,6 @@ data class RemoteConfig(
     val adBlockHosts: List<String> = emptyList(),
     /** Expresiones regulares de direcciones de anuncios (se aplican a lo que carga una página de otro dominio). */
     val adBlockPatterns: List<String> = emptyList(),
-    /** Listas M3U de TV en vivo (canales) y de películas/capítulos sueltos. */
-    val iptvLists: List<IptvListConfig> = emptyList(),
-    /** Lista pequeña con la que arranca la TV en vivo la primera vez (antes de que se elija algo). */
-    val iptvStartUrl: String? = null,
-)
-
-/**
- * @param kind "live" (canales en vivo; la categoría es la del canal), "grouped" (lista general cuyo
- *  group-title es el submenú: país, categoría o idioma; un canal puede estar en varios) o "vod" (películas o capítulos).
- * @param translate "country" o "language": traduce los nombres de los submenús al español.
- * @param order submenús que van primero (ya en español).
- */
-@Serializable
-data class IptvListConfig(
-    val id: String,
-    val name: String,
-    val url: String,
-    val kind: String = "live",
-    val description: String? = null,
-    val translate: String? = null,
-    val order: List<String> = emptyList(),
 )
 
 /**

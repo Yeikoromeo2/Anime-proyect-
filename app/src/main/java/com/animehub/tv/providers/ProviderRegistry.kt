@@ -5,8 +5,6 @@ import com.animehub.tv.data.config.EffectiveSite
 import com.animehub.tv.data.net.HtmlFetcher
 import com.animehub.tv.providers.animeflvwp.AnimeFlvWpProvider
 import com.animehub.tv.providers.dooplay.DooPlayProvider
-import com.animehub.tv.providers.generic.GenericHtmlProvider
-import com.animehub.tv.providers.videoapi.VideoApiProvider
 import com.animehub.tv.providers.jkanime.JkanimeProvider
 import com.animehub.tv.providers.latanime.LatanimeProvider
 import kotlinx.coroutines.flow.Flow
@@ -26,8 +24,6 @@ class ProviderRegistry @Inject constructor(
         ENGINE_LATANIME -> LatanimeProvider(site, fetcher)
         ENGINE_JKANIME -> JkanimeProvider(site, fetcher)
         ENGINE_ANIMEFLV_WP -> AnimeFlvWpProvider(site, fetcher)
-        ENGINE_GENERIC_HTML -> GenericHtmlProvider(site, fetcher)
-        ENGINE_VIDEOAPI -> VideoApiProvider(site, fetcher)
         else -> null
     }
 
@@ -56,9 +52,7 @@ class ProviderRegistry @Inject constructor(
         const val ENGINE_LATANIME = "latanime"
         const val ENGINE_JKANIME = "jkanime"
         const val ENGINE_ANIMEFLV_WP = "animeflv-wp"
-        const val ENGINE_GENERIC_HTML = "generic-html"
-        const val ENGINE_VIDEOAPI = "videoapi"
         const val SECTION_ANIME = "anime"
-        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP, ENGINE_GENERIC_HTML, ENGINE_VIDEOAPI)
+        private val ENGINES = setOf(ENGINE_DOOPLAY, ENGINE_LATANIME, ENGINE_JKANIME, ENGINE_ANIMEFLV_WP)
     }
 }

@@ -41,18 +41,6 @@ object TestAppModule {
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
-        "lacartoons.com" -> lacartoons(url)?.let { it to 200 }
-        "ver.gnula.one" -> gnula(url)?.let { it to 200 }
-        "serieslan.live" -> serieslan(url)?.let { it to 200 }
-        // TV en vivo: las listas M3U (recortadas).
-        "iptv-org.github.io" -> when {
-            url.encodedPath.endsWith("/index.country.m3u") -> "iptv/pais_inicio.m3u"
-            url.encodedPath.endsWith("/index.category.m3u") -> "iptv/categoria_inicio.m3u"
-            url.encodedPath.endsWith("/index.language.m3u") -> "iptv/idioma_inicio.m3u"
-            url.encodedPath.endsWith("/latam.m3u") -> "iptv/latam_inicio.m3u"
-            else -> "iptv/pe_inicio.m3u"
-        } to 200
-        "mametchikitty.github.io" -> "iptv/dibujos_inicio.m3u" to 200
         // Actualización desde la app: la Release real, con un número de versión más alto que cualquier
         // compilación (las de GitHub Actions se llaman como la versión que se publica), y un "APK" de prueba.
         "api.github.com" -> if (url.encodedPath.endsWith("/releases/latest")) {
@@ -80,35 +68,6 @@ object TestAppModule {
         "voe.sx" -> "TEXTO:<h1>File Not Found</h1>" to 200
         "byselapuix.com" -> "TEXTO:" to 503
         else -> null
-    }
-
-    private fun lacartoons(url: HttpUrl): String? = when {
-        url.encodedPath == "/" && url.queryParameter("Titulo") != null -> "lacartoons/busqueda_bob.html"
-        url.encodedPath == "/" && url.queryParameter("Categoria_id") != null -> "lacartoons/categoria_1_p2.html"
-        url.encodedPath == "/" -> "lacartoons/inicio.html"
-        url.encodedPath == "/serie/1" -> "lacartoons/serie_1.html"
-        url.encodedPath == "/serie/capitulo/1" -> "lacartoons/capitulo_1.html"
-        else -> null
-    }
-
-    private fun gnula(url: HttpUrl): String? = when {
-        url.encodedPath == "/peliculas/" -> "gnula/peliculas.html"
-        // Cualquier película del catálogo abre la ficha guardada (con sus servidores).
-        url.encodedPath.startsWith("/movies/") -> "gnula/pelicula_becky.html"
-        else -> null
-    }
-
-    private fun serieslan(url: HttpUrl): String? {
-        val p = url.encodedPath
-        return when {
-            p == "/api/rest/v1/listing" -> "serieslan/listing_serie.json"
-            p == "/api/rest/v1/search" -> "serieslan/search_chicago.json"
-            p.startsWith("/api/rest/v1/taxonomies/genre/") -> "serieslan/tg.json"
-            p == "/api/rest/v1/content/serie/policias-de-chicago-2014" -> "serieslan/detalle_chicago.json"
-            p == "/api/rest/v1/episodes" && url.queryParameter("season") == "1" -> "serieslan/eps_s1.json"
-            p == "/api/rest/v1/episodes" -> "TEXTO:{\"episodes\":[],\"pagination\":{\"has_next\":false}}"
-            else -> null
-        }
     }
 
     private fun ninja(url: HttpUrl): String? {

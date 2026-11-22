@@ -92,7 +92,6 @@ fun HomeScreen(
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
-    onSection: (section: String) -> Unit = {},
     onOpenAnime: (siteId: String, url: String, title: String, cover: String?) -> Unit,
     onResume: (WatchProgress) -> Unit,
     onOpenEpisode: (siteId: String, animeUrl: String, episodeUrl: String, title: String, image: String?) -> Unit,
@@ -162,21 +161,16 @@ fun HomeScreen(
         var contentFocused by remember { mutableStateOf(false) }
         val sidebarShown by animateFloatAsState(if (contentFocused) 0f else 1f, tween(220), label = "barra")
         val contentStart = SidebarWidth * sidebarShown + 12.dp * (1f - sidebarShown)
-        val leftToSidebar = Modifier.focusProperties { left = tabRequesters.getValue(tab) }
+        // Con una sola pestaña (solo Anime) no hay barra lateral: todo el ancho es para la página.
+        val multiTab = HomeTab.entries.size > 1
+        val leftToSidebar = if (multiTab) Modifier.focusProperties { left = tabRequesters.getValue(tab) } else Modifier
         CompositionLocalProvider(LocalSidebarLeft provides leftToSidebar) {
             Box(
                 Modifier.fillMaxSize()
                     .onFocusChanged { contentFocused = it.hasFocus }
-                    .padding(start = if (wide) contentStart else 12.dp, top = if (wide) 74.dp else 128.dp),
+                    .padding(start = if (wide && multiTab) contentStart else 12.dp, top = if (wide) 74.dp else if (multiTab) 128.dp else 84.dp),
             ) {
                 when (tab) {
-                    HomeTab.RETRO, HomeTab.PELIS, HomeTab.SERIES -> SectionPage(
-                        section = tab.section,
-                        onOpen = { c -> onOpenAnime(c.siteId, c.url, c.title, c.coverUrl) },
-                        onViewAll = { onSection(tab.section) },
-                        leftFocus = leftToSidebar,
-                    )
-                    HomeTab.TV -> TvPage(onOpenTv = { onSection("tv") }, leftFocus = leftToSidebar)
                     HomeTab.ANIME -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 8.dp, end = 24.dp, top = 6.dp, bottom = 28.dp),
@@ -297,12 +291,21 @@ fun HomeScreen(
             }
         }
         if (wide) {
-            HomeSidebar(tab, onFocusTab, tabRequesters, onActivate = { t -> if (t == HomeTab.TV) onSection("tv") else onFocusTab(t) }, modifier = Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
+            // Sin barra lateral (solo Anime): el logo y el nombre van arriba a la izquierda.
+            if (!multiTab) Row(
+                Modifier.align(Alignment.TopStart).padding(start = 22.dp, top = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.animehub.tv.R.drawable.mascota), contentDescription = null, modifier = Modifier.size(40.dp))
+                Text("AnimeHub TV", style = androidx.tv.material3.MaterialTheme.typography.titleMedium)
+            }
+            if (multiTab) HomeSidebar(tab, onFocusTab, tabRequesters, modifier = Modifier.align(Alignment.TopStart).graphicsLayer { translationX = -(1f - sidebarShown) * size.width; alpha = sidebarShown })
             topBar(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 32.dp))
         } else {
             Column(Modifier.align(Alignment.TopStart).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.horizontalScroll(rememberScrollState())) { topBar(Modifier) }
-                HomeTabsRow(tab, onFocusTab, tabRequesters)
+                if (multiTab) HomeTabsRow(tab, onFocusTab, tabRequesters)
             }
         }
     }

@@ -90,6 +90,7 @@ import com.animehub.tv.voice.VoiceSearch
 fun HomeScreen(
     onExplore: (genre: String?) -> Unit,
     onSection: (section: String) -> Unit = {},
+    onOpenCatalog: (kind: String, id: String) -> Unit = { _, _ -> },
     onVoiceSearch: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -172,6 +173,7 @@ fun HomeScreen(
                     .padding(start = if (wide && multiTab) contentStart else 12.dp, top = if (wide) 74.dp else if (multiTab) 128.dp else 84.dp),
             ) {
                 when (tab) {
+                    HomeTab.MOVIES, HomeTab.SERIES -> com.animehub.tv.ui.catalog.CatalogPage(com.animehub.tv.domain.model.CatalogKind.of(tab.section), onOpen = onOpenCatalog)
                     HomeTab.TV -> TvPage(onOpenTv = { onSection("tv") }, leftFocus = leftToSidebar)
                     HomeTab.ANIME -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),

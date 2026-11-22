@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
 @Serializable object TvRoute
 @Serializable data class ExploreRoute(val genre: String? = null, val voice: Boolean = false, val section: String = "anime")
 /** TV en vivo (canales de las listas M3U). */
+@Serializable data class CatalogDetailRoute(val kind: String, val id: String)
 @Serializable object HistoryRoute
 @Serializable object SettingsRoute
 

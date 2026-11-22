@@ -48,6 +48,17 @@ object IptvUrl {
         return if (scheme != null && scheme != url.scheme) url.newBuilder().scheme(scheme).build() else url
     }
 
+    /** Consulta de la API del mismo servidor (`player_api.php?username=…&password=…&action=…`). */
+    fun api(account: IptvAccount, action: String, scheme: String? = null): HttpUrl? {
+        val base = baseOf(account.host, scheme) ?: return null
+        return base.newBuilder().addPathSegment("player_api.php")
+            .addQueryParameter("username", account.user).addQueryParameter("password", account.pass)
+            .addQueryParameter("action", action).build()
+    }
+
+    /** Clave corta que cambia con el servidor, el usuario, la contraseña o el formato (para invalidar las copias). */
+    fun cacheKey(a: IptvAccount): String = Integer.toHexString("${a.host}|${a.user}|${a.pass}|${a.format}".hashCode())
+
     fun alternate(format: String) = if (format == "m3u8") "ts" else "m3u8"
 
     /** La misma señal en el otro formato (`…/123.ts` ↔ `…/123.m3u8`); null si la dirección no termina en uno de los dos. */
@@ -99,7 +110,7 @@ class IptvRepository @Inject constructor(
     /** La lista con la que arranca la TV (la primera vez, el primer canal). */
     suspend fun startList(): IptvList? = mutex.withLock {
         val account = account().takeIf { it.ready } ?: return@withLock null
-        val key = cacheKey(account)
+        val key = IptvUrl.cacheKey(account)
         memory?.takeIf { it.first == key }?.second ?: build(account, key).also { memory = key to it }.takeIf { it.channels.isNotEmpty() }
     }
 
@@ -149,8 +160,6 @@ class IptvRepository @Inject constructor(
         memory = null
         dir.listFiles()?.forEach { it.delete() }
     }
-
-    private fun cacheKey(a: IptvAccount) = Integer.toHexString("${a.host}|${a.user}|${a.pass}|${a.format}".hashCode())
 
     companion object {
         const val LIST_ID = "tv"

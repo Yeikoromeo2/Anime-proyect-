@@ -38,6 +38,8 @@ import com.animehub.tv.ui.theme.AppColors
 /** Pestañas del Inicio: una página por sección (Anime y TV en vivo; con más de una aparece la barra lateral). */
 enum class HomeTab(val title: String, val section: String) {
     ANIME("Anime", "anime"),
+    MOVIES("Películas", "movies"),
+    SERIES("Series", "series"),
     TV("TV en vivo", "tv"),
 }
 

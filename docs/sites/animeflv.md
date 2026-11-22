@@ -1,41 +1,45 @@
-# AnimeFLV — análisis (Fase 0) · ⛔ BLOQUEADO
+# AnimeFLV — análisis
 
-- **Fecha del análisis:** 2026-11-08 (intentos entre 21:51 y 22:20 UTC)
-- **Estado:** no se pudo leer ninguna página HTML. **No hay selectores ni filtros documentados**: no se inventa nada.
+- **Fecha:** 2026-11-09.
+- **Proveedor:** `providers/animeflvwp/` (`"engine": "animeflv-wp"`), sobre **animeflv.or.at**.
+- **Fixtures:** `app/src/test/resources/fixtures/animeflv/`.
 
-## 1. Dominio
+## 1. El original cerró; esta es una copia
 
-| URL | Resultado |
+| URL | Resultado (2026-11-08 y 2026-11-09) |
 |---|---|
-| `https://animeflv.net/` | **522** |
-| `https://www3.animeflv.net/` | **522** (también `/browse?q=one+piece`) |
-| `https://www4.animeflv.net/` | **522** |
-| `https://www3.animeflv.net/robots.txt` | 200 servido **desde la caché** de Cloudflare (`cf-cache-status: STALE`) con cabecera `location: https://www4.animeflv.net/robots.txt` |
+| `https://animeflv.net/`, `www3.`, `www4.` | **522**: el servidor de origen ya no responde |
+| `https://animeflv.or.at/` | **200**, sin verificación de Cloudflare (`www.` redirige aquí) |
 
-- El **522** lo genera Cloudflare cuando **no logra conectar con el servidor de origen** del sitio. No es un bloqueo hacia nosotros ni un desafío anti-bots: el servidor de AnimeFLV no respondía (caída o cambio de servidor). Se repitió varias veces durante ~30 minutos con el mismo resultado.
-- La cabecera `location` en la respuesta en caché sugiere que el sitio **se movió (o se está moviendo) de `www3` a `www4.animeflv.net`**. Por eso el dominio debe vivir en la configuración remota.
-- Cabeceras del origen (de la respuesta en caché): `x-powered-by: PleskLin`, `x-turbo-charged-by: LiteSpeed`.
+- **El AnimeFLV original:** dejó de servir video en junio de 2026 y después cerró ([TorrentFreak](https://torrentfreak.com/anime-piracy-giant-animeflv-mysteriously-stopped-serving-video/), [TorrentFreak](https://torrentfreak.com/mpa-takes-credit-for-shutting-down-piracy-giants-animeflv-and-cineby/)).
+- **animeflv.or.at:** el usuario lo indicó como el sitio actualizado. Es una **copia no oficial**: WordPress 7 con un tema propio que imita a AnimeFLV, de dueños desconocidos.
+  - Un escáner automático lo considera "generalmente seguro" con advertencias ([Gridinsoft](https://gridinsoft.com/online-virus-scanner/url/animeflv-or-at)).
+  - En la app solo se lee su HTML y se reproducen los mismos servidores externos que usa Anime Ninja, con el bloqueo de anuncios y rastreadores activo.
 
-## 2. Protección
+## 2. Portada (`/`)
 
-- **Cloudflare: sí** (`server: cloudflare`).
-- `robots.txt` contiene "Cloudflare Managed Content" (señales de contenido y bloqueo de bots de IA).
-- No se pudo comprobar si hay desafío JS en las páginas porque el origen no responde.
+| Sección | Selector | Notas |
+|---|---|---|
+| Últimos episodios | `section.home-recent-episodes div.ht_grid_1_4` | Enlace `a.thumbnail-link`, título `h2.entry-title` ("Tank Chair Episodio 6"), imagen `img`. La ficha sale de la clase `category-{serie}` de la tarjeta → `/anime/{serie}/` |
+| Lista completa de Animes (portada) | `div.listCatsHome div.ht_grid_1_5` | Con **reseña** en `div.Description > p:last-of-type` → "Series nuevas" |
 
-## 3–8. Búsqueda, filtros, selectores, novedades, detalle, episodio
+## 3. Búsqueda y catálogo
 
-**Pendiente.** Las pistas del enunciado (`/browse` con `genre[]`, `year[]`, `type[]`, `status[]`, `order`; episodios y servidores dentro de `<script>`) **no están verificadas**.
+- **Búsqueda:** `/?s=texto` → tarjetas `div.search-series-card` (título `h2.entry-title`, portada `img.anime-image`), sin más páginas.
+- **Catálogo completo:** `/anime/` y `/anime/page/N/` (18 por página); hay más mientras exista `a.next.page-numbers`.
+- **Filtros:** **no tiene filtros que funcionen**. Las páginas `/genre/{género}/` salen vacías, como una ficha sin episodios, así que en Explorar solo aparece "Todo el catálogo".
 
-## 9. Lo que necesito (HTML guardado)
+## 4. Ficha (`/anime/{serie}/`)
 
-Desde un navegador donde AnimeFLV cargue, guarda estas páginas con **Ctrl+S → "Página web, solo HTML"** (conserva los `<script>`, que es donde suelen estar episodios y servidores) y súbelas al repo en `app/src/test/resources/fixtures/animeflv/`, o pásamelas como prefieras:
+- **Datos:** título `h1.anime-title`, portada `img.poster-image`, valoración `div.rating-score`, géneros `span.genre-tag`, sinopsis `div.anime-synopsis > p`.
+- **Episodios:** en `<script type="application/json" class="animeflv-episodes-data">`, como `[{"permalink": ".../2026/11/08/tank-chair-episodio-6/", "number": 6}]`.
+- **Catálogo incompleto:** la copia solo tiene episodios recientes; de One Piece, del 1167 al 1180.
 
-| Archivo | Página |
-|---|---|
-| `inicio.html` | Portada (últimos episodios) |
-| `busqueda_one_piece.html` | Resultado de buscar "one piece" |
-| `browse_filtros.html` | La página del directorio/búsqueda que tenga el formulario de filtros, con al menos un género y un año seleccionados |
-| `anime.html` | Ficha de un anime en emisión (con lista de episodios) |
-| `episodio.html` | Página de un episodio (con la lista de servidores) |
+## 5. Episodio: servidores
 
-Dime también **la URL exacta** de cada una y el dominio que te muestra el navegador (¿`www3` o `www4`?).
+Bloque `div.server-frames div.button-container`:
+- **Nombre:** en `span.tooltip-text` (HLS, Voe, Byse, MP4Upload).
+- **URL:** en Base64 en `button[data-src]`.
+- **Idioma:** en `app_type` ("Sub").
+
+Son los mismos servidores que en Anime Ninja.

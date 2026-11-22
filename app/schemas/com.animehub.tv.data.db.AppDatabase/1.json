@@ -1,0 +1,177 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "c65ee572a9066b940a75da64b1cfc287",
+    "entities": [
+      {
+        "tableName": "favoritos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`siteId` TEXT NOT NULL, `animeUrl` TEXT NOT NULL, `title` TEXT NOT NULL, `coverUrl` TEXT, `addedAt` INTEGER NOT NULL, PRIMARY KEY(`siteId`, `animeUrl`))",
+        "fields": [
+          {
+            "fieldPath": "siteId",
+            "columnName": "siteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animeUrl",
+            "columnName": "animeUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverUrl",
+            "columnName": "coverUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "siteId",
+            "animeUrl"
+          ]
+        }
+      },
+      {
+        "tableName": "progreso",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`siteId` TEXT NOT NULL, `animeUrl` TEXT NOT NULL, `title` TEXT NOT NULL, `coverUrl` TEXT, `episodeNumber` REAL NOT NULL, `episodeUrl` TEXT NOT NULL, `serverName` TEXT, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `completed` INTEGER NOT NULL, PRIMARY KEY(`siteId`, `episodeUrl`))",
+        "fields": [
+          {
+            "fieldPath": "siteId",
+            "columnName": "siteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animeUrl",
+            "columnName": "animeUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverUrl",
+            "columnName": "coverUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeUrl",
+            "columnName": "episodeUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverName",
+            "columnName": "serverName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "positionMs",
+            "columnName": "positionMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completed",
+            "columnName": "completed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "siteId",
+            "episodeUrl"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_progreso_siteId_animeUrl",
+            "unique": false,
+            "columnNames": [
+              "siteId",
+              "animeUrl"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_progreso_siteId_animeUrl` ON `${TABLE_NAME}` (`siteId`, `animeUrl`)"
+          },
+          {
+            "name": "index_progreso_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_progreso_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "busquedas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`query` TEXT NOT NULL, `searchedAt` INTEGER NOT NULL, PRIMARY KEY(`query`))",
+        "fields": [
+          {
+            "fieldPath": "query",
+            "columnName": "query",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "searchedAt",
+            "columnName": "searchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "query"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c65ee572a9066b940a75da64b1cfc287')"
+    ]
+  }
+}

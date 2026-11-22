@@ -207,3 +207,14 @@ Otros datos de la página de episodio: navegación `.pag_episodes a` (ANTERIOR /
   "coverRewrite": { "pattern": "/t/p/w\\d+/", "replace": "/t/p/w342/" }
 }
 ```
+
+## Portada: recomendados y series nuevas (2026-11-09)
+
+Analizado sobre `fixtures/animeninja/inicio.html` y verificado en vivo (salud de sitios).
+
+| Sección | Tarjeta | Datos |
+|---|---|---|
+| 🔥 RECOMENDADOS (8) | `#featured-titles article.item` | título y enlace `div.data h3 a`, portada `div.poster img` (`data-src`), año `div.data > span`, valoración `div.rating` |
+| ANIMES RECIENTES (18) | `#tvload + div.items > article.item` | igual, con la fecha en `div.data > span` ("Nov. 06, 2026") |
+
+La portada no trae sinopsis: la reseña se toma de la ficha (`#info div.wp-content`) solo de las tarjetas visibles. Una valoración de 0 se oculta.

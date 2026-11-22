@@ -60,6 +60,15 @@ class NavegacionTvEnVivoTest : TvUiTest() {
     }
 
     @Test
+    fun sin_lista_m3u_los_canales_salen_de_la_api_y_suena_el_que_trae_direccion() {
+        kotlinx.coroutines.runBlocking { settings.setIptvUser("soloapi"); iptv.refresh() }
+        activateDescription("Pestaña TV en vivo")
+        // El primer canal de la API no trae dirección: arranca el primero que sí (Canal Cuatro).
+        waitForPlayer { FakeNative.played.isNotEmpty() }
+        assertTrue(FakeNative.played.first().url.endsWith("/live/directo/4.ts"))
+    }
+
+    @Test
     fun si_el_canal_no_da_imagen_se_prueba_el_formato_alternativo() {
         activateDescription("Pestaña TV en vivo")
         waitForPlayer { FakeNative.played.isNotEmpty() }

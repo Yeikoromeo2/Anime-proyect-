@@ -42,11 +42,13 @@ object TestAppModule {
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
         // Lista de TV del usuario (datos de prueba): con output=ts responde 404 para probar el formato alternativo.
-        "lista.test" -> if (url.encodedPath == "/player_api.php" && url.queryParameter("username") == "prueba") when (url.queryParameter("action")) {
+        "lista.test" -> if (url.encodedPath == "/player_api.php" && url.queryParameter("username") in setOf("prueba", "soloapi")) when (url.queryParameter("action")) {
             "get_vod_categories" -> "iptv/vod_categories.json" to 200
             "get_vod_streams" -> "iptv/vod_streams.json" to 200
             "get_series_categories" -> "iptv/series_categories.json" to 200
             "get_series" -> "iptv/series.json" to 200
+            "get_live_categories" -> "iptv/live_categories.json" to 200
+            "get_live_streams" -> "iptv/live_streams.json" to 200
             else -> null
         } else if (url.encodedPath == "/get.php" && url.queryParameter("username") == "prueba") {
             if (url.queryParameter("output") == "m3u8") "iptv/lista_usuario.m3u" to 200 else "TEXTO:{\"message\":\"not found\"}" to 404

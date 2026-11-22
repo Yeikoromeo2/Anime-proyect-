@@ -1,0 +1,3 @@
+[{"name":"Canal Sin Direccion","stream_type":"live","stream_id":"1","stream_icon":"http://servidor.test/logos/a.png","url":"","category_id":"200","direct_source":""},
+ {"name":"Canal Cuatro","stream_type":"live","stream_id":"4","stream_icon":"http://servidor.test/logos/c4.png","url":"http://servidor.test/live/directo/4.ts","category_id":"6","direct_source":""},
+ {"name":"Canal Directo","stream_type":"live","stream_id":"5","stream_icon":"","url":"","category_id":"6","direct_source":"https://servidor.test/live/directo/5.m3u8"}]

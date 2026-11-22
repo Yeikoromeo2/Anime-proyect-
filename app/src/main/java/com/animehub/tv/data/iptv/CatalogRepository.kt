@@ -61,44 +61,12 @@ class CatalogRepository @Inject constructor(
             CatalogKind.MOVIES -> "get_vod_categories" to "get_vod_streams"
             CatalogKind.SERIES -> "get_series_categories" to "get_series"
         }
-        val categoriesText = text(account, key, categoriesAction) ?: return null
-        val itemsText = text(account, key, itemsAction) ?: return null
+        val categoriesText = iptv.apiText(account, key, categoriesAction) ?: return null
+        val itemsText = iptv.apiText(account, key, itemsAction) ?: return null
         val categories = runCatching { CatalogParser.parseCategories(categoriesText) }.getOrDefault(emptyList())
         val items = runCatching { if (kind == CatalogKind.MOVIES) CatalogParser.parseMovies(itemsText) else CatalogParser.parseSeries(itemsText) }.getOrDefault(emptyList())
         return Catalog(kind, categories, items).takeIf { it.items.isNotEmpty() }
     }
-
-    /** Texto de una consulta: la copia de disco si tiene menos de 6 horas; si no se baja (y si falla, la vieja). */
-    private fun text(account: IptvAccount, key: String, action: String): String? {
-        val file = File(dir, "catalogo-$key-$action.json")
-        dir.listFiles()?.filter { it.name.startsWith("catalogo-") && !it.name.startsWith("catalogo-$key-") }?.forEach { it.delete() }
-        if (file.exists() && System.currentTimeMillis() - file.lastModified() < IptvRepository.TTL_MS) return file.readText()
-        val fresh = download(account, action)
-        if (fresh != null) { file.writeText(fresh); return fresh }
-        return if (file.exists()) file.readText() else null
-    }
-
-    private fun download(account: IptvAccount, action: String): String? {
-        val http = client.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
-        val base = IptvUrl.baseOf(account.host) ?: return null
-        var last: Exception? = null
-        for (scheme in listOf(base.scheme, if (base.scheme == "http") "https" else "http")) {
-            val url = IptvUrl.api(account, action, scheme) ?: continue
-            try {
-                val request = Request.Builder().url(url).header("User-Agent", IptvRepository.USER_AGENT).build()
-                http.newCall(request).execute().use { r ->
-                    val body = r.body.string()
-                    if (r.isSuccessful && body.trimStart().startsWith("[")) return body
-                    last = IllegalStateException("HTTP ${r.code}")
-                }
-            } catch (e: Exception) {
-                last = e
-            }
-        }
-        last?.let { errorLog.logIssue("Catálogo", action, it) }
-        return null
-    }
-
 }
 
 /** Lectura de las respuestas de la lista (mezclan números y textos: todo se lee como texto). Sin red ni contexto. */
@@ -134,6 +102,27 @@ object CatalogParser {
             plot = o.str("plot")?.trim()?.takeIf { it.isNotEmpty() },
             categoryIds = (o.str("categories") ?: o.str("category_id")).orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
         )
+    }
+
+    /**
+     * Canales de la API: la dirección es `url` o `direct_source` (solo si el servidor la entrega y es http/https);
+     * sin ella el canal se muestra igual, con la dirección vacía (queda "sin señal").
+     */
+    fun parseLive(id: String, name: String, categoriesText: String, streamsText: String): com.animehub.tv.domain.model.IptvList {
+        val categories = parseCategories(categoriesText)
+        val names = categories.associate { it.id to it.name }
+        val channels = (json.parseToJsonElement(streamsText) as JsonArray).mapNotNull { e ->
+            val o = e as? JsonObject ?: return@mapNotNull null
+            val sid = o.str("stream_id") ?: return@mapNotNull null
+            val title = o.str("name")?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val url = listOf("url", "direct_source").firstNotNullOfOrNull { k -> o.str(k)?.takeIf { it.startsWith("http://") || it.startsWith("https://") } }.orEmpty()
+            com.animehub.tv.domain.model.Channel(
+                key = "$id:$sid", name = title, logo = o.str("stream_icon")?.takeIf { it.startsWith("http") },
+                group = names[o.str("category_id")] ?: com.animehub.tv.domain.model.Iptv.OTHERS,
+                variants = listOf(com.animehub.tv.domain.model.ChannelVariant(url, 0)),
+            )
+        }
+        return com.animehub.tv.domain.model.IptvList(id, name, channels, false, categories.map { it.name })
     }
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it != "null" }

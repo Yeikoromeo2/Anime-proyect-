@@ -116,7 +116,45 @@ class IptvRepository @Inject constructor(
 
     private suspend fun build(account: IptvAccount, key: String): IptvList = withContext(Dispatchers.IO) {
         val entries = runCatching { M3uParser.parseEntries(text(account, key)) }.getOrDefault(emptyList())
-        M3uParser.buildList(LIST_ID, "TV en vivo", entries, kind = "live")
+        val fromM3u = M3uParser.buildList(LIST_ID, "TV en vivo", entries, kind = "live")
+        if (fromM3u.channels.isNotEmpty()) return@withContext fromM3u
+        // Si el servidor no tiene la lista M3U simple (get.php), los canales salen de su API: solo suenan los
+        // que traen dirección; el resto se muestra y queda "sin señal".
+        val categories = apiText(account, key, "get_live_categories")
+        val streams = apiText(account, key, "get_live_streams")
+        if (categories == null || streams == null) return@withContext fromM3u
+        runCatching { CatalogParser.parseLive(LIST_ID, "TV en vivo", categories, streams) }.getOrDefault(fromM3u)
+    }
+
+    /** Respuesta de una consulta de la API (`player_api.php`): copia de disco de 6 h o bajada nueva (y, si falla, la vieja). */
+    fun apiText(account: IptvAccount, key: String, action: String): String? {
+        val file = File(dir, "catalogo-$key-$action.json")
+        dir.listFiles()?.filter { it.name.startsWith("catalogo-") && !it.name.startsWith("catalogo-$key-") }?.forEach { it.delete() }
+        if (file.exists() && System.currentTimeMillis() - file.lastModified() < TTL_MS) return file.readText()
+        val fresh = downloadApi(account, action)
+        if (fresh != null) { file.writeText(fresh); return fresh }
+        return if (file.exists()) file.readText() else null
+    }
+
+    private fun downloadApi(account: IptvAccount, action: String): String? {
+        val http = client.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
+        val base = IptvUrl.baseOf(account.host) ?: return null
+        var last: Exception? = null
+        for (scheme in listOf(base.scheme, if (base.scheme == "http") "https" else "http")) {
+            val url = IptvUrl.api(account, action, scheme) ?: continue
+            try {
+                val request = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                http.newCall(request).execute().use { r ->
+                    val body = r.body.string()
+                    if (r.isSuccessful && body.trimStart().startsWith("[")) return body
+                    last = IllegalStateException("HTTP ${r.code}")
+                }
+            } catch (e: Exception) {
+                last = e
+            }
+        }
+        last?.let { errorLog.logIssue("Catálogo", action, it) }
+        return null
     }
 
     /** Texto de la lista: la copia en disco si tiene menos de 6 horas; si no, se baja (y si falla, la copia vieja). */

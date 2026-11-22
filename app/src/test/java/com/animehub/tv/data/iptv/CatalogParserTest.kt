@@ -37,6 +37,19 @@ class CatalogParserTest {
     }
 
     @Test
+    fun `los canales de la API suenan solo si el servidor da la direccion`() {
+        val list = CatalogParser.parseLive("tv", "TV en vivo", Fixtures.read("iptv/live_categories.json"), Fixtures.read("iptv/live_streams.json"))
+        assertEquals(3, list.channels.size)
+        val sin = list.channels.first { it.name == "Canal Sin Direccion" }
+        assertEquals("", sin.best.url)
+        assertEquals("Mas vistos", sin.group)
+        assertEquals("http://servidor.test/live/directo/4.ts", list.channels.first { it.name == "Canal Cuatro" }.best.url)
+        // direct_source también vale
+        assertEquals("https://servidor.test/live/directo/5.m3u8", list.channels.first { it.name == "Canal Directo" }.best.url)
+        assertEquals(listOf("Mas vistos", "Noticias"), list.groups.map { it.first })
+    }
+
+    @Test
     fun `las direcciones de imagen completas se dejan igual`() {
         assertEquals("http://x.test/a.png", CatalogParser.image("http://x.test/a.png", false))
         assertNull(CatalogParser.image("", false))

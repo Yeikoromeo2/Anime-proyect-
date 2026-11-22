@@ -94,7 +94,7 @@ class LiveTvViewModel @Inject constructor(
             } else {
                 val start = repository.startList()
                 _state.update { it.copy(loading = false) }
-                start?.channels?.firstOrNull()?.let { play(it, start.channels, "${IptvRepository.START_ID}|") }
+                start?.channels?.let { all -> (all.firstOrNull { it.best.url.isNotBlank() } ?: all.firstOrNull())?.let { play(it, all, "${IptvRepository.START_ID}|") } }
             }
         }
         viewModelScope.launch {
@@ -120,7 +120,13 @@ class LiveTvViewModel @Inject constructor(
         _state.update { it.copy(loadingList = id) }
         viewModelScope.launch {
             val list = repository.list(id)
-            _state.update { s -> s.copy(loadingList = null, lists = if (list != null) s.lists + (id to list) else s.lists) }
+            _state.update { s ->
+                s.copy(
+                    loadingList = null,
+                    lists = if (list != null) s.lists + (id to list) else s.lists,
+                    dead = if (list != null) s.dead + list.channels.filter { it.best.url.isBlank() }.map { it.key } else s.dead,
+                )
+            }
         }
     }
 
@@ -132,6 +138,13 @@ class LiveTvViewModel @Inject constructor(
         retried.remove(channel.key)
         altTried.remove(channel.key)
         val v = channel.variants[index]
+        if (v.url.isBlank()) {
+            // El servidor no entregó la dirección de este canal: sin señal, sin esperar.
+            watchdog?.cancel()
+            _streams.tryEmit(null)
+            _state.update { it.copy(signal = Signal.SIN_SENAL, dead = it.dead + channel.key) }
+            return
+        }
         emitStream(v.url, v)
     }
 
@@ -157,7 +170,15 @@ class LiveTvViewModel @Inject constructor(
         val s = _state.value
         val list = s.zap.ifEmpty { return }
         val i = list.indexOfFirst { it.key == s.current?.key }
-        val next = list[((if (i < 0) 0 else i) + delta).mod(list.size)]
+        var index = if (i < 0) 0 else i
+        // Siguiente canal con señal posible (los que no tienen dirección se saltan, si hay alguno que sí).
+        val anyPlayable = list.any { it.best.url.isNotBlank() }
+        var next = list[(index + delta).mod(list.size)]
+        var guard = 0
+        while (anyPlayable && next.best.url.isBlank() && guard++ < list.size) {
+            index += delta
+            next = list[(index + delta).mod(list.size)]
+        }
         play(next, list)
     }
 

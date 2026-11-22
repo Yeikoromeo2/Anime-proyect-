@@ -31,7 +31,7 @@ class NavegacionTvEnVivoTest : TvUiTest() {
         FakeNative.reset()
         kotlinx.coroutines.runBlocking {
             settings.clearLiveTv()
-            settings.setIptvHost("http://tv.m3uts.xyz")
+            settings.setIptvHost("http://lista.test")
             settings.setIptvUser("prueba")
             settings.setIptvPass("prueba")
             settings.setIptvFormat("ts")

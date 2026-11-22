@@ -36,7 +36,7 @@ Agrega 4 sitios: Latanime, Anime Ninja, AnimeFLV (animeflv.or.at), JKAnime (jkan
 - **Credenciales**: servidor/usuario/contraseña se escriben en Ajustes (modo admin) y quedan solo en el dispositivo (DataStore). Para pruebas locales pueden ir en `local.properties` (`IPTV_HOST/USER/PASS`, ignorado por git) y solo entran en la compilación **debug**; la release y la de GitHub Actions salen sin credenciales. Nunca en el repositorio ni en `config/sites.json`.
 - Reproducción (`ui/tv/LiveTvViewModel.markDead`): reconexión una vez si ya sonaba, luego formato alternativo de la señal (`.ts` ↔ `.m3u8`, `IptvUrl.swapStream`), y solo después "Sin señal".
 - Pestaña **TV en vivo** del Inicio (`TvPage`): OK en la pestaña abre la TV con el último canal; la barra lateral reaparece porque hay 2 pestañas.
-- Estado del servidor `tv.m3uts.xyz` el 22-nov-2026: `get.php` respondía 404 (no es Xtream estándar); sí respondían `player_api.php?action=get_vod_categories|get_vod_streams|get_series|get_live_categories`. Sin verificar contra la lista real.
+- Estado del servidor del dueño el 22-nov-2026: `get.php` respondía 404 (no es Xtream estándar); sí respondían `player_api.php?action=get_vod_categories|get_vod_streams|get_series|get_live_categories`. Sin verificar contra la lista real.
 
 ## Rendimiento (lecciones)
 - Unir títulos (`TitleMatcher.group`) es lo más caro de las listas: usa caché por título y un índice por palabras; nunca llamarlo en getters que se evalúan en cada recomposición (en `HomeUiState` va con `by lazy`) ni en el hilo principal con listas grandes (Explorar usa `Dispatchers.Default`).

@@ -41,7 +41,7 @@ class SettingsViewModel @Inject constructor(
     private val configRepository: ConfigRepository,
     private val errorLog: ErrorLogRepository,
     private val iptv: com.animehub.tv.data.iptv.IptvRepository,
-    private val catalog: com.animehub.tv.data.iptv.CatalogRepository,
+    private val vod: com.animehub.tv.vod.VodRepository,
     /** Actualización de la app desde Releases. */
     val appUpdates: UpdateManager,
     val admin: com.animehub.tv.ui.AdminMode,
@@ -95,7 +95,10 @@ class SettingsViewModel @Inject constructor(
         iptv.refresh()
     }
     /** Recarga manual de la lista de TV (la próxima vez que se abra se baja de nuevo). */
-    fun reloadIptv() = viewModelScope.launch { catalog.refresh() }
+    fun reloadIptv() = viewModelScope.launch { iptv.refresh(); vod.refresh() }
+
+    fun setCommunityUrl(value: String) = viewModelScope.launch { settingsRepository.setCommunityCatalogUrl(value); vod.refresh() }
+    fun setCommunityAddons(value: String) = viewModelScope.launch { settingsRepository.setCommunityAddons(value); vod.refresh() }
 
     fun toggleSeek() = viewModelScope.launch {
         settingsRepository.setSeekSeconds(if (state.value.settings.seekSeconds == 10) 30 else 10)

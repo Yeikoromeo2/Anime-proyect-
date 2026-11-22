@@ -1,0 +1,2 @@
+{"seasons":[],"info":{"name":"Serie Uno","plot":"Una historia de prueba.","backdrop_path":["/s1_fondo.jpg"]},
+"episodes":{"1":[{"id":"9002","episode_num":2,"title":"Segundo","container_extension":"mkv","info":{"plot":"El segundo","movie_image":"/e2.jpg"}},{"id":"9001","episode_num":1,"title":"Piloto","container_extension":"mp4","info":{}}],"2":[{"id":"9101","episode_num":"1","title":"","container_extension":""}]}}

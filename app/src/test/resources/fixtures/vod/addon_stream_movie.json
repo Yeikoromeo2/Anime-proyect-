@@ -1,0 +1,4 @@
+{"streams":[
+{"name":"Fuente A\n1080p","title":"Pelicula 1080p","url":"https://cdn.test/a/1080.mp4","behaviorHints":{"proxyHeaders":{"request":{"Referer":"https://cdn.test/"}}}},
+{"name":"Torrent","title":"Pelicula 2160p","infoHash":"abcdef1234567890"},
+{"name":"Fuente B","title":"Pelicula 720p","url":"https://cdn.test/b/720.m3u8"}]}

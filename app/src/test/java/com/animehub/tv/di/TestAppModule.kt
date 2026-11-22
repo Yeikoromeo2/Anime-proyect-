@@ -41,6 +41,23 @@ object TestAppModule {
         "latanime.org" -> latanime(url)
         "jkanime.org" -> jkanime(url)?.let { it to 200 }
         "animeflv.or.at" -> animeflv(url)?.let { it to 200 }
+        // Módulo VOD: catálogo comunitario (Cinemeta) y addon de fuentes con datos de prueba.
+        "v3-cinemeta.strem.io" -> {
+            val path = url.encodedPath
+            when {
+                path.startsWith("/catalog/movie/top/search=") -> "vod/cinemeta_top_movie.json" to 200
+                path.startsWith("/catalog/movie/top") -> "vod/cinemeta_top_movie.json" to 200
+                path.startsWith("/catalog/series/top") -> "vod/cinemeta_top_series.json" to 200
+                path.startsWith("/meta/movie/") -> "vod/cinemeta_meta_movie.json" to 200
+                path.startsWith("/meta/series/") -> "vod/cinemeta_meta_series.json" to 200
+                else -> null
+            }
+        }
+        "addon.test" -> when (url.pathSegments.getOrNull(2)?.removeSuffix(".json")) {
+            "tt0001" -> "vod/addon_stream_movie.json" to 200
+            "tt0002:1:2" -> "vod/addon_stream_series.json" to 200
+            else -> null
+        }
         // Lista de TV del usuario (datos de prueba): con output=ts responde 404 para probar el formato alternativo.
         "lista.test" -> if (url.encodedPath == "/player_api.php" && url.queryParameter("username") in setOf("prueba", "soloapi")) when (url.queryParameter("action")) {
             "get_vod_categories" -> "iptv/vod_categories.json" to 200
@@ -48,6 +65,7 @@ object TestAppModule {
             "get_series_categories" -> "iptv/series_categories.json" to 200
             "get_series" -> "iptv/series.json" to 200
             "get_live_categories" -> "iptv/live_categories.json" to 200
+            "get_series_info" -> "vod/xtream_series_info.json" to 200
             "get_live_streams" -> "iptv/live_streams.json" to 200
             else -> null
         } else if (url.encodedPath == "/get.php" && url.queryParameter("username") == "prueba") {

@@ -1,0 +1,6 @@
+{"meta":{"id":"tt0002","imdb_id":"tt0002","type":"series","name":"Serie Test","year":"2010","poster":"https://img.test/p/tt0002.jpg","description":"Una serie de prueba.","imdbRating":"9.0","genres":["Drama"],
+"videos":[
+{"name":"Especial","season":"0","number":"1","episode":"1","id":"tt0002:0:1"},
+{"name":"Segundo","season":"1","number":"2","episode":"2","overview":"El segundo.","thumbnail":"https://img.test/e/2.jpg","id":"tt0002:1:2"},
+{"name":"Piloto","season":"1","number":"1","episode":"1","id":"tt0002:1:1"},
+{"name":"Regreso","season":"2","number":"1","episode":"1","id":"tt0002:2:1"}]}}

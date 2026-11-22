@@ -43,6 +43,9 @@ android {
         buildConfigField("String", "IPTV_HOST", "\"\"")
         buildConfigField("String", "IPTV_USER", "\"\"")
         buildConfigField("String", "IPTV_PASS", "\"\"")
+        // Catálogo comunitario abierto (público) y addons de fuentes (vacío: se agregan en local.properties o en Ajustes).
+        buildConfigField("String", "COMMUNITY_CATALOG_URL", quoted(localProps.getProperty("COMMUNITY_CATALOG_URL") ?: "https://v3-cinemeta.strem.io"))
+        buildConfigField("String", "COMMUNITY_STREAM_ADDONS", "\"\"")
     }
 
     signingConfigs {
@@ -68,6 +71,7 @@ android {
             buildConfigField("String", "IPTV_HOST", quoted(localProps.getProperty("IPTV_HOST")))
             buildConfigField("String", "IPTV_USER", quoted(localProps.getProperty("IPTV_USER")))
             buildConfigField("String", "IPTV_PASS", quoted(localProps.getProperty("IPTV_PASS")))
+            buildConfigField("String", "COMMUNITY_STREAM_ADDONS", quoted(localProps.getProperty("COMMUNITY_STREAM_ADDONS")))
         }
     }
 

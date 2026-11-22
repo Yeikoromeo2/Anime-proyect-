@@ -62,6 +62,9 @@ data class AppSettings(
     val iptvPass: String = "",
     /** Formato de transmisión de la lista: "ts" o "m3u8" (si uno falla se prueba el otro). */
     val iptvFormat: String = "ts",
+    /** Módulo VOD: catálogo comunitario (dirección base) y addons de fuentes (direcciones separadas por coma). Vacío = los de local.properties. */
+    val communityCatalogUrl: String = "",
+    val communityAddons: String = "",
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "ajustes")
@@ -90,6 +93,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             iptvUser = p[IPTV_USER].orEmpty(),
             iptvPass = p[IPTV_PASS].orEmpty(),
             iptvFormat = p[IPTV_FORMAT]?.takeIf { it == "ts" || it == "m3u8" } ?: "ts",
+            communityCatalogUrl = p[COMMUNITY_URL].orEmpty(),
+            communityAddons = p[COMMUNITY_ADDONS].orEmpty(),
         )
     }
 
@@ -145,6 +150,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
     suspend fun setIptvHost(value: String) = store.edit { it[IPTV_HOST] = value.trim() }
     suspend fun setIptvUser(value: String) = store.edit { it[IPTV_USER] = value.trim() }
     suspend fun setIptvPass(value: String) = store.edit { it[IPTV_PASS] = value.trim() }
+    suspend fun setCommunityCatalogUrl(value: String) = store.edit { it[COMMUNITY_URL] = value.trim() }
+    suspend fun setCommunityAddons(value: String) = store.edit { it[COMMUNITY_ADDONS] = value.trim() }
     suspend fun setIptvFormat(value: String) = store.edit { it[IPTV_FORMAT] = if (value == "m3u8") "m3u8" else "ts" }
 
     private suspend fun updateMap(key: Preferences.Key<Set<String>>, id: String, value: String?) {
@@ -178,6 +185,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         private val IPTV_USER = stringPreferencesKey("iptv_user")
         private val IPTV_PASS = stringPreferencesKey("iptv_pass")
         private val IPTV_FORMAT = stringPreferencesKey("iptv_format")
+        private val COMMUNITY_URL = stringPreferencesKey("community_catalog_url")
+        private val COMMUNITY_ADDONS = stringPreferencesKey("community_stream_addons")
         private val ALLOWED_REMOTES = stringSetPreferencesKey("allowed_remotes")
         private val LAST_UPDATE = longPreferencesKey("last_config_update")
         private val HOME_SITE = stringPreferencesKey("home_site")

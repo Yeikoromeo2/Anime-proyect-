@@ -123,7 +123,7 @@ class IptvRepository @Inject constructor(
         val categories = apiText(account, key, "get_live_categories")
         val streams = apiText(account, key, "get_live_streams")
         if (categories == null || streams == null) return@withContext fromM3u
-        runCatching { CatalogParser.parseLive(LIST_ID, "TV en vivo", categories, streams) }.getOrDefault(fromM3u)
+        runCatching { LiveApiParser.parseLive(LIST_ID, "TV en vivo", categories, streams) }.getOrDefault(fromM3u)
     }
 
     /** Respuesta de una consulta de la API (`player_api.php`): copia de disco de 6 h o bajada nueva (y, si falla, la vieja). */

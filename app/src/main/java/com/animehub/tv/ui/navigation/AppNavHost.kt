@@ -44,7 +44,7 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
     NavHost(navController = nav, startDestination = HomeRoute) {
         composable<HomeRoute> {
             HomeScreen(
-                onOpenCatalog = { kind, id -> nav.navigate(CatalogDetailRoute(kind, id)) },
+                onOpenVod = { provider, type, id -> nav.navigate(VodDetailRoute(provider, type, id)) },
                 onSection = { section -> if (section == "tv") nav.navigate(TvRoute) else nav.navigate(ExploreRoute(section = section)) },
                 onExplore = { genre -> nav.navigate(ExploreRoute(genre)) },
                 onVoiceSearch = { nav.navigate(ExploreRoute(voice = true)) },
@@ -59,7 +59,10 @@ fun AppNavHost(onExit: () -> Unit, remoteEvents: Flow<RemoteEvent> = emptyFlow()
                 onExit = onExit,
             )
         }
-        composable<CatalogDetailRoute> { com.animehub.tv.ui.catalog.CatalogDetailScreen() }
+        composable<VodDetailRoute> {
+            com.animehub.tv.vod.ui.VodDetailScreen(onPlay = { provider, type, id, season, episode, title -> nav.navigate(VodPlayerRoute(provider, type, id, season, episode, title)) })
+        }
+        composable<VodPlayerRoute> { com.animehub.tv.vod.ui.VodPlayerScreen(onExit = { nav.popBackStack() }) }
         composable<TvRoute> { com.animehub.tv.ui.tv.LiveTvScreen(onExit = { nav.popBackStack() }) }
         composable<ExploreRoute> { entry ->
             val route = entry.toRoute<ExploreRoute>()

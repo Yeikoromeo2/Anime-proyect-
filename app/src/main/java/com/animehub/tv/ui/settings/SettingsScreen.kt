@@ -46,6 +46,8 @@ private sealed interface SettingsDialog {
     data object EditIptvHost : SettingsDialog
     data object EditIptvUser : SettingsDialog
     data object EditIptvPass : SettingsDialog
+    data object EditCommunityUrl : SettingsDialog
+    data object EditCommunityAddons : SettingsDialog
     data object ClearServers : SettingsDialog
     data object Errors : SettingsDialog
 }
@@ -174,6 +176,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         if (admin) item {
             SettingItem(title = "Contraseña de la lista", subtitle = if (state.settings.iptvPass.isBlank()) "Sin definir" else "••••••", onClick = { dialog = SettingsDialog.EditIptvPass })
         }
+        if (admin) item {
+            SettingItem(title = "Catálogo comunitario", subtitle = state.settings.communityCatalogUrl.ifBlank { "El de la configuración local (Cinemeta)" }, onClick = { dialog = SettingsDialog.EditCommunityUrl })
+        }
+        if (admin) item {
+            SettingItem(
+                title = "Addons de fuentes",
+                subtitle = state.settings.communityAddons.ifBlank { "Ninguno (direcciones base de addons compatibles con Stremio, separadas por coma)" },
+                onClick = { dialog = SettingsDialog.EditCommunityAddons },
+            )
+        }
         item {
             SettingItem(
                 title = "Formato de transmisión",
@@ -290,6 +302,22 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             placeholder = "contraseña",
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
             onSave = { value -> viewModel.setIptvPass(value); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.EditCommunityUrl -> TextInputDialog(
+            title = "Catálogo comunitario",
+            message = "Dirección base del catálogo (por defecto Cinemeta). Vacío = la de la configuración local.",
+            initialValue = state.settings.communityCatalogUrl,
+            placeholder = "https://…",
+            onSave = { value -> viewModel.setCommunityUrl(value); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.EditCommunityAddons -> TextInputDialog(
+            title = "Addons de fuentes",
+            message = "Direcciones base de addons compatibles con Stremio, separadas por coma.",
+            initialValue = state.settings.communityAddons,
+            placeholder = "https://addon1…, https://addon2…",
+            onSave = { value -> viewModel.setCommunityAddons(value); dialog = null },
             onDismiss = { dialog = null },
         )
         SettingsDialog.ClearServers -> ConfirmDialog(
